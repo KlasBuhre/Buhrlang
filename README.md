@@ -256,6 +256,15 @@ Example:
         }
     }
 
+Instead of using a match expression when checking for the presence of a value,
+an 'if let' statement can be used.
+
+Example:
+
+    if let Some(request) = parseHttpRequest("GET /dir/index.html HTTP/1.1") {
+        println(request.method + " " + request.url)
+    }
+
 -------------------------------------------------------------------------------
 Functional Features - Lambda expressions
 -------------------------------------------------------------------------------
@@ -342,6 +351,7 @@ Example:
     }
 
 It is possible to match with different types.
+
 Example:
 
     interface Expression
@@ -367,6 +377,26 @@ Example:
         let expr = new Add(new Const(1), 
                            new Mult(new Const(2), new Mult(new X, new X)))
         println(eval(expr, 3)) // Prints: 19
+    }
+
+Since downcasting are unsafe operations which fail if the type is not the 
+requested one, downcasts have to be done using pattern matching.
+
+Example:
+
+    let fruit = (Fruit) new Apple  // Upcast.
+    println(fruit.name)
+
+    let Fruit someFruit = new Orange
+    if let Orange orange = someFruit { // Downcast.
+        println(orange.name)
+    }
+
+    match fruit {
+        Apple apple   -> apple.bite,
+        Orange orange -> orange.peel,
+        Peach _       -> println("Some peach"),
+        _             -> {}
     }
 
 -------------------------------------------------------------------------------
