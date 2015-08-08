@@ -1,29 +1,29 @@
 # Buhrlang
-Buhrlang is a multi-paradigm language. It is object-oriented, functional and concurrent.
+Buhrlang is an object-oriented, functional and concurrent programming language.
 
 ﻿-------------------------------------------------------------------------------
 Contents
 -------------------------------------------------------------------------------
-Motivation for a new language
-Overview
-Type safety
-Object-oriented features
-Generic types
-Functional features
-Concurrency
-Demo
+ - Motivation for a new language
+ - Some features
+ - Type system
+ - Object-oriented features
+ - Generic types
+ - Functional features
+ - Enumerations
+ - Concurrency
 
 -------------------------------------------------------------------------------
 Motivation for a new language
 -------------------------------------------------------------------------------
 Many existing languages used in the server application domain have limitations 
 that are hard to overcome without introducing non-backward compatible changes. 
-Examples of such limitations:
+Such limitations include:
  - Data is mutable by default in C++, Java, C# etc.
- - Null pointers.
+ - Null pointer exceptions / segmentation faults.
  - Specific to C++: memory management is error-prone and there are implicit 
    conversions between unrelated types.
- - Race conditions in concurrent applications are common.
+ - Race conditions are common in concurrent applications.
  - Many languages have grown to be very complicated.
 
 Most of these limitations can be addressed from the beginning in a new language. 
@@ -31,13 +31,17 @@ Therefore, the goal was to design a simple, safe and concurrent language used
 for developing large server applications.
 
 -------------------------------------------------------------------------------
-Overview
+Some features
 -------------------------------------------------------------------------------
-X is a multi-paradigm language:
- - Object-oriented
- - Functional
- - Concurrent
-
+ - Data is immutable by default
+ - All pointers point to a valid object. There are no null pointers
+ - Light-wight processes that act as objects
+ - Type inference
+ - Pattern matching
+ - Classes and interfaces
+ - Tagged unions (enumerations)
+ - Generics
+ 
 -------------------------------------------------------------------------------
 The basics – hello world
 -------------------------------------------------------------------------------
@@ -48,24 +52,7 @@ The basics – hello world
     }
 
 -------------------------------------------------------------------------------
-Type Safety – Static typing
--------------------------------------------------------------------------------
-The types of all variables/objects must be known at compile-time.
-All data is immutable (write-protected) by default.
- - Write-protection can be overriden.
-
-Example:
-
-    staticTypesExample() {
-        let int i = 42
-        let bool b = true
-        b = false    // Error: Cannot change the value of a constant.
-        var bool v = true
-        v = false    // OK: v is not a constant.
-    }
-
--------------------------------------------------------------------------------
-Type Safety – Type inference
+Type System – Type inference
 -------------------------------------------------------------------------------
 The compiler can infer the type of variables that are initialized when 
 declared.
@@ -84,10 +71,27 @@ Example:
     }
 
 -------------------------------------------------------------------------------
-Type Safety – Memory safety
+Type System – Static typing
 -------------------------------------------------------------------------------
-Variables of primitive types are stored on the stack while objects of reference 
-type are stored on the heap.
+The types of all variables/objects must be known at compile-time.
+All data is immutable (write-protected) by default.
+ - Write-protection can be overriden.
+
+Example:
+
+    staticTypesExample() {
+        let int i = 42
+        let bool b = true
+        b = false    // Error: Cannot change the value of a constant.
+        var bool v = true
+        v = false    // OK: v is not a constant.
+    }
+
+-------------------------------------------------------------------------------
+Type System – Memory safety
+-------------------------------------------------------------------------------
+Local variables of value type are stored on the stack while objects of 
+reference type are stored on the heap.
  - Heap objects are disposed automatically (currently by automatic reference 
    counting, later by garbage collector).
  - Automatic bounds checking at run-time for arrays.
@@ -104,7 +108,7 @@ Example:
 -------------------------------------------------------------------------------
 Object-Oriented Features - classes
 -------------------------------------------------------------------------------
-All types are classes, even primitive types.
+Classes are reference types. Constructors are defined using the 'init' keyword.
  - All members are public by default but can be made private.
  - No protected members.
 
@@ -140,7 +144,10 @@ Using compact constructors, the previous example could have been written:
 -------------------------------------------------------------------------------
 Object-Oriented Features - Inheritance
 -------------------------------------------------------------------------------
-A class can only inherit from one concrete class.
+A class can only inherit from one concrete class. In the following example, 
+note the 'arg' keyword, which indicates that the 'mass' property is not a 
+member of Truck. It is only a constructor argument which is sent to the 
+constructor of Vehicle.
 
 Example:
 
@@ -170,8 +177,7 @@ Example:
             return Result.Ok
         }
 
-        handleCallback(Result result) {
-        }
+        handleCallback(Result result) {}
     }
 
 -------------------------------------------------------------------------------
@@ -196,74 +202,6 @@ Example:
     books.add(new Book("Stroustrup", "The C++ Programming Language", 399.50))
     books.add(new Book("Buhre", "Programming for Monkeys", 599.50))
     books.add(new Book("Kurzweil", "How to Create a Mind", 299.50))
-
--------------------------------------------------------------------------------
-Enumerations
--------------------------------------------------------------------------------
-Enumeration variants can have data. Such data can only be accessed through 
-pattern matching. Unlike class objects which are of reference type, enums are 
-value type objects.
-
-Example:
-
-    enum Shape {
-        Square(int),
-        Rectangle(int, int),
-        Circle(int),
-        Point
-    }
-
-    int rectangularArea(Shape shape) {
-        return match shape {
-            Shape.Square(side)             -> side * side,
-            Shape.Rectangle(width, height) -> width * height,
-            Shape.Circle(_)                -> 0,
-            Shape.Point                    -> 0
-        }
-    }
-
-    let area = rectangularArea(Shape.Rectangle(2, 4)) 
-
-Enumerations can take generic type parameters. This allows us to create an enum
-that can represent a value or the absence of a value.
-
-Example:
-
-    enum Option<T> {
-        Some(T),
-        None
-    }
-
-    // Expose the contents of the Option namespace.
-    use Option
-
-The option type can then be used instead of null pointers. In this language, 
-all pointers are valid. There is no support for null pointers.
-
-Example:
-
-    Option<HttpRequest> parseHttpRequest(string requestLine) {
-        return match requestLine.split {
-            [method, url, "HTTP/1.1"] -> Some(new HttpRequest(method, url)),
-            _ -> None
-        }
-    }
-
-    testOption() {
-        match parseHttpRequest("GET /dir/index.html HTTP/1.1") {
-            Some(request) -> println(request.method + " " + request.url),
-            None          -> println("Could not parse request")
-        }
-    }
-
-Instead of using a match expression when checking for the presence of a value,
-an 'if let' statement can be used.
-
-Example:
-
-    if let Some(request) = parseHttpRequest("GET /dir/index.html HTTP/1.1") {
-        println(request.method + " " + request.url)
-    }
 
 -------------------------------------------------------------------------------
 Functional Features - Lambda expressions
@@ -315,9 +253,11 @@ Example:
 Functional Features - Pattern matching
 -------------------------------------------------------------------------------
 Matching operands with sequences of patterns can be a powerful alternative to 
-if/else statements.
-
-Example:
+if/else statements. One way of applying pattern matching in this language is to
+use a match expression. A match expression looks a little bit like a switch 
+statement, however there are a couple of differences. For example, a match 
+expression can return a value. In the following example, 'y' will be the 
+string value returned from the match expression:
 
     let x = 4
     let y = match x {
@@ -327,6 +267,8 @@ Example:
         _     -> "Don’t care"
     }
 
+You can match against arrays ('..' means any number of elements) : 
+
     let a = [1, 2, 3, 4]
     match a {
         [1, second, _]  -> println(second),
@@ -334,7 +276,7 @@ Example:
         _ ->   // Do nothing.
     }
 
-Patterns can match classes.
+Patterns can also match classes if the classes have compact constructors.
 
 Example:
 
@@ -400,6 +342,74 @@ Example:
     }
 
 -------------------------------------------------------------------------------
+Enumerations
+-------------------------------------------------------------------------------
+Enumeration variants can have data. Such data can only be accessed through 
+pattern matching. Unlike class objects which are of reference type, enums are 
+value type objects. Enumerations are implemented as tagged unions. 
+
+Example:
+
+    enum Shape {
+        Square(int),
+        Rectangle(int, int),
+        Circle(int),
+        Point
+    }
+
+    int rectangularArea(Shape shape) {
+        return match shape {
+            Shape.Square(side)             -> side * side,
+            Shape.Rectangle(width, height) -> width * height,
+            Shape.Circle(_)                -> 0,
+            Shape.Point                    -> 0
+        }
+    }
+
+    let area = rectangularArea(Shape.Rectangle(2, 4)) 
+
+Enumerations can take generic type parameters. This allows us to create an enum
+that can represent a value or the absence of a value.
+
+Example:
+
+    enum Option<T> {
+        Some(T),
+        None
+    }
+
+    // Expose the contents of the Option namespace.
+    use Option
+
+The option type can then be used instead of null pointers. In this language, 
+all pointers are valid. There is no support for null pointers.
+
+Example:
+
+    Option<HttpRequest> parseHttpRequest(string requestLine) {
+        return match requestLine.split {
+            [method, url, "HTTP/1.1"] -> Some(new HttpRequest(method, url)),
+            _ -> None
+        }
+    }
+
+    testOption() {
+        match parseHttpRequest("GET /dir/index.html HTTP/1.1") {
+            Some(request) -> println(request.method + " " + request.url),
+            None          -> println("Could not parse request")
+        }
+    }
+
+Instead of using a match expression when checking for the presence of a value,
+we can use an 'if let' statement.
+
+Example:
+
+    if let Some(request) = parseHttpRequest("GET /dir/index.html HTTP/1.1") {
+        println(request.method + " " + request.url)
+    }
+
+-------------------------------------------------------------------------------
 Concurrency
 -------------------------------------------------------------------------------
 Concurrency is implemented using light-wight processes (referred to as just 
@@ -407,7 +417,7 @@ Concurrency is implemented using light-wight processes (referred to as just
  - Many processes execute within one native OS process.
  - No data is shared between processes. Communications between processes is 
    done by remote method calls. 
- - Implemented by message passing.
+ - Remote method calls are implemented by message passing.
  - Message passing code is generated automatically.
  - Arguments are cloned in most cases since data cannot be shared between 
    processes.

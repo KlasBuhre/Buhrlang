@@ -24,6 +24,14 @@ public:
         return *currentToken;
     }
 
+    void storePosition() {
+        storedPosition = currentToken;
+    }
+
+    void restorePosition() {
+        currentToken = storedPosition;
+    }
+
 private:    
     void initKeywordMap();
     void readFile(const std::string& filename);
@@ -53,6 +61,7 @@ private:
     TokenList tokenList;
     State state;
     TokenList::const_iterator currentToken;
+    TokenList::const_iterator storedPosition;
     KeywordMap keywordMap;
     Location location;
     Location start;

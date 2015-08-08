@@ -292,6 +292,12 @@ class ExpressionTest {
         let f = -1.3 * -2.77
         println(f)
 
+        let a1 = 1
+        let a2 = 2
+        let b4 = 4
+        let b5 = 5
+        println((a1 < a2) && (b4 < b5))
+
         var y = 2
         y += 1
         println(y)
@@ -1595,6 +1601,12 @@ class TypeCastTest {
         let byte b = 255
         let i = (int) b
         println(i)
+
+        let object o = new Vector<int>
+        match o {
+            Vector<int> v -> println("Vector<int>"),
+            _ -> {}
+        }
     }
 }
 

@@ -26,6 +26,11 @@ public:
 
     void importDefaultModules();
     void parse();
+    void error(const std::string& message, const Token& token);
+
+    Lexer& getLexer() {
+        return lexer;
+    }
 
 private:
     void addDefinition(Definition* definition);
@@ -102,10 +107,8 @@ private:
     Expression* parseClassDecompositionExpression(
         const Identifier& typeName,
         const Location& loc);
-    Expression* parseTypedExpression(
-        const Identifier& typeName,
-        const Location& loc);
-    bool couldBeTypedExpressionResultName();
+    bool typedExpressionStartsHere();
+    Expression* parseTypedExpression();
     ConstructorCallStatement* parseConstructorCall();
     void parseIfStatement();
     void parseOptionalBinding(const Location& location);
@@ -128,10 +131,14 @@ private:
     void parseIdentifierList(IdentifierList& identifierList);
     void expectNewline();
     void expectCloseBraceOrNewline();
+    void setLookaheadMode();
+    void setNormalMode();
 
     Lexer lexer;
     Tree& tree;
     Module* module;
+    bool allowError;
+    bool anyErrors;
 };
 
 #endif

@@ -10,6 +10,7 @@ Lexer::Lexer(const std::string& filename) :
     tokenList(),
     state(Idle),
     currentToken(tokenList.end()),
+    storedPosition(tokenList.end()),
     keywordMap(),
     location(filename),
     start(filename),

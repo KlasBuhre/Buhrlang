@@ -32,14 +32,12 @@ class HttpResponse(string statusCode, string reasonPhrase) {
 
 process HttpWorker {
     handleConnection(TcpSocket socket) {
-        socket.using { ||
-            let request = HttpRequest.receive(socket)
-            let response = match request {
-                Some(validRequest) -> handleRequest(validRequest),
-                None               -> new HttpResponse("400", "Bad Request")
-            }
-            socket.write(response.encode)
+        let request = HttpRequest.receive(socket)
+        let response = match request {
+            Some(validRequest) -> handleRequest(validRequest),
+            None               -> new HttpResponse("400", "Bad Request")
         }
+        socket.write(response.encode)
         Process.terminate
     }
 

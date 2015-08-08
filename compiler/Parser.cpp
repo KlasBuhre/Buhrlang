@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
+#include <memory>
 
 #include "Parser.h"
 #include "Definition.h"
@@ -12,10 +13,6 @@
 #include "EnumGenerator.h"
 
 namespace  {
-    void error(const std::string& message, const Token& token) {
-        Trace::error(message, token.getLocation());
-    }
-
     void removeAliasPrefix(Identifier& identifier) {
         if (identifier.length() > 2 &&
             identifier.substr(0, 2).compare("__") == 0) {
@@ -25,16 +22,18 @@ namespace  {
 
     class CommaSeparatedListParser {
     public:
-        CommaSeparatedListParser(Lexer& l, Operator::OperatorType end) :
-            lexer(l),
+        CommaSeparatedListParser(Parser* p, Operator::OperatorType end) :
+            parser(p),
             endDelimiter(end),
             commaExpected(false) {}
 
-        CommaSeparatedListParser(Lexer& l) :
-            CommaSeparatedListParser(l, Operator::None) {}
+        CommaSeparatedListParser(Parser* p) :
+            CommaSeparatedListParser(p, Operator::None) {}
 
         bool parseComma() {
+            Lexer& lexer = parser->getLexer();
             const Token& token = lexer.getCurrentToken();
+
             if (endDelimiter == Operator::None) {
                 if (commaExpected && !token.isOperator(Operator::Comma)) {
                     return false;
@@ -45,22 +44,24 @@ namespace  {
                     return false;
                 }
             }
+
             if (commaExpected) {
                 if (!token.isOperator(Operator::Comma)) {
-                    error("Expected ','.", token);
+                    parser->error("Expected ','.", token);
                 }
                 lexer.consumeToken();
             } else {
                 if (token.isOperator(Operator::Comma)) {
-                    error("Unexpected ','.", token);
+                    parser->error("Unexpected ','.", token);
                 }
             }
+
             commaExpected = true;
             return true;
         }
         
     private:
-        Lexer& lexer;
+        Parser* parser;
         Operator::OperatorType endDelimiter;
         bool commaExpected;
     };
@@ -69,7 +70,9 @@ namespace  {
 Parser::Parser(const std::string& filename, Tree& ast, Module* mod) :
     lexer(filename),
     tree(ast),
-    module(mod) {}
+    module(mod),
+    allowError(false),
+    anyErrors(false) {}
 
 void Parser::importDefaultModules() {
     importModule("System.b");
@@ -238,7 +241,7 @@ void Parser::parseGenericTypeParametersDeclaration(
 
     assert(lexer.consumeToken().isOperator(Operator::Less));
 
-    CommaSeparatedListParser listParser(lexer, Operator::Greater);
+    CommaSeparatedListParser listParser(this, Operator::Greater);
     while (listParser.parseComma()) {
         const Token& typeParameterName = lexer.consumeToken();
         if (!typeParameterName.isIdentifier()) {
@@ -376,7 +379,7 @@ void Parser::parseMethodArgumentList(MethodDefinition* method) {
 void Parser::parseArgumentList(ArgumentList& argumentList) {
     assert(lexer.consumeToken().isOperator(Operator::OpenParentheses));
 
-    CommaSeparatedListParser listParser(lexer, Operator::CloseParentheses);
+    CommaSeparatedListParser listParser(this, Operator::CloseParentheses);
     while (listParser.parseComma()) {
         bool isDataMember = true;
         if (lexer.getCurrentToken().isKeyword(Keyword::Arg)) {
@@ -411,7 +414,7 @@ void Parser::parseLambdaSignature(MethodDefinition* method) {
     }
 
     LambdaSignature* lambdaSignature = new LambdaSignature(returnType); 
-    CommaSeparatedListParser listParser(lexer, Operator::CloseParentheses);
+    CommaSeparatedListParser listParser(this, Operator::CloseParentheses);
     while (listParser.parseComma()) {
         lambdaSignature->addArgument(parseType());
     }
@@ -546,7 +549,7 @@ void Parser::parseEnumeration() {
                                 name.getLocation(),
                                 tree);
 
-    CommaSeparatedListParser listParser(lexer, Operator::CloseBrace);
+    CommaSeparatedListParser listParser(this, Operator::CloseBrace);
     while (listParser.parseComma()) {
         parseEnumerationVariant(enumGenerator);
     }
@@ -568,7 +571,7 @@ void Parser::parseEnumerationVariant(EnumGenerator& enumGenerator) {
     ArgumentList variantData;
     if (lexer.getCurrentToken().isOperator(Operator::OpenParentheses)) {
         lexer.consumeToken();
-        CommaSeparatedListParser listParser(lexer, Operator::CloseParentheses);
+        CommaSeparatedListParser listParser(this, Operator::CloseParentheses);
         int numberOfDataMembers = 0;
         while (listParser.parseComma()) {
             Location loc = location();
@@ -791,27 +794,36 @@ Type* Parser::parseType() {
                 break;
         }
     } else {
-        error("Expected type.", token);    
+        error("Expected type.", token);
     }
 
-    if (lexer.getCurrentToken().isOperator(Operator::Less)) {
-        parseGenericTypeParameters(type);
+    if (type != nullptr) {
+        if (lexer.getCurrentToken().isOperator(Operator::Less)) {
+            parseGenericTypeParameters(type);
+            if (anyErrors) {
+                return nullptr;
+            }
+        }
+        if (lexer.getCurrentToken().isOperator(Operator::OpenBracket)) {
+            parseArrayType(type);
+            if (anyErrors) {
+                return nullptr;
+            }
+        }
     }
-    if (lexer.getCurrentToken().isOperator(Operator::OpenBracket)) {
-        parseArrayType(type);
-    }
+
     return type;
 }
 
 Type* Parser::parseTypeName() {
-    Type* type = nullptr;
     const Token& token = lexer.getCurrentToken();
     if (token.isKeyword()) {
-        type = Keyword::toType(token.getKeyword());
+        Type* type = Keyword::toType(token.getKeyword());
         if (type == nullptr) {
             error("Expected type.", token);
         }
         lexer.consumeToken();
+        return type;
     } else if (token.isIdentifier()) {
         // Now we must peek one token ahead to figure out if the 
         // identifier is a type name or variable name.
@@ -820,24 +832,32 @@ Type* Parser::parseTypeName() {
             secondToken.isOperator(Operator::OpenBracket) ||
             secondToken.isOperator(Operator::Less)) {
             // The identifer is a type name.
-            type = new Type(token.getValue());
+            Type* type = new Type(token.getValue());
             lexer.consumeToken();
+            return type;
         } else {
             // Not a type name. The type is implicit.
-            type = new Type(Type::Implicit);
+            return new Type(Type::Implicit);
         }
     } else {
         error("Expected type.", token);
     }
-    return type;
+    return nullptr;
 }
 
 void Parser::parseGenericTypeParameters(Type* type) {
     assert(lexer.consumeToken().isOperator(Operator::Less));
 
-    CommaSeparatedListParser listParser(lexer, Operator::Greater);
+    CommaSeparatedListParser listParser(this, Operator::Greater);
     while (listParser.parseComma()) {
+        if (anyErrors) {
+            return;
+        }
+
         Type* typeParameter = parseType();
+        if (typeParameter == nullptr) {
+            return;
+        }
         type->addGenericTypeParameter(typeParameter);
     }
 }
@@ -847,11 +867,11 @@ void Parser::parseArrayType(Type* type) {
 
     lexer.consumeToken();
     const Token& token = lexer.consumeToken();
-    if (!token.isOperator(Operator::CloseBracket))
-    {
+    if (!token.isOperator(Operator::CloseBracket)) {
         error("Expected ']'.", token);
+    } else {
+        type->setArray(true);
     }
-    type->setArray(true);
 }
 
 void Parser::parseExpressionStatement() {
@@ -898,14 +918,14 @@ Expression* Parser::parseExpression(
 }
 
 Expression* Parser::parseSubexpression(bool patternAllowed) {
+    if (patternAllowed && typedExpressionStartsHere()) {
+        return parseTypedExpression();
+    }
+
     Expression* expression = nullptr;
     const Token& token = lexer.consumeToken();
     const Location& location = token.getLocation();
     const Value& value = token.getValue();
-
-    if (patternAllowed && Keyword::isType(token.getKeyword())) {
-        return parseTypedExpression(value, location);
-    }
 
     switch (token.getType()) {
         case Token::Identifier:
@@ -957,7 +977,8 @@ Expression* Parser::parseSubexpression(bool patternAllowed) {
                     expression = parseMatchExpression(location);
                     break;
                 default:
-                    error("Expected expression.", token);
+                    error("Expected expression. Got unexpected keyword.",
+                          token);
                     break;
             }
             break;
@@ -983,12 +1004,12 @@ Expression* Parser::parseSubexpression(bool patternAllowed) {
                     expression = new WildcardExpression(location);
                     break;
                 default:
-                    error("Unexpected token.", token);
+                    error("Unexpected operator token.", token);
                     break;
             }
             break;
         default:
-            error("Expected expression.", token);
+            error("Expected expression. Got unexpected token.", token);
             break;
     }
 
@@ -1068,33 +1089,6 @@ Expression* Parser::parseArrayLiteralExpression() {
     return arrayLiteral;
 }
 
-bool Parser::typeCastExpressionStartsHere() {
-    const Token& token = lexer.getCurrentToken();
-    switch (token.getType()) {
-        case Token::Keyword:
-            return Keyword::isType(token.getKeyword());
-        case Token::Identifier:
-        {
-            const Token& secondToken = lexer.peekToken();
-            if (secondToken.isOperator(Operator::Less) ||
-                secondToken.isOperator(Operator::CloseParentheses)) {
-                return true;
-            }
-            lexer.consumeToken();
-            const Token& thirdToken = lexer.peekToken();
-            lexer.stepBack();
-            if (secondToken.isOperator(Operator::OpenBracket) &&
-                thirdToken.isOperator(Operator::CloseBracket)) {
-                return true;
-            }
-            break;
-        }
-        default:
-            break;
-    }
-    return false;
-}
-
 Expression* Parser::parseParenthesesOrTypeCastExpression() {
     Expression* expression = nullptr;
     if (typeCastExpressionStartsHere()) {
@@ -1107,6 +1101,18 @@ Expression* Parser::parseParenthesesOrTypeCastExpression() {
         }
     }
     return expression;
+}
+
+bool Parser::typeCastExpressionStartsHere() {
+    setLookaheadMode();
+
+    std::unique_ptr<Type> type(parseType());
+    const Token& currentToken = lexer.getCurrentToken();
+    bool retval = (type.get() != nullptr &&
+                   currentToken.isOperator(Operator::CloseParentheses));
+
+    setNormalMode();
+    return retval;
 }
 
 Expression* Parser::parseTypeCastExpression() {
@@ -1180,7 +1186,7 @@ void Parser::parseLambdaExpression(MethodCallExpression* methodCall) {
 void Parser::parseLambdaArguments(LambdaExpression* lambda) {
     assert(lexer.consumeToken().isOperator(Operator::VerticalBar));
 
-    CommaSeparatedListParser listParser(lexer, Operator::VerticalBar);
+    CommaSeparatedListParser listParser(this, Operator::VerticalBar);
     while (listParser.parseComma()) {
         Type* type = nullptr;
         const Token& nextToken = lexer.peekToken();
@@ -1222,8 +1228,6 @@ Expression* Parser::parseUnknownExpression(
         return methodCall;
     } else if (currentToken.isOperator(Operator::OpenBrace) && patternAllowed) {
         return parseClassDecompositionExpression(previousTokenValue, loc);
-    } else if (couldBeTypedExpressionResultName() && patternAllowed) {
-        return parseTypedExpression(previousTokenValue, loc);
     } else {
         return new NamedEntityExpression(previousTokenValue, loc);
     }
@@ -1362,7 +1366,7 @@ Expression* Parser::parseMatchExpression(const Location& location) {
         error("Expected '{'.", openBrace);
     }
 
-    CommaSeparatedListParser listParser(lexer, Operator::CloseBrace);
+    CommaSeparatedListParser listParser(this, Operator::CloseBrace);
     while (listParser.parseComma()) {
         matchExpression->addCase(parseMatchCase());
     }
@@ -1411,7 +1415,7 @@ Expression* Parser::parseClassDecompositionExpression(
     ClassDecompositionExpression* classDecomposition =
         new ClassDecompositionExpression(Type::create(typeName), loc);
 
-    CommaSeparatedListParser listParser(lexer, Operator::CloseBrace);
+    CommaSeparatedListParser listParser(this, Operator::CloseBrace);
     while (listParser.parseComma()) {
         NamedEntityExpression* memberName = parseNamedEntityExpression();
 
@@ -1426,27 +1430,24 @@ Expression* Parser::parseClassDecompositionExpression(
     return classDecomposition;
 }
 
-Expression* Parser::parseTypedExpression(
-    const Identifier& typeName,
-    const Location& loc) {
+bool Parser::typedExpressionStartsHere() {
+    setLookaheadMode();
 
-    if (!couldBeTypedExpressionResultName()) {
-        error("Expected identifier or '_'.", lexer.getCurrentToken());
-    }
+    std::unique_ptr<Type> type(parseType());
+    const Token& currentToken = lexer.getCurrentToken();
+    bool retval = (type.get() != nullptr &&
+                   (currentToken.isIdentifier() ||
+                    currentToken.isOperator(Operator::Placeholder)));
 
-    Expression* resultName = parseSubexpression();
-    return new TypedExpression(Type::create(typeName), resultName, loc);
+    setNormalMode();
+    return retval;
 }
 
-bool Parser::couldBeTypedExpressionResultName()
-{
-    const Token& currentToken = lexer.getCurrentToken();
-    if (currentToken.isIdentifier() ||
-        currentToken.isOperator(Operator::Placeholder)) {
-        return true;
-    }
-
-    return false;
+Expression* Parser::parseTypedExpression() {
+    const Location& loc = lexer.getCurrentToken().getLocation();
+    Type* type = parseType();
+    Expression* resultName = parseSubexpression();
+    return new TypedExpression(type, resultName, loc);
 }
 
 void Parser::parseIfStatement() {
@@ -1659,14 +1660,14 @@ void Parser::parseExpressionList(
 
     assert(lexer.consumeToken().isOperator(firstDelimiter));
 
-    CommaSeparatedListParser listParser(lexer, lastDelimiter);
+    CommaSeparatedListParser listParser(this, lastDelimiter);
     while (listParser.parseComma()) {
         expressions.push_back(parseExpression());
     }
 }
 
 void Parser::parseIdentifierList(IdentifierList& identifierList) {
-    CommaSeparatedListParser listParser(lexer);
+    CommaSeparatedListParser listParser(this);
     while (listParser.parseComma()) {
         const Token& identifier = lexer.consumeToken();
         if (!identifier.isIdentifier()) {
@@ -1688,7 +1689,25 @@ void Parser::expectCloseBraceOrNewline() {
     }
 }
 
+void Parser::setLookaheadMode() {
+    lexer.storePosition();
+    allowError = true;
+    anyErrors = false;
+}
+
+void Parser::setNormalMode() {
+    lexer.restorePosition();
+    allowError = false;
+    anyErrors = false;
+}
+
+void Parser::error(const std::string& message, const Token& token) {
+    if (!allowError) {
+        Trace::error(message, token.getLocation());
+    }
+    anyErrors = true;
+}
+
 const Location& Parser::location() {
     return lexer.getCurrentToken().getLocation();
 }
-
