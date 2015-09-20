@@ -8,7 +8,7 @@
 class Token {
 public:
 
-    enum TokenType
+    enum Kind
     {
         Invalid,
         Eof,
@@ -22,12 +22,12 @@ public:
         String
     };
 
-    explicit Token(TokenType t);
-    explicit Token(Operator::OperatorType o);
-    Token(TokenType t, char c);
-    Token(TokenType t, const std::string& val);
-    Token(TokenType t, const char* valStart, const char* valEnd);
-    Token(Keyword::KeywordType k, const std::string& val);
+    explicit Token(Kind k);
+    explicit Token(Operator::Kind o);
+    Token(Kind k, char c);
+    Token(Kind k, const std::string& val);
+    Token(Kind k, const char* valStart, const char* valEnd);
+    Token(Keyword::Kind k, const std::string& val);
 
     void print(FILE* file) const;
 
@@ -39,23 +39,23 @@ public:
         return location;
     }
 
-    TokenType getType() const {
-        return type;
+    Kind getKind() const {
+        return kind;
     }
 
-    Keyword::KeywordType getKeyword() const {
+    Keyword::Kind getKeyword() const {
         return keyword;
     }
 
-    bool isKeyword(Keyword::KeywordType k) const {
+    bool isKeyword(Keyword::Kind k) const {
         return keyword == k;
     }
 
-    Operator::OperatorType getOperator() const {
+    Operator::Kind getOperator() const {
         return op;
     }
 
-    bool isOperator(Operator::OperatorType o) const {
+    bool isOperator(Operator::Kind o) const {
         return op == o;
     }
 
@@ -68,35 +68,35 @@ public:
     }
 
     bool isKeyword() const {
-        return type == Keyword;
+        return kind == Keyword;
     }
 
     bool isIdentifier() const {
-        return type == Identifier;
+        return kind == Identifier;
     }
 
     bool isOperator() const {
-        return type == Operator;
+        return kind == Operator;
     }
 
     bool isNewline() const {
-        return type == Newline;
+        return kind == Newline;
     }
 
     bool isEof() const {
-        return type == Eof;
+        return kind == Eof;
     }
 
     bool isInvalid() const {
-        return type == Invalid;
+        return kind == Invalid;
     }
 
 private:
     void replace(const std::string& what, char with);
 
-    TokenType type;
-    Keyword::KeywordType keyword;
-    Operator::OperatorType op;
+    Kind kind;
+    Keyword::Kind keyword;
+    Operator::Kind op;
     std::string value;
     char character;
     Location location;

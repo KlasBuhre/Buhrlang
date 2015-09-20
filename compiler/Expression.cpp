@@ -17,15 +17,15 @@ namespace {
     const Identifier matchEndName("__match_end");
 }
 
-Expression::Expression(ExpressionType t, const Location& l) : 
+Expression::Expression(Kind k, const Location& l) :
     Statement(Statement::ExpressionStatement, l),
     type(nullptr),
-    expressionType(t) {}
+    kind(k) {}
 
 Expression::Expression(const Expression& other) :
     Statement(other),
     type(other.type ? other.type->clone() : nullptr),
-    expressionType(other.expressionType) {}
+    kind(other.kind) {}
 
 Expression* Expression::transform(Context&) {
     return this;
@@ -39,8 +39,8 @@ Identifier Expression::generateVariableName() const {
     return Identifier();
 }
 
-Expression::ExpressionType Expression::getRightmostExpressionType() const {
-    return expressionType;
+Expression::Kind Expression::getRightmostExpressionKind() const {
+    return kind;
 }
 
 Expression* Expression::generateDefaultInitialization(
@@ -56,12 +56,9 @@ Expression* Expression::generateDefaultInitialization(
     }
 }
 
-LiteralExpression::LiteralExpression(
-    LiteralType l,
-    Type* t,
-    const Location& loc) :
+LiteralExpression::LiteralExpression(Kind k, Type* t, const Location& loc) :
     Expression(Expression::Literal, loc),
-    literalType(l) {
+    kind(k) {
 
     type = t;
     Tree::lookupAndSetTypeDefinition(type, getLocation());
@@ -345,7 +342,7 @@ bool NamedEntityExpression::isReferencingStaticDataMember(Context& context) {
 }
 
 bool NamedEntityExpression::isReferencingName(Expression* name) {
-    switch (name->getExpressionType()) {
+    switch (name->getKind()) {
         case Expression::NamedEntity: {
             NamedEntityExpression* namedEntity =
                 name->cast<NamedEntityExpression>();
@@ -500,8 +497,7 @@ MemberSelectorExpression* MemberSelectorExpression::transformMemberSelector(
     Context& context) {
 
     Expression* transformedExpression = memberSelector->transform(context);
-    if (transformedExpression->getExpressionType() !=
-        Expression::MemberSelector) {
+    if (transformedExpression->getKind() != Expression::MemberSelector) {
         Trace::internalError(
             "MemberSelectorExpression::transformMemberSelector");
     }
@@ -512,7 +508,7 @@ MethodCallExpression* MemberSelectorExpression::getRhsCall(Context& context) {
     MethodCallExpression* retval = nullptr;
 
     left = left->transform(context);
-    if (left->getExpressionType() != Expression::ClassName) {
+    if (left->getKind() != Expression::ClassName) {
         return retval;
     }
 
@@ -521,7 +517,7 @@ MethodCallExpression* MemberSelectorExpression::getRhsCall(Context& context) {
                                  &(className->getClassDefinition()->
                                        getNameBindings()));
 
-    switch (right->getExpressionType()) {
+    switch (right->getKind()) {
         case Expression::MemberSelector:
             retval =
                 right->cast<MemberSelectorExpression>()->getRhsCall(context);
@@ -563,7 +559,7 @@ Expression* MemberSelectorExpression::transform(Context& context) {
         context.setArrayType(oldArrayType);
     }
 
-    switch (right->getExpressionType()) {
+    switch (right->getKind()) {
         case Expression::WrappedStatement:
             // Right-hand side has transformed itself into a block statement.
             // This can happen if the right-hand side was a method call to a
@@ -593,7 +589,7 @@ Expression* MemberSelectorExpression::transform(Context& context) {
 
 NameBindings* MemberSelectorExpression::bindingScopeOfLeft(Context& context) {
     NameBindings* localBindings = nullptr;
-    if (left->getExpressionType() == Expression::ClassName) {
+    if (left->getKind() == Expression::ClassName) {
         context.setIsStatic(true);
         ClassNameExpression* expr = left->cast<ClassNameExpression>();
         localBindings = &(expr->getClassDefinition()->getNameBindings());
@@ -625,7 +621,7 @@ MemberSelectorExpression::transformIntoBlockStatement(
     if (wrappedBlockStatement->isInlinedArrayForEach() || 
         wrappedBlockStatement->isInlinedNonStaticMethod()) {
         Statement* statement = wrappedBlockStatement->getStatement();
-        if (statement->getStatementType() != Statement::Block) {
+        if (statement->getKind() != Statement::Block) {
             Trace::internalError(
                 "MemberSelectorExpression::transformIntoBlockStatement");
         }
@@ -677,7 +673,7 @@ void MemberSelectorExpression::generateThisPointerDeclaration(
     const Location& location = getLocation();
     VariableDeclarationStatement* thisPointerDeclaration = nullptr;
     Statement* firstStatement = *(block->getStatements().begin());
-    if (firstStatement->getStatementType() == Statement::VarDeclaration) {
+    if (firstStatement->getKind() == Statement::VarDeclaration) {
         VariableDeclarationStatement* variableDeclaration = 
             firstStatement->cast<VariableDeclarationStatement>();
         if (variableDeclaration->getIdentifier().
@@ -716,24 +712,24 @@ Identifier MemberSelectorExpression::generateVariableName() const {
     return left->generateVariableName() + "_" + right->generateVariableName();
 }
 
-Expression::ExpressionType
-MemberSelectorExpression::getRightmostExpressionType() const {
-    return right->getRightmostExpressionType();
+Expression::Kind
+MemberSelectorExpression::getRightmostExpressionKind() const {
+    return right->getRightmostExpressionKind();
 }
 
 MemberExpression::MemberExpression(
-    MemberExpressionType t, 
-    ClassMemberDefinition* m, 
+    Kind k,
+    ClassMemberDefinition* m,
     const Location& loc) :
     Expression(Expression::Member, loc),
     memberDefinition(m),
-    memberExpressionType(t),
+    kind(k),
     hasTransformedIntoMemberSelector(false) {}
 
 MemberExpression::MemberExpression(const MemberExpression& other) :
     Expression(other),
     memberDefinition(other.memberDefinition),
-    memberExpressionType(other.memberExpressionType),
+    kind(other.kind),
     hasTransformedIntoMemberSelector(other.hasTransformedIntoMemberSelector) {}
 
 Expression* MemberExpression::transformIntoMemberSelector(Context& context) {
@@ -785,8 +781,7 @@ Expression* MemberExpression::transformIntoMemberSelector(Context& context) {
 
 void MemberExpression::accessCheck(Context& context) {
     if (context.isStatic() && !memberDefinition->isStatic()) {
-        if (memberDefinition->getMemberType() ==
-            ClassMemberDefinition::Method) {
+        if (memberDefinition->isMethod()) {
             MethodDefinition* method =
                 memberDefinition->cast<MethodDefinition>();
             if (!method->isConstructor()) {
@@ -1587,6 +1582,11 @@ Type* HeapAllocationExpression::typeCheck(Context& context) {
     } else {
         type = allocatedObjectType;
     }
+
+    if (ClassDefinition* def = type->getDefinition()->cast<ClassDefinition>()) {
+        ClassList treePath;
+        def->checkImplementsAllAbstractMethods(treePath, getLocation());
+    }
     return type;
 }
 
@@ -1767,12 +1767,14 @@ Type* TypeCastExpression::typeCheck(Context& context) {
     }
 
     staticCast = fromType->isUpcast(targetType);
-    if (staticCast || isDowncast || *fromType == *targetType ||
-        isCastBetweenObjectAndInterface(fromType)) {
+    if (staticCast || isDowncast || isCastBetweenObjectAndInterface(fromType)) {
         type = targetType;
     } else if (!fromType->isReference() && !targetType->isReference() &&
                Type::areBuiltInsConvertable(fromType->getBuiltInType(),
                                             targetType->getBuiltInType())) {
+        staticCast = true;
+        type = targetType;
+    } else if (*fromType == *targetType){
         staticCast = true;
         type = targetType;
     } else {
@@ -1828,7 +1830,7 @@ Type* ThisExpression::typeCheck(Context& context) {
 }
 
 BinaryExpression::BinaryExpression(
-    Operator::OperatorType oper, 
+    Operator::Kind oper,
     Expression* l, 
     Expression* r, 
     const Location& loc) :
@@ -1838,7 +1840,7 @@ BinaryExpression::BinaryExpression(
     right(r) {}
 
 BinaryExpression::BinaryExpression(
-    Operator::OperatorType oper,
+    Operator::Kind oper,
     Expression* l,
     Expression* r) :
     BinaryExpression(oper, l, r, Location()) {}
@@ -1953,7 +1955,7 @@ void BinaryExpression::checkAssignment(
 
 bool BinaryExpression::leftIsMemberConstant() {
     Expression* leftExpression = left;
-    if (leftExpression->getExpressionType() == Expression::ArraySubscript) {
+    if (leftExpression->getKind() == Expression::ArraySubscript) {
         ArraySubscriptExpression* arraySubscript =
             leftExpression->cast<ArraySubscriptExpression>();
         leftExpression = arraySubscript->getArrayNameExpression();
@@ -2084,7 +2086,7 @@ BinaryExpression* BinaryExpression::decomposeCompoundAssignment() {
 }
 
 UnaryExpression::UnaryExpression(
-    Operator::OperatorType oper, 
+    Operator::Kind oper,
     Expression* o, 
     bool p, 
     const Location& loc) :

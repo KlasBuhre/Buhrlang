@@ -28,9 +28,9 @@ namespace {
     }
 }
 
-Statement::Statement(StatementType t, const Location& l) :
+Statement::Statement(Kind k, const Location& l) :
     Node(l),
-    statementType(t) {}
+    kind(k) {}
 
 VariableDeclarationStatement::VariableDeclarationStatement(
     Type* t,
@@ -304,7 +304,7 @@ void BlockStatement::copyStatements(const BlockStatement& from) {
          i != from.statements.end();
          i++) {
         Statement* statement = (*i)->clone();
-        switch (statement->getStatementType()) {
+        switch (statement->getKind()) {
             case Statement::Block: {
                 BlockStatement* block = statement->cast<BlockStatement>();
                 block->setEnclosingBlock(this);
@@ -386,7 +386,7 @@ void BlockStatement::insertBeforeCurrentStatement(Statement* statement) {
 }
 
 void BlockStatement::initialStatementCheck(Statement* statement) {
-    switch (statement->getStatementType()) {
+    switch (statement->getKind()) {
         case VarDeclaration: {
             VariableDeclarationStatement* varDeclarationStatement =
                 statement->cast<VariableDeclarationStatement>();
@@ -445,7 +445,7 @@ Type* BlockStatement::typeCheck(Context& context) {
          iterator != statements.end();
          iterator++) {
         Statement* statement = *iterator;
-        if (statement->getStatementType() == Statement::ExpressionStatement) {
+        if (statement->getKind() == Statement::ExpressionStatement) {
             *iterator = statement->cast<Expression>()->transform(context);
             statement = *iterator;
         }
@@ -465,7 +465,7 @@ void BlockStatement::returnLastExpression(
     StatementList::iterator i = statements.end();
     i--;
     Statement* lastStatement = *i;
-    if (lastStatement->getStatementType() != Statement::ExpressionStatement) {
+    if (lastStatement->getKind() != Statement::ExpressionStatement) {
         Trace::error("Must return a value.", getLocation());
     }
     Expression* returnExpression = lastStatement->cast<Expression>();
@@ -491,7 +491,7 @@ BlockStatement::getFirstStatementAsConstructorCall() const {
         return nullptr;
     }
     Statement* firstStatement = *statements.begin();
-    if (firstStatement->getStatementType() == Statement::ConstructorCall) {
+    if (firstStatement->getKind() == Statement::ConstructorCall) {
         return firstStatement->cast<ConstructorCallStatement>();
     }
     return nullptr;
@@ -672,7 +672,8 @@ Type* ReturnStatement::typeCheck(Context& context) {
     if (!Type::areInitializable(returnTypeInSignature, returnType)) {
         Trace::error(
             "Returned type is incompatible with declared return type in method "
-            "definition. Returned type: " + returnType->toString() +
+            "definition. Returned type in return statement: " +
+            returnType->toString() +
             ". Return type in signature: " + returnTypeInSignature->toString() +
             ".",
             this);

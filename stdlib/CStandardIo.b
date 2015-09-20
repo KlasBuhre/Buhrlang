@@ -41,4 +41,7 @@ native class CStandardIo {
 
     // Gets the stdout stream.
     static FileHandle getStdOut()
+
+    // Gets the stdin stream.
+    static FileHandle getStdIn()
 }

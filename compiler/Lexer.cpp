@@ -184,8 +184,8 @@ void Lexer::storePreviousToken() {
     }
 }
 
-void Lexer::storeToken(Token::TokenType type) {
-    Token token(type);
+void Lexer::storeToken(Token::Kind kind) {
+    Token token(kind);
     storeToken(token, location);
 }
 
@@ -265,7 +265,7 @@ void Lexer::makeCharLiteral() {
 }
 
 void Lexer::makeOperatorToken(const Location& startLocation) {
-    Operator::OperatorType op;
+    Operator::Kind op;
     const char* tStart = startLocation.ptr;
     switch (*tStart) {
         case '=':

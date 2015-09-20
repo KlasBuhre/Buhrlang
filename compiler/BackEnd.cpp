@@ -247,7 +247,7 @@ void CppBackEnd::generateDefinitions(const DefinitionList& definitions) {
             // Don't generate code from imported definitions.
             continue;
         }
-        switch (definition->getDefinitionType()) {
+        switch (definition->getKind()) {
             case Definition::Class:
                 generateClass(definition->cast<ClassDefinition>());
                 break;
@@ -329,7 +329,7 @@ void CppBackEnd::generateClassMembers(const ClassDefinition* classDef) {
          i != memberDefinitions.end();
          i++) {
         const Definition* definition = *i;
-        switch (definition->getDefinitionType()) {
+        switch (definition->getKind()) {
             case Definition::Member:
                 generateClassMember(definition->cast<ClassMemberDefinition>());
                 break;
@@ -361,7 +361,7 @@ void CppBackEnd::generateVirtualDestructor(const ClassDefinition* classDef) {
 }
 
 void CppBackEnd::generateClassMember(const ClassMemberDefinition* member) {
-    switch (member->getMemberType()) {
+    switch (member->getKind()) {
         case ClassMemberDefinition::Method:          
             generateMethod(member->cast<MethodDefinition>());
             break;
@@ -395,8 +395,7 @@ void CppBackEnd::generateMethod(const MethodDefinition* method) {
         BlockStatement::StatementList& statements = body->getStatements();
         if (!statements.empty()) {
             const Statement* firstStatement = *statements.begin();
-            if (firstStatement->getStatementType() ==
-                Statement::ConstructorCall) {
+            if (firstStatement->getKind() == Statement::ConstructorCall) {
                 const ConstructorCallStatement* constructorCall =
                     firstStatement->cast<ConstructorCallStatement>();
                 generateCpp(colon);
@@ -534,7 +533,7 @@ void CppBackEnd::generateBlock(const BlockStatement* block) {
     }
 
     if (statement != nullptr &&
-        statement->getStatementType() != Statement::Block) {
+        statement->getKind() != Statement::Block) {
         eraseLastChars(indentSize);
     } 
     generateCpp(closeBrace);
@@ -542,7 +541,7 @@ void CppBackEnd::generateBlock(const BlockStatement* block) {
 }
 
 void CppBackEnd::generateStatement(const Statement* statement) {
-    switch (statement->getStatementType()) {
+    switch (statement->getKind()) {
         case Statement::Block:
             generateBlock(statement->cast<BlockStatement>());
             generateNewline();
@@ -688,7 +687,7 @@ void CppBackEnd::generateExpression(
     const Expression* expression,
     bool generateParentheses) {
 
-    switch (expression->getExpressionType()) {
+    switch (expression->getKind()) {
         case Expression::Literal:          
             generateLiteral(expression->cast<LiteralExpression>());
             break;
@@ -749,7 +748,7 @@ void CppBackEnd::generateExpression(
 }      
 
 void CppBackEnd::generateLiteral(const LiteralExpression* lit) {
-    switch (lit->getLiteralType()) {
+    switch (lit->getKind()) {
         case LiteralExpression::Character:
             generateCpp(apostrophe);
             generateChar(lit->cast<CharacterLiteralExpression>()->getValue());
@@ -857,7 +856,7 @@ void CppBackEnd::generateUnaryExpression(const UnaryExpression* expression) {
     }
 }
 
-void CppBackEnd::generateExpressionOperator(Operator::OperatorType op) {
+void CppBackEnd::generateExpressionOperator(Operator::Kind op) {
     switch (op) {
         case Operator::Addition:
             generateCpp(operatorPlus);
@@ -994,7 +993,7 @@ void CppBackEnd::generateTypeCastExpression(
 void CppBackEnd::generateMemberExpression(
     const MemberExpression* memberExpression) {
 
-    switch (memberExpression->getMemberExpressionType()) {
+    switch (memberExpression->getKind()) {
         case MemberExpression::DataMember:          
             generateDataMemberExpression(
                 memberExpression->cast<DataMemberExpression>());
@@ -1038,7 +1037,7 @@ void CppBackEnd::generateMemberSelectorExpression(
 
     Expression* left = memberSelector->getLeft();
     generateExpression(left);
-    if (left->getRightmostExpressionType() == Expression::ClassName) {
+    if (left->getRightmostExpressionKind() == Expression::ClassName) {
         generateCpp(operatorScope);
     } else if (left->getType()->isReference()) {
         generateCpp(operatorArrow);

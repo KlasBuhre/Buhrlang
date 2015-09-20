@@ -524,7 +524,7 @@ Type* Tree::makeGenericTypeConcreteInCurrentTree(
         // map to a concrete type. Or, the type could be like this 'Foo<int>'.
         // In all cases we must make sure that the definition of the type is
         // the generated concrete class.
-        assert(typeDefinition->getDefinitionType() == Definition::Class);
+        assert(typeDefinition->getKind() == Definition::Class);
         ClassDefinition* classDef = typeDefinition->cast<ClassDefinition>();
         if (classDef->isGeneric()) {
             // The class is still a generic, which means we must get the

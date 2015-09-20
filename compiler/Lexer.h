@@ -36,7 +36,7 @@ private:
     void initKeywordMap();
     void readFile(const std::string& filename);
     void tokenize();
-    void storeToken(Token::TokenType type);
+    void storeToken(Token::Kind kind);
     void storeToken(Token& token, const Location& loc);
     void storePreviousToken();
     void makeIdentifierOrKeywordToken(const char*, const char*);
@@ -56,7 +56,7 @@ private:
     };
 
     typedef std::list<Token> TokenList;
-    typedef std::map<std::string, Keyword::KeywordType> KeywordMap;
+    typedef std::map<std::string, Keyword::Kind> KeywordMap;
 
     TokenList tokenList;
     State state;

@@ -472,6 +472,10 @@ bool Type::areBuiltInsImplicitlyConvertable(BuiltInType from, BuiltInType to) {
 }
 
 bool Type::areBuiltInsConvertable(BuiltInType from, BuiltInType to) {
+    if (from == to) {
+        return true;
+    }
+
     switch (from) {
         case String:
             switch (to) {

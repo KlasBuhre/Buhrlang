@@ -62,7 +62,7 @@ private:
         const BinaryExpression* expression,
         bool generateParentheses);
     void generateUnaryExpression(const UnaryExpression* expression);
-    void generateExpressionOperator(Operator::OperatorType op); 
+    void generateExpressionOperator(Operator::Kind op);
     void generateHeapAllocationExpression(
         const HeapAllocationExpression* allocExpression);
     void generateArrayAllocationExpression(

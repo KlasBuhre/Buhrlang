@@ -4,6 +4,7 @@ import "TcpSocket"
 import "Convert"
 import "List"
 import "Vector"
+import "Console"
 
 // ----------------------------------------------------------------------------
 // Examples:
@@ -678,6 +679,27 @@ class CallbackExecutor {
     }
 }
 
+interface Ia {
+    a()
+    b()
+}
+
+interface Ib {
+    c()
+    d()
+}
+
+class Cc: Ia, Ib {
+    e() {}
+}
+
+class Cd: Cc {
+    a() {}
+    b() {}
+    c() {}
+    d() {}
+}
+
 class InheritanceTest: CallbackInterface {
     run() {
         println("----------[Inheritance Test]----------")
@@ -694,6 +716,8 @@ class InheritanceTest: CallbackInterface {
 
         let executor = new CallbackExecutor
         executor.doCallback(this)
+
+        let d = new Cd
     }
 
     callback() {
@@ -1866,6 +1890,17 @@ class IoTest {
                 "GET /index.html HTTP/1.1\r\nHost: www.google.com\r\n\r\n")
             print(socket.readLine)
         }
+
+        /*
+        println("readLine:")
+        println(Console.readLine)
+
+        println("readInt:")
+        println(Console.readInt * 2)
+
+        println("readFloat:")
+        println(Console.readFloat * (float) 3.1415)
+        */
     }
 
     string makeBigString(int size) {

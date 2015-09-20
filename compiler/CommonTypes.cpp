@@ -59,7 +59,7 @@ const Identifier CommonNames::messageHandlerTypeName("MessageHandler");
 const Identifier CommonNames::matchSubjectName("__match_subject");
 const Identifier CommonNames::enumTagVariableName("$tag");
 
-bool Keyword::isType(KeywordType keyword) {
+bool Keyword::isType(Kind keyword) {
     switch (keyword) {
         case Object:
         case Byte:
@@ -76,7 +76,7 @@ bool Keyword::isType(KeywordType keyword) {
     }
 }
 
-Type* Keyword::toType(KeywordType keyword) {
+Type* Keyword::toType(Kind keyword) {
     Type::BuiltInType builtInType;
     switch (keyword) {
         case Keyword::Let:
@@ -110,12 +110,12 @@ Type* Keyword::toType(KeywordType keyword) {
     return new Type(builtInType);
 }
 
-bool Operator::isCompoundAssignment(OperatorType operatorType) {
+bool Operator::isCompoundAssignment(Kind operatorType) {
     return getDecomposedArithmeticOperator(operatorType) != None;
 }
 
-Operator::OperatorType Operator::getDecomposedArithmeticOperator(
-    OperatorType operatorType) {
+Operator::Kind Operator::getDecomposedArithmeticOperator(
+    Kind operatorType) {
 
     switch (operatorType) {
         case AdditionAssignment:
@@ -131,7 +131,7 @@ Operator::OperatorType Operator::getDecomposedArithmeticOperator(
     }
 }
 
-Operator::PrecedenceType Operator::precedence(OperatorType operatorType) {
+Operator::Precedence Operator::precedence(Kind operatorType) {
     switch (operatorType) {
         case Multiplication:
         case Division:

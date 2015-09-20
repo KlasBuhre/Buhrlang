@@ -9,7 +9,7 @@
 class Type;
 
 namespace Keyword {
-    enum KeywordType {
+    enum Kind {
         None,
         Object,
         Class,
@@ -48,8 +48,8 @@ namespace Keyword {
         Jump
     };
 
-    bool isType(KeywordType keyword);
-    Type* toType(KeywordType keyword);
+    bool isType(Kind keyword);
+    Type* toType(Kind keyword);
 
     extern const std::string classString;
     extern const std::string interfaceString;
@@ -89,14 +89,14 @@ namespace Keyword {
 }
 
 namespace AccessLevel {
-    enum AccessLevelType {
+    enum Kind {
         Public,
         Private
     };
 }
 
 namespace Operator {
-    enum OperatorType {
+    enum Kind {
         None,
         Addition,                 // +
         Subtraction,              // -
@@ -137,7 +137,7 @@ namespace Operator {
         Range                     // ...
     };
 
-    enum PrecedenceType {
+    enum Precedence {
         NoPrecedence,
         NormalPrecedence,
         AssignmentTo,     // =, :=
@@ -150,9 +150,9 @@ namespace Operator {
         MultiplyDivision  // *,  /
     };
 
-    bool isCompoundAssignment(OperatorType operatorType);
-    OperatorType getDecomposedArithmeticOperator(OperatorType operatorType);
-    PrecedenceType precedence(OperatorType operatorType);
+    bool isCompoundAssignment(Kind operatorType);
+    Kind getDecomposedArithmeticOperator(Kind operatorType);
+    Precedence precedence(Kind operatorType);
 }
 
 struct Location {

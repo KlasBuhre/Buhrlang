@@ -7,6 +7,7 @@
 
 namespace {
     Pointer<FileHandle> stdOut = NULL;
+    Pointer<FileHandle> stdIn = NULL;
 }
 
 Pointer<FileHandle> CStandardIo::fopen(
@@ -117,4 +118,12 @@ Pointer<FileHandle> CStandardIo::getStdOut() {
         stdOut->file = stdout;
     }
     return stdOut;
+}
+
+Pointer<FileHandle> CStandardIo::getStdIn() {
+    if (stdIn == NULL) {
+        stdIn = new FileHandle();
+        stdIn->file = stdin;
+    }
+    return stdIn;
 }

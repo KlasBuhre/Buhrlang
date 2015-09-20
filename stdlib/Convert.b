@@ -19,4 +19,14 @@ class Convert {
         }
         return "false"
     }
+
+    // Convert string to int.
+    static int toInt(string s) {
+        return CStandardLib.toInt(s)
+    }
+
+    // Convert string to int.
+    static float toFloat(string s) {
+        return CStandardLib.toFloat(s)
+    }
 }

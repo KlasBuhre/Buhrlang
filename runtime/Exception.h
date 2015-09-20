@@ -20,6 +20,11 @@ namespace Exception {
         printf("\nIoException: %s\n", info.c_str());
         exit(0);
     }
+
+    inline void numberFormat(const std::string& info) {
+        printf("\nNumberFormatException: %s\n", info.c_str());
+        exit(0);
+    }
 }
 
 #endif

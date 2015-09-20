@@ -9,7 +9,7 @@ class Context;
 class Statement: public Node {
 public:
 
-    enum StatementType {
+    enum Kind {
         VarDeclaration,
         Block,
         ExpressionStatement,
@@ -23,21 +23,21 @@ public:
         Jump
     };
 
-    Statement(StatementType t, const Location& l);
+    Statement(Kind k, const Location& l);
 
     virtual Statement* clone() const = 0;
     virtual Type* typeCheck(Context& context) = 0;
 
-    StatementType getStatementType() const {
-        return statementType;
+    Kind getKind() const {
+        return kind;
     }
 
     bool isExpression() const {
-        return statementType == ExpressionStatement;
+        return kind == ExpressionStatement;
     }
 
 private:
-    StatementType statementType;
+    Kind kind;
 };
 
 class VariableDeclarationStatement: public Statement {

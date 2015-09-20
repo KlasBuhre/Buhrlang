@@ -22,7 +22,7 @@ namespace  {
 
     class CommaSeparatedListParser {
     public:
-        CommaSeparatedListParser(Parser* p, Operator::OperatorType end) :
+        CommaSeparatedListParser(Parser* p, Operator::Kind end) :
             parser(p),
             endDelimiter(end),
             commaExpected(false) {}
@@ -62,7 +62,7 @@ namespace  {
         
     private:
         Parser* parser;
-        Operator::OperatorType endDelimiter;
+        Operator::Kind endDelimiter;
         bool commaExpected;
     };
 }
@@ -84,7 +84,7 @@ void Parser::importDefaultModules() {
 void Parser::parse() {
     while (true) {
         const Token& token = lexer.getCurrentToken();
-        switch (token.getType()) {
+        switch (token.getKind()) {
             case Token::Keyword:
                 switch (token.getKeyword()) {
                     case Keyword::Native:
@@ -273,7 +273,7 @@ void Parser::parseClassMember(bool isClassNative) {
         return;
     }
 
-    AccessLevel::AccessLevelType access = AccessLevel::Public;
+    AccessLevel::Kind access = AccessLevel::Public;
     if (token->isKeyword(Keyword::Private)) {
         access = AccessLevel::Private;
         lexer.consumeToken();
@@ -317,7 +317,7 @@ void Parser::parseClassMember(bool isClassNative) {
 MethodDefinition* Parser::parseMethod(
     const Token& name,
     Type* type,
-    AccessLevel::AccessLevelType access,
+    AccessLevel::Kind access,
     bool isStatic,
     bool parseBody) {
 
@@ -352,7 +352,7 @@ MethodDefinition* Parser::parseMethod(
 DataMemberDefinition* Parser::parseDataMember(
     const Token& name,
     Type* type,
-    AccessLevel::AccessLevelType access,
+    AccessLevel::Kind access,
     bool isStatic) {
 
     DataMemberDefinition* dataMember =
@@ -643,7 +643,7 @@ BlockStatement* Parser::parseBlock(
 
 void Parser::parseStatement() {
     const Token& token = lexer.getCurrentToken();
-    switch (token.getType()) {
+    switch (token.getKind()) {
         case Token::Keyword:
             switch (token.getKeyword()) {
                 case Keyword::Let:
@@ -776,7 +776,7 @@ Type* Parser::parseType() {
     if (token.isIdentifier()) {
         type = new Type(token.getValue());
     } else if (token.isKeyword()) {
-        Keyword::KeywordType keyword = token.getKeyword();
+        Keyword::Kind keyword = token.getKeyword();
         switch (keyword) {
             case Keyword::Let:
             case Keyword::Var: 
@@ -882,7 +882,7 @@ void Parser::parseExpressionStatement() {
 Expression* Parser::parseExpression(
     bool rangeAllowed,
     bool patternAllowed,
-    Operator::PrecedenceType leftPrecedence) {
+    Operator::Precedence leftPrecedence) {
 
     Expression* left = parseSubexpression(patternAllowed);
 
@@ -892,12 +892,12 @@ Expression* Parser::parseExpression(
             return left;
         }
 
-        Operator::OperatorType op = currentToken.getOperator();
+        Operator::Kind op = currentToken.getOperator();
         if (op == Operator::Range && !rangeAllowed) {
             error("Unexpected operator '...'.", currentToken);
         }
 
-        Operator::PrecedenceType rightPrecedence = Operator::precedence(op);
+        Operator::Precedence rightPrecedence = Operator::precedence(op);
         if (rightPrecedence == Operator::NoPrecedence) {
             return left;
         }
@@ -927,7 +927,7 @@ Expression* Parser::parseSubexpression(bool patternAllowed) {
     const Location& location = token.getLocation();
     const Value& value = token.getValue();
 
-    switch (token.getType()) {
+    switch (token.getKind()) {
         case Token::Identifier:
             switch (lexer.getCurrentToken().getOperator())
             {
@@ -1625,7 +1625,7 @@ void Parser::parseImport() {
     assert(lexer.consumeToken().isKeyword(Keyword::Import));
 
     const Token& moduleNameToken = lexer.consumeToken();
-    if (moduleNameToken.getType() != Token::String) {
+    if (moduleNameToken.getKind() != Token::String) {
         error("Expected string.", moduleNameToken);
     }
 
@@ -1655,8 +1655,8 @@ void Parser::importModule(const std::string& moduleName) {
 
 void Parser::parseExpressionList(
     ExpressionList& expressions,
-    Operator::OperatorType firstDelimiter,
-    Operator::OperatorType lastDelimiter) {
+    Operator::Kind firstDelimiter,
+    Operator::Kind lastDelimiter) {
 
     assert(lexer.consumeToken().isOperator(firstDelimiter));
 

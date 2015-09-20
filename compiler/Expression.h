@@ -8,7 +8,7 @@
 class Expression: public Statement {
 public:
 
-    enum ExpressionType {    // Example:
+    enum Kind {              // Example:
         Literal,             // 5 or "text"
         NamedEntity,         // a
         Binary,              // a operator b
@@ -34,17 +34,17 @@ public:
         WrappedStatement
     };
 
-    Expression(ExpressionType t, const Location& l);
+    Expression(Kind k, const Location& l);
     Expression(const Expression& other);
 
     virtual Expression* clone() const = 0;
     virtual Expression* transform(Context&);
     virtual bool isVariable() const;
     virtual Identifier generateVariableName() const;
-    virtual ExpressionType getRightmostExpressionType() const;
+    virtual Kind getRightmostExpressionKind() const;
 
-    ExpressionType getExpressionType() const {
-        return expressionType;
+    Kind getKind() const {
+        return kind;
     }
 
     Type* getType() const {
@@ -52,19 +52,19 @@ public:
     }
 
     bool isNamedEntity() const {
-        return expressionType == NamedEntity;
+        return kind == NamedEntity;
     }
 
     bool isWildcard() const {
-        return expressionType == Wildcard;
+        return kind == Wildcard;
     }
 
     bool isPlaceholder() const {
-        return expressionType == Placeholder;
+        return kind == Placeholder;
     }
 
     bool isClassDecomposition() const {
-        return expressionType == ClassDecomposition;
+        return kind == ClassDecomposition;
     }
 
     static Expression* generateDefaultInitialization(
@@ -75,7 +75,7 @@ protected:
     Type* type;
 
 private:
-    ExpressionType expressionType;
+    Kind kind;
 };
 
 typedef std::string Value;
@@ -83,7 +83,7 @@ typedef std::string Value;
 class LiteralExpression: public Expression {
 public:
 
-    enum LiteralType {
+    enum Kind {
         Character,
         Integer,
         Float,
@@ -92,7 +92,7 @@ public:
         Array
     };
 
-    LiteralExpression(LiteralType l, Type* t, const Location& loc);
+    LiteralExpression(Kind k, Type* t, const Location& loc);
 
     static Expression* generateDefault(Type* type, const Location& location);
 
@@ -104,12 +104,12 @@ public:
         return type;
     }
 
-    LiteralType getLiteralType() const {
-        return literalType;
+    Kind getKind() const {
+        return kind;
     }
 
 private:
-    LiteralType literalType;
+    Kind kind;
 };
 
 class CharacterLiteralExpression: public LiteralExpression {
@@ -302,7 +302,7 @@ public:
     virtual Expression* transform(Context& context);
     virtual Type* typeCheck(Context& context);
     virtual Identifier generateVariableName() const;
-    virtual ExpressionType getRightmostExpressionType() const;
+    virtual Kind getRightmostExpressionKind() const;
 
     MethodCallExpression* getRhsCall(Context& context);
 
@@ -335,17 +335,17 @@ private:
 class BinaryExpression: public Expression {
 public:
     BinaryExpression(
-        Operator::OperatorType oper,
+        Operator::Kind oper,
         Expression* l,
         Expression* r,
         const Location& loc);
-    BinaryExpression(Operator::OperatorType oper, Expression* l, Expression* r);
+    BinaryExpression(Operator::Kind oper, Expression* l, Expression* r);
 
     virtual Expression* clone() const;
     virtual Type* typeCheck(Context& context);
     virtual Expression* transform(Context& context);
 
-    Operator::OperatorType getOperator() const {
+    Operator::Kind getOperator() const {
         return op;
     }
 
@@ -368,7 +368,7 @@ private:
     BinaryExpression* decomposeCompoundAssignment();
     bool leftIsMemberConstant();
 
-    Operator::OperatorType op;
+    Operator::Kind op;
     Expression* left;
     Expression* right;
 };
@@ -376,7 +376,7 @@ private:
 class UnaryExpression: public Expression {
 public:
     UnaryExpression(
-        Operator::OperatorType oper,
+        Operator::Kind oper,
         Expression* o,
         bool p,
         const Location& loc);
@@ -384,7 +384,7 @@ public:
     virtual Expression* clone() const;
     virtual Type* typeCheck(Context& context);
 
-    Operator::OperatorType getOperator() const {
+    Operator::Kind getOperator() const {
         return op;
     }
 
@@ -397,7 +397,7 @@ public:
     }
 
 private:
-    Operator::OperatorType op;
+    Operator::Kind op;
     Expression* operand;
     bool prefix;
 };
@@ -463,19 +463,16 @@ class ClassMemberDefinition;
 class MemberExpression: public Expression {
 public:
 
-    enum MemberExpressionType {
-        DataMember, 
-        MethodCall        
+    enum Kind {
+        DataMember,
+        MethodCall
     };
 
-    MemberExpression(
-        MemberExpressionType t,
-        ClassMemberDefinition* m,
-        const Location& loc);
+    MemberExpression(Kind k, ClassMemberDefinition* m, const Location& loc);
     MemberExpression(const MemberExpression& other);
 
-    MemberExpressionType getMemberExpressionType() const {
-        return memberExpressionType;
+    Kind getKind() const {
+        return kind;
     }
 
 protected:
@@ -485,7 +482,7 @@ protected:
     ClassMemberDefinition* memberDefinition;
 
 private:
-    MemberExpressionType memberExpressionType;
+    Kind kind;
     bool hasTransformedIntoMemberSelector;
 };
 

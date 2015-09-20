@@ -398,7 +398,7 @@ BinaryExpression* ArrayPattern::generateElementComparisonExpression(
 
     Expression* element = *i;
     BinaryExpression* elementComparison = nullptr;
-    switch (element->getExpressionType()) {
+    switch (element->getKind()) {
         case Expression::NamedEntity:
             elementComparison =
                 generateNamedEntityElementComparisonExpression(
@@ -502,7 +502,7 @@ BinaryExpression* ArrayPattern::generateLengthComparisonExpression() {
         }
     }
 
-    Operator::OperatorType op;
+    Operator::Kind op;
     if (wildcardPresent) {
         op = Operator::GreaterOrEqual;
     } else {

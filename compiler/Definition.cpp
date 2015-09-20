@@ -60,21 +60,18 @@ namespace {
     }
 }
 
-Definition::Definition(
-    DefinitionType t,
-    const Identifier& n,
-    const Location& l) :
+Definition::Definition(Kind k, const Identifier& n, const Location& l) :
     Node(l),
     name(n),
     enclosingDefinition(nullptr),
-    definitionType(t),
+    kind(k),
     imported(false) {}
 
 Definition::Definition(const Definition& other) :
     Node(other),
     name(other.name),
     enclosingDefinition(other.enclosingDefinition),
-    definitionType(other.definitionType),
+    kind(other.kind),
     imported(other.imported) {}
 
 ClassDefinition* Definition::getEnclosingClass() const {
@@ -267,7 +264,7 @@ void ClassDefinition::insertMember(
 void ClassDefinition::addMember(Definition* definition) {
     definition->setEnclosingDefinition(this);
 
-    switch (definition->getDefinitionType()) {
+    switch (definition->getKind()) {
         case Definition::Member:
             addClassMemberDefinition(definition->cast<ClassMemberDefinition>());
             break;
@@ -563,6 +560,64 @@ bool ClassDefinition::isInheritingFromProcessInterface() const {
     return false;
 }
 
+void ClassDefinition::checkImplementsAllAbstractMethods(
+    ClassList& treePath,
+    const Location& loc) {
+
+    treePath.push_back(this);
+
+    for (ClassList::const_iterator i = parentClasses.begin();
+         i != parentClasses.end();
+         i++) {
+        ClassDefinition* parentClassDef = *i;
+        parentClassDef->checkImplementsAllAbstractMethods(treePath, loc);
+    }
+
+    treePath.pop_back();
+
+    if (!isInterface()) {
+        return;
+    }
+
+    for (MemberMethodList::const_iterator i = methods.begin();
+         i != methods.end();
+         i++) {
+        MethodDefinition* abstractMethod = *i;
+        if (!abstractMethod->isAbstract()) {
+            continue;
+        }
+        bool methodImplemented = false;
+        for (ClassList::const_iterator j = treePath.begin();
+             j != treePath.end();
+             j++) {
+            ClassDefinition* subclass = *j;
+            if (subclass->implements(abstractMethod)) {
+                methodImplemented = true;
+            }
+        }
+
+        if (!methodImplemented) {
+            Trace::error("Can not instantiate class with abstract methods. "
+                         "Abstract method not implemented: " +
+                         abstractMethod->toString() +
+                         ". Constructor was called here: ",
+                         loc);
+        }
+    }
+}
+
+bool ClassDefinition::implements(const MethodDefinition* abstractMethod) const {
+    for (MemberMethodList::const_iterator i = methods.begin();
+         i != methods.end();
+         i++) {
+        MethodDefinition* method = *i;
+        if (method->implements(abstractMethod)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 bool ClassDefinition::isReferenceType() {
     std::unique_ptr<Type> type(Type::create(name));
     type->setDefinition(this);
@@ -664,7 +719,7 @@ void ClassDefinition::transformIntoInterface() {
     DefinitionList::iterator i = members.begin();
     while (i != members.end()) {
         Definition* definition = *i;
-        if (definition->getDefinitionType() != Definition::Member) {
+        if (definition->getKind() != Definition::Member) {
             continue;
         }
         ClassMemberDefinition* member =
@@ -723,20 +778,20 @@ bool ClassDefinition::isMethodImplementingParentInterfaceMethod(
 }
 
 ClassMemberDefinition::ClassMemberDefinition(
-    MemberType m,
+    Kind k,
     const Identifier& name,
-    AccessLevel::AccessLevelType a, 
+    AccessLevel::Kind a,
     bool s, 
     const Location& l) :
     Definition(Definition::Member, name, l),
-    memberType(m),
+    kind(k),
     access(a),
     staticMember(s) {}
 
 ClassMemberDefinition::ClassMemberDefinition(
     const ClassMemberDefinition& other) :
     Definition(other),
-    memberType(other.memberType),
+    kind(other.kind),
     access(other.access),
     staticMember(other.staticMember) {}
 
@@ -754,7 +809,7 @@ MethodDefinition::MethodDefinition(
 MethodDefinition::MethodDefinition(
     const Identifier& name, 
     Type* retType,
-    AccessLevel::AccessLevelType access, 
+    AccessLevel::Kind access,
     bool isStatic, 
     Definition* e,
     const Location& l) :
@@ -1285,7 +1340,7 @@ DataMemberDefinition::DataMemberDefinition(const Identifier& name, Type* typ) :
 DataMemberDefinition::DataMemberDefinition(
     const Identifier& name, 
     Type* typ,
-    AccessLevel::AccessLevelType access, 
+    AccessLevel::Kind access,
     bool isStatic,
     bool isPrimaryCtorArg,
     const Location& l) :

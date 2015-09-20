@@ -47,14 +47,14 @@ private:
     MethodDefinition* parseMethod(
         const Token& name,
         Type* type,
-        AccessLevel::AccessLevelType access,
+        AccessLevel::Kind access,
         bool isStatic,
         bool parseBody);
     void parseMethodArgumentList(MethodDefinition* method);
     DataMemberDefinition* parseDataMember(
         const Token& name,
         Type* type,
-        AccessLevel::AccessLevelType access,
+        AccessLevel::Kind access,
         bool isStatic);
     void parseArgumentList(ArgumentList& argumentList);
     void parseLambdaSignature(MethodDefinition* method);
@@ -78,7 +78,7 @@ private:
     Expression* parseExpression(
         bool rangeAllowed = false,
         bool patternAllowed = false,
-        Operator::PrecedenceType precedence = Operator::NormalPrecedence);
+        Operator::Precedence precedence = Operator::NormalPrecedence);
     Expression* parseSubexpression(bool patternAllowed = false);
     Expression* parseUnaryExpression(
         const Token& operatorToken,
@@ -126,8 +126,8 @@ private:
     void consumeSingleSemicolon();
     void parseExpressionList(
         ExpressionList& expressions,
-        Operator::OperatorType firstDelimiter,
-        Operator::OperatorType lastDelimiter);
+        Operator::Kind firstDelimiter,
+        Operator::Kind lastDelimiter);
     void parseIdentifierList(IdentifierList& identifierList);
     void expectNewline();
     void expectCloseBraceOrNewline();

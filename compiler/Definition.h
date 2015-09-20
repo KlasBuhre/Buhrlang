@@ -10,14 +10,14 @@ class ClassDefinition;
 class Definition: public Node {
 public:
 
-    enum DefinitionType {
+    enum Kind {
         Class,
         Member,
         GenericTypeParameter,
         ForwardDeclaration
     };
 
-    Definition(DefinitionType t, const Identifier& n, const Location& l); 
+    Definition(Kind k, const Identifier& n, const Location& l);
     Definition(const Definition& other);
 
     virtual Definition* clone() const = 0;
@@ -25,8 +25,8 @@ public:
 
     ClassDefinition* getEnclosingClass() const;
 
-    DefinitionType getDefinitionType() const {
-        return definitionType;
+    Kind getKind() const {
+        return kind;
     }
 
     const Identifier& getName() const {
@@ -50,15 +50,15 @@ public:
     }
 
     bool isClass() const {
-        return definitionType == Class;
+        return kind == Class;
     }
 
     bool isMember() const {
-        return definitionType == Member;
+        return kind == Member;
     }
 
     bool isGenericTypeParameter() const {
-        return definitionType == GenericTypeParameter;
+        return kind == GenericTypeParameter;
     }
 
 protected:
@@ -66,7 +66,7 @@ protected:
     Definition* enclosingDefinition;
 
 private:
-    DefinitionType definitionType;
+    Kind kind;
     bool imported;
 };
 
@@ -143,6 +143,10 @@ public:
     MethodDefinition* getDefaultConstructor() const;
     bool isSubclassOf(const ClassDefinition* otherClass) const;
     bool isInheritingFromProcessInterface() const;
+    void checkImplementsAllAbstractMethods(
+        ClassList& treePath,
+        const Location& loc);
+    bool implements(const MethodDefinition* abstractMethod) const;
     bool isReferenceType();
     MethodDefinition* getMainMethod() const;
     ClassDefinition* getNestedClass(const Identifier& className) const;
@@ -252,24 +256,24 @@ private:
 class ClassMemberDefinition: public Definition {
 public:
 
-    enum MemberType {
+    enum Kind {
         DataMember,
         Method
     };
 
     ClassMemberDefinition(
-        MemberType m,
+        Kind k,
         const Identifier& name,
-        AccessLevel::AccessLevelType a, 
+        AccessLevel::Kind a,
         bool s, 
         const Location& l);
     ClassMemberDefinition(const ClassMemberDefinition& other);
 
-    MemberType getMemberType() const {
-        return memberType;
+    Kind getKind() const {
+        return kind;
     }
 
-    AccessLevel::AccessLevelType getAccessLevelModifier() const {
+    AccessLevel::Kind getAccessLevelModifier() const {
         return access;
     }
 
@@ -278,11 +282,11 @@ public:
     }
 
     bool isDataMember() const {
-        return memberType == DataMember;
+        return kind == DataMember;
     }
 
     bool isMethod() const {
-        return memberType == Method;
+        return kind == Method;
     }
 
     bool isPrivate() const {
@@ -290,8 +294,8 @@ public:
     }
 
 private:
-    MemberType memberType;
-    AccessLevel::AccessLevelType access;
+    Kind kind;
+    AccessLevel::Kind access;
     bool staticMember;
 };
 
@@ -301,7 +305,7 @@ public:
     MethodDefinition(
         const Identifier& name, 
         Type* retType,
-        AccessLevel::AccessLevelType access,         
+        AccessLevel::Kind access,
         bool isStatic, 
         Definition* e,
         const Location& l);
@@ -420,7 +424,7 @@ public:
     DataMemberDefinition(
         const Identifier& name, 
         Type* typ,
-        AccessLevel::AccessLevelType access, 
+        AccessLevel::Kind access,
         bool isStatic,
         bool isPrimaryCtorArg,
         const Location& l);

@@ -27,6 +27,7 @@ public:
     static int fileSize(Pointer<FileHandle> fileHandle);
     static bool fileExists(Pointer<string> filename);
     static Pointer<FileHandle> getStdOut();
+    static Pointer<FileHandle> getStdIn();
 };
 
 #endif

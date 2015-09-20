@@ -2,54 +2,54 @@
 
 #include "Token.h"
 
-Token::Token(TokenType t) : 
-    type(t), 
+Token::Token(Kind k) :
+    kind(k),
     keyword(Keyword::None), 
     op(Operator::None), 
     value(), 
     character(0), 
     location() {}
 
-Token::Token(TokenType t, char c) : 
-    type(t), 
+Token::Token(Kind k, char c) :
+    kind(k),
     keyword(Keyword::None), 
     op(Operator::None), 
     value(), 
     character(c), 
     location() {}
 
-Token::Token(TokenType t, const std::string& val) : 
-    type(t), 
+Token::Token(Kind k, const std::string& val) :
+    kind(k),
     keyword(Keyword::None), 
     op(Operator::None), 
     value(val), 
     character(0), 
     location() {}
 
-Token::Token(TokenType t, const char* valStart, const char* valEnd) : 
-    type(t), 
+Token::Token(Kind k, const char* valStart, const char* valEnd) :
+    kind(k),
     keyword(Keyword::None), 
     op(Operator::None), 
     value(valStart, valEnd), 
     character(0), 
     location() {
 
-    if (type == String) {
+    if (kind == String) {
         replace("\\n", '\n');
         replace("\\r", '\r');
     }
 }
 
-Token::Token(Operator::OperatorType o) : 
-    type(Operator),
+Token::Token(Operator::Kind o) :
+    kind(Operator),
     keyword(Keyword::None), 
     op(o), 
     value(), 
     character(0), 
     location() {}
 
-Token::Token(Keyword::KeywordType k, const std::string& val) : 
-    type(Keyword), 
+Token::Token(Keyword::Kind k, const std::string& val) :
+    kind(Keyword),
     keyword(k), 
     op(Operator::None), 
     value(val),
@@ -70,7 +70,7 @@ void Token::replace(const std::string& what, char with) {
 void Token::print(FILE* file) const {
     fprintf(file, "Line=%d column=%d ", location.line, location.column);
     fprintf(file, "type=");
-    switch (type) {
+    switch (kind) {
         case Invalid:
             fprintf(file, "Invalid");
             break;

@@ -14,3 +14,25 @@ Pointer<string> CStandardLib::toString(float f) {
     snprintf(buf, 64, "%f", f);
     return Utils::makeString(buf, strlen(buf));
 }
+
+int CStandardLib::toInt(Pointer<string> s) {
+    const char* str = s->buf->data();
+    int i;
+
+    if (sscanf(str, "%d", &i) == EOF) {
+        Exception::numberFormat("CStandardLib::toInt");
+    }
+
+    return i;
+}
+
+int CStandardLib::toFloat(Pointer<string> s) {
+    const char* str = s->buf->data();
+    float f;
+
+    if (sscanf(str, "%f", &f) == EOF) {
+        Exception::numberFormat("CStandardLib::toFloat");
+    }
+
+    return f;
+}
