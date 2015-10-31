@@ -19,7 +19,7 @@ void Module::compile() {
     tree.setCurrentTree();
 
     Parser parser(filename + ".b", tree, this);    
-    if (filename.find("stdlib") == std::string::npos) {
+    if (!File::isStdlib(filename)) {
         // For non-stdlib modules, import the default modules.
         parser.importDefaultModules();
     }

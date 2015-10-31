@@ -47,16 +47,18 @@ void callGcc(const std::string& executableName) {
     for (ModuleList::iterator i = modules.begin(); i != modules.end(); i++) {
         const Module* module = *i;
         const std::string& filename = module->getFilename();
+        const std::string& compilerPath = File::getSelfPath();
 
         // Compile C++ file into object file.
         std::string cmd = "g++";
-        if (filename.compare("stdlib/CStandardIo") != 0) {
+        if (filename.find("stdlib/CStandardIo") == std::string::npos) {
             // All modules except CStandardIo can be compiled with C++11 because
             // of fdopen().
             cmd += " -std=c++11";
         }
         cmd += " -g -c " + filename + ".cpp -o " + filename +
-               ".o -I . -I stdlib/ -I runtime/ -pthread";
+               ".o -I . -I " + compilerPath + "stdlib/ -I " + compilerPath +
+               "runtime/ -pthread";
 
         system(cmd.c_str());
         objectFiles += filename + ".o ";

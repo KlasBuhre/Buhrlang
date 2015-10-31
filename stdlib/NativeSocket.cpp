@@ -3,13 +3,14 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
+#include <string>
 
 #include "NativeSocket.h"
 
 int NativeSocket::socket() {
     int socketFd = ::socket(AF_INET, SOCK_STREAM, 0);
     if (socketFd < 0) {
-        Exception::io("NativeSocket.socket()");
+        throw IoException("NativeSocket.socket()");
     }
     return socketFd;
 }
@@ -22,7 +23,7 @@ void NativeSocket::bind(int socketFd, int port) {
     servAddr.sin_addr.s_addr = INADDR_ANY;
     servAddr.sin_port = htons(port);
     if (::bind(socketFd, (struct sockaddr *) &servAddr, sizeof(servAddr)) < 0) {
-        Exception::io("NativeSocket.bind()");
+        throw IoException("NativeSocket.bind()");
     }
 }
 
@@ -38,7 +39,7 @@ int NativeSocket::accept(int listenerSocketFd) {
                                     (struct sockaddr *) &clientAddr,
                                     &clientLen);
     if (acceptedSocketFd < 0) {
-        Exception::io("NativeSocket.accept()");
+        throw IoException("NativeSocket.accept()");
     }
     return acceptedSocketFd;
 }
@@ -47,7 +48,7 @@ bool NativeSocket::connect(int socketFd, Pointer<string> host, int port) {
     std::string hostName(host->buf->data(), host->buf->length());
     struct hostent* server = gethostbyname(hostName.c_str());
     if (server == nullptr) {
-        Exception::io("NativeSocket.connect()");
+        throw IoException("NativeSocket.connect()");
     }
 
     struct sockaddr_in servAddr;

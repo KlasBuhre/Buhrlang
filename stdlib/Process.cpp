@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <list>
 #include <vector>
 #include <map>
@@ -9,6 +10,7 @@
 
 #include "Process.h"
 #include "Utils.h"
+#include "Exception.h"
 
 class ProcessControlBlock {
 public:
@@ -17,6 +19,7 @@ public:
 
     void start(MessageHandlerFactory* factory);
     void run(MessageHandlerFactory* factory);
+    void terminate();
     int registerMessageHandler(Pointer<MessageHandler> messageHandler);
     void addMessage(Message* message);
     Message* getMessage();
@@ -31,8 +34,6 @@ public:
     }
 
 private:
-    void terminate();
-
     typedef std::list<Message*> MessageQueue;
     typedef std::vector<Pointer<MessageHandler> > MessageHandlerVector;
 
@@ -71,6 +72,8 @@ private:
     std::mutex mutex;
 };
 
+void _main_();
+
 namespace {
     thread_local ProcessControlBlock* currentProcess;
     Kernel kernel;
@@ -80,8 +83,28 @@ namespace {
         MessageHandlerFactory* factory) {
 
         currentProcess = process;
-        currentProcess->run(factory);
+
+        try {
+            if (factory != nullptr) {
+                process->run(factory);
+            } else {
+                _main_();
+            }
+        } catch (const IndexOutOfBoundsException&) {
+            printf("\nIndexOutOfBoundsException\n");
+        } catch (const IoException& exception) {
+            printf("\nIoException: %s\n", exception.what());
+        } catch (const NumberFormatException& exception) {
+            printf("\nNumberFormatException: %s\n", exception.what());
+        }
+
+        process->terminate();
     }
+}
+
+int main() {
+    processEntryPoint(currentProcess, nullptr);
+    return 0;
 }
 
 ProcessControlBlock::ProcessControlBlock(
@@ -140,8 +163,6 @@ void ProcessControlBlock::run(MessageHandlerFactory* factory) {
             delete message;
         }
     }
-
-    terminate();
 }
 
 void ProcessControlBlock::terminate() {

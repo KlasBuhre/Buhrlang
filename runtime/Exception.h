@@ -1,31 +1,32 @@
 #ifndef Exception_h
 #define Exception_h
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string>
+#include <exception>
 
-namespace Exception {
-    inline void indexOutOfBounds() {
-        printf("\nIndexOutOfBoundsException\n");
-        exit(0);
+class IndexOutOfBoundsException: public std::exception {};
+
+class IoException: public std::exception {
+public:
+    IoException(const char* i) : info(i) {}
+
+    const char* what () const throw () {
+        return info;
     }
 
-    inline void nullPointer() {
-        printf("\nNullPointerException\n");
-        exit(0);
+private:
+    const char* info;
+};
+
+class NumberFormatException: public std::exception {
+public:
+    NumberFormatException(const char* i) : info(i) {}
+
+    const char* what () const throw () {
+        return info;
     }
 
-    inline void io(const std::string& info) {
-        printf("\nIoException: %s\n", info.c_str());
-        exit(0);
-    }
-
-    inline void numberFormat(const std::string& info) {
-        printf("\nNumberFormatException: %s\n", info.c_str());
-        exit(0);
-    }
-}
+private:
+    const char* info;
+};
 
 #endif
-

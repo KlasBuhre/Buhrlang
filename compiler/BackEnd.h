@@ -28,7 +28,6 @@ private:
     void generateIncludeGuardEnd();
     void generateIncludes(const std::vector<std::string>& dependencies);
     void generateInclude(const std::string& fname);
-    void generateMainMethod(const MethodDefinition* mainMethod);
     void generateForwardDeclaration(
         const ForwardDeclarationDefinition* forwardDeclaration);
     void generateDefinitions(const DefinitionList& definitions);

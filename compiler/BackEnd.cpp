@@ -9,6 +9,7 @@
 #include "Definition.h"
 #include "Statement.h"
 #include "Expression.h"
+#include "File.h"
 
 namespace {
 
@@ -78,7 +79,7 @@ namespace {
     const std::string keywordStaticCast("static_cast");
     const std::string keywordGoto("goto");
 
-    const std::string null("NULL");
+    const std::string null("nullptr");
     const std::string ifNotDef("#ifndef ");
     const std::string endIf("#endif\n");
     const std::string define("#define ");
@@ -145,19 +146,11 @@ void CppBackEnd::generate(const std::vector<std::string>& dependencies) {
     generateDefinitions(tree.getGlobalDefinitions());
 
     generateIncludeGuardEnd();
-
-    if (mainMethod != nullptr) {
-        generateMainMethod(mainMethod);
-    }
 }
 
 void CppBackEnd::generateIncludeGuardBegin() {
     setHeaderMode();
-    std::string guard(moduleName);
-    std::size_t slashPosition = guard.find('/');
-    if (slashPosition != std::string::npos) {
-        guard.replace(slashPosition, 1, 1 , '_');
-    }
+    std::string guard = File::getFilename(moduleName);
     guard += "_h\n";
     generateCpp(ifNotDef);
     generateCpp(guard);
@@ -198,32 +191,6 @@ void CppBackEnd::generateInclude(const std::string& fname) {
     generateCpp(operatorLess);
     generateCpp(fname + ".h");
     generateCpp(operatorGreater);
-    generateNewline();
-}
-
-void CppBackEnd::generateMainMethod(const MethodDefinition* mainMethod) {
-    setImplementationMode();
-    generateNewline();
-    generateCpp("int main()\n{");
-    increaseIndent();
-    generateNewline();
-    if (!mainMethod->isFunction()) {
-        const Identifier& className =
-            mainMethod->getEnclosingClass()->getName();
-        generateCpp(mangle(className));
-        generateCpp(operatorScope);
-    }
-    generateCpp(mainMethod->getName());
-    generateCpp(openParentheses);
-    generateCpp(closeParentheses);
-    generateSemicolonAndNewline();
-    generateCpp(keywordReturn);
-    generateCpp(space);
-    generateCpp('0');
-    generateCpp(semicolon);
-    decreaseIndent();
-    generateNewline();
-    generateCpp(closeBrace);
     generateNewline();
 }
 

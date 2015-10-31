@@ -39,6 +39,10 @@ class __string {
         return buf.length
     }
 
+    bool empty() {
+        return buf.length == 0
+    }
+
     char at(int index) {
         return buf[index]
     }

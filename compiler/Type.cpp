@@ -391,6 +391,10 @@ bool Type::isAssignableByExpression(const Type* left, Expression* expression) {
 }
 
 bool Type::isUpcast(const Type* targetType) {
+    if (isInterface() && targetType->isObject()) {
+        return true;
+    }
+
     if (definition->isClass() && targetType->definition->isClass()) {
         ClassDefinition* fromClass = definition->cast<ClassDefinition>();
         ClassDefinition* targetClass =
@@ -403,6 +407,10 @@ bool Type::isUpcast(const Type* targetType) {
 }
 
 bool Type::isDowncast(const Type* targetType) {
+    if (isObject() && targetType->isInterface()) {
+        return true;
+    }
+
     if (definition->isClass() && targetType->definition->isClass()) {
         ClassDefinition* fromClass = definition->cast<ClassDefinition>();
         ClassDefinition* targetClass =

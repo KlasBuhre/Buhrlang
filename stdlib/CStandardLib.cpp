@@ -20,7 +20,7 @@ int CStandardLib::toInt(Pointer<string> s) {
     int i;
 
     if (sscanf(str, "%d", &i) == EOF) {
-        Exception::numberFormat("CStandardLib::toInt");
+        throw NumberFormatException("CStandardLib::toInt");
     }
 
     return i;
@@ -31,7 +31,7 @@ int CStandardLib::toFloat(Pointer<string> s) {
     float f;
 
     if (sscanf(str, "%f", &f) == EOF) {
-        Exception::numberFormat("CStandardLib::toFloat");
+        throw NumberFormatException("CStandardLib::toFloat");
     }
 
     return f;

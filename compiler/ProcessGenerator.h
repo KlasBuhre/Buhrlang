@@ -50,6 +50,9 @@ private:
     MethodDefinition* generateProxyConstructorMethodSignature(
         BlockStatement* body,
         bool includeProcessName);
+    void generateProxyConstructorWithPid();
+    MethodDefinition* generateProxyConstructorMethodSignatureWithPid(
+        BlockStatement* body);
     void generateProxyRemoteMethod(MethodDefinition* remoteMethodSignature);
     MethodDefinition* generateProxyRemoteMethodSignature(
         MethodDefinition* remoteMethodSignature,

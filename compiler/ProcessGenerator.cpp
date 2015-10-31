@@ -16,6 +16,7 @@ namespace {
     const Identifier nameVariableName("name");
     const Identifier valueVariableName("value");
     const Identifier idVariableName("id");
+    const Identifier argVariableName("arg");
     const Identifier messageHandlerIdVariableName("messageHandlerId");
     const Identifier interfaceIdVariableName("interfaceId");
 
@@ -125,16 +126,11 @@ void ProcessGenerator::transformIntoGeneratedProcessInterface(
                                                              nullptr);
     processClass->appendMember(waitMethod);
 
-    // The get[ProcessType]_Proxy() cannot be generated at the moment because
-    // it results in a cyclic dependency between the message handler class and
-    // the proxy class, which makes the generated C++ code not to compile.
-    /*
-    MethodDefinition* getProxyMethod = createGetProxyMethodSignature(
-        processClass,
-        nullptr,
-        inputClassName);
-    processClass->addMember(getProxyMethod);
-    */
+    MethodDefinition* getProxyMethod =
+        createGetProxyMethodSignature(processClass,
+                                      nullptr,
+                                      inputClassName);
+    processClass->appendMember(getProxyMethod);
 }
 
 // Generate the following interface:
@@ -379,12 +375,12 @@ void ProcessGenerator::generateInterfaceId(const Identifier& name, int id) {
 //     // Or, if implementing process interfaces:
 //     handleMessage(Message message) {
 //         match message.interfaceId {
-//             case [ProcessType]_InterfaceId.[ProcessType]Id ->
-//                 (([ProcessType]_Call) message.data).call(message, this)
-//             case [ProcessType]_InterfaceId.[ProcessInterfaceType]Id ->
+//             [ProcessType]_InterfaceId.[ProcessType]Id ->
+//                 (([ProcessType]_Call) message.data).call(message, this),
+//             [ProcessType]_InterfaceId.[ProcessInterfaceType]Id ->
 //                 (([ProcessInterfaceType]_Call) message.data).call(message,
-//                                                                   this)
-//             case unknown ->
+//                                                                   this),
+//             _ -> {}
 //                 // Do nothing.
 //         }
 //     }
@@ -428,11 +424,11 @@ void ProcessGenerator::generateMessageHandlerClass() {
 //
 //     // Or, if implementing process interfaces:
 //     match message.interfaceId {
-//         case [ProcessType]_InterfaceId.[ProcessType]Id ->
-//             (([ProcessType]_Call) message.data).call(message, this)
-//         case [ProcessType]_InterfaceId.[ProcessInterfaceType]Id ->
-//             (([ProcessInterfaceType]_Call) message.data).call(message, this)
-//         case unknown ->
+//         [ProcessType]_InterfaceId.[ProcessType]Id ->
+//             (([ProcessType]_Call) message.data).call(message, this),
+//         [ProcessType]_InterfaceId.[ProcessInterfaceType]Id ->
+//             (([ProcessInterfaceType]_Call) message.data).call(message, this),
+//         _ -> {}
 //             // Do nothing.
 //     }
 // }
@@ -465,9 +461,9 @@ void ProcessGenerator::generateHandleMessageMethod() {
 
 // Generate the following match cases:
 //
-// case [ProcessType]_InterfaceId.[ProcessInterfaceType]Id ->
-//     (([ProcessInterfaceType]_Call) message.data).call(message, this)
-// case unknown ->
+// [ProcessType]_InterfaceId.[ProcessInterfaceType]Id ->
+//     (([ProcessInterfaceType]_Call) message.data).call(message, this),
+// _ -> {}
 //     // Do nothing.
 //
 void ProcessGenerator::generateInterfaceMatchCases(MatchExpression* match) {
@@ -540,10 +536,10 @@ void ProcessGenerator::generateMessageHandlerGetProxyMethods() {
             }
         }
     }
-    // The get[ProcessType]_Proxy() cannot be generated at the moment because
-    // it results in a cyclic dependency to the proxy class, which makes the
-    // generated C++ code not to compile.
-    // generateMessageHandlerGetProcessProxyMethod();
+
+    if (inputClass->isProcess()) {
+        generateMessageHandlerGetProcessProxyMethod();
+    }
 }
 
 // Generate the following method:
@@ -588,10 +584,10 @@ void ProcessGenerator::generateMessageHandlerGetInterfaceProxyMethod(
 // }
 //
 void ProcessGenerator::generateMessageHandlerGetProcessProxyMethod() {
-    MethodDefinition* getProxyMethod = createGetProxyMethodSignature(
-        tree.getCurrentClass(),
-        tree.startBlock(),
-        inputClassName);
+    MethodDefinition* getProxyMethod =
+        createGetProxyMethodSignature(tree.getCurrentClass(),
+                                      tree.startBlock(),
+                                      inputClassName);
 
     MethodCallExpression* constructorCall =
         new MethodCallExpression(inputClassName + "_Proxy");
@@ -698,6 +694,7 @@ void ProcessGenerator::generateProxyClass() {
         generateProxyConstructor(false);
         generateProxyConstructor(true);
     }
+    generateProxyConstructorWithPid();
 
     for (MemberMethodList::const_iterator i = remoteMethodSignatures.begin();
          i != remoteMethodSignatures.end();
@@ -766,6 +763,41 @@ MethodDefinition* ProcessGenerator::generateProxyConstructorMethodSignature(
     if (includeProcessName) {
         methodSignature->addArgument(Type::String, nameVariableName);
     }
+
+    return methodSignature;
+}
+
+// Generate the following method:
+//
+// init(int arg) {
+//     pid = arg
+// }
+void ProcessGenerator::generateProxyConstructorWithPid() {
+    MethodDefinition* proxyConstructorMethod =
+        generateProxyConstructorMethodSignatureWithPid(tree.startBlock());
+
+    tree.addStatement(
+        new BinaryExpression(Operator::Assignment,
+                             new NamedEntityExpression(pidVariableName),
+                             new NamedEntityExpression(argVariableName)));
+
+    finishNonAbstractMethod(proxyConstructorMethod);
+}
+
+// Generate the following method signature:
+//
+// init(int arg)
+//
+MethodDefinition*
+ProcessGenerator::generateProxyConstructorMethodSignatureWithPid(
+    BlockStatement* body) {
+
+    MethodDefinition* methodSignature =
+        new MethodDefinition(Keyword::initString,
+                             nullptr,
+                             tree.getCurrentClass());
+    methodSignature->setBody(body);
+    methodSignature->addArgument(Type::Integer, argVariableName);
 
     return methodSignature;
 }
@@ -1001,11 +1033,11 @@ void ProcessGenerator::updateRegularClassConstructor() {
 //
 // handleMessage(Message message) {
 //     match message.interfaceId {
-//         case [ProcessType]_InterfaceId.[ProcessInterfaceType1]Id ->
-//             (([ProcessInterfaceType1]_Call) message.data).call(message, this)
-//         case [ProcessType]_InterfaceId.[ProcessInterfaceType2]Id ->
-//             (([ProcessInterfaceType2]_Call) message.data).call(message, this)
-//         case unknown ->
+//         [ProcessType]_InterfaceId.[ProcessInterfaceType1]Id ->
+//             (([ProcessInterfaceType1]_Call) message.data).call(message, this),
+//         [ProcessType]_InterfaceId.[ProcessInterfaceType2]Id ->
+//             (([ProcessInterfaceType2]_Call) message.data).call(message, this),
+//         _ -> {}
 //             // Do nothing.
 //     }
 // }

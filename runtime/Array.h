@@ -28,7 +28,7 @@ public:
 
     T& at(unsigned index) {
         if (index >= len) {
-            Exception::indexOutOfBounds();
+            throw IndexOutOfBoundsException();
         }
         return elements[index];
     }
@@ -64,7 +64,7 @@ public:
 
     Pointer<Array<T> > slice(unsigned begin, unsigned end) {
         if (begin >= len || end >= len || begin > end) {
-            Exception::indexOutOfBounds();
+            throw IndexOutOfBoundsException();
         }
         unsigned sliceLength = end - begin + 1;
         T* sliceElements = new T[sliceLength];

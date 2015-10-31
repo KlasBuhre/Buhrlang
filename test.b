@@ -1970,11 +1970,7 @@ process DoubleClient: DoubleResultHandler {
 }
 
 // ------------------------------------
-// This test requires the method get[ProcessType]_Proxy() in the generated
-// message handler. That method cannot be generated at the moment because it
-// results in a cyclic dependency between the message handler class and the
-// proxy class, which makes the generated C++ code not to compile.
-/*
+
 process AsyncProcess {
     doubleNumber(int n, AsyncProcess resultHandler) {
         println(Convert.toStr(Process.getPid) + ": doubleNumber")
@@ -1992,7 +1988,7 @@ process AsyncProcess {
         Process.terminate
     }
 }
-*/
+
 // ------------------------------------
 
 class DoubleClientHelper: DoubleResultHandler {
@@ -2078,13 +2074,13 @@ class CoreProcessTest {
         client.run
         client.wait
     }
-/*
+
     asynchronousProcessCallTest2() {
         let asyncProcess = new AsyncProcess
         asyncProcess.run
         asyncProcess.wait
     }
-*/
+
     asynchronousProcessCallTest3() {
         let client = new DoubleClientWithHelper
         client.run
@@ -2097,7 +2093,7 @@ class CoreProcessTest {
         synchronousProcessCallTest
         namedProcessTest
         asynchronousProcessCallTest1
-        // asynchronousProcessCallTest2
+        asynchronousProcessCallTest2
         asynchronousProcessCallTest3
 
         performanceTest
@@ -2176,8 +2172,17 @@ class EchoProcess_sleep_Call: EchoProcess_Call {
 
 // Class that implements the EchoProcess process.
 class EchoProcess_MessageHandler: EchoProcess, MessageHandler {
+
+    // The generated code should be like this, but unchecked downcasts are only
+    // allowed in the generated code.
+    //
+    // handleMessage(Message message) {
+    //     ((EchoProcess_Call) message.data).call(message, this)
+    // }
     handleMessage(Message message) {
-        ((EchoProcess_Call) message.data).call(message, this)
+        if let EchoProcess_Call epCall = message.data {
+             epCall.call(message, this)
+        }
     }
 
     string echo(string str) {
@@ -2289,7 +2294,7 @@ class EchoProcess_Proxy: EchoProcess {
 //
 //     handleResult(int n, int result) {
 //         println("Square of " + Convert.toStr(n) + " is " +
-//                       Convert.toStr(result))
+//                 Convert.toStr(result))
 //         Process.terminate
 //     }
 // }
@@ -2390,8 +2395,17 @@ class SquareServer_square_Call: SquareServer_Call {
 
 // Class that implements the SquareServer process.
 class SquareServer_MessageHandler: SquareServer, MessageHandler {
+
+    // The generated code should be like this, but unchecked downcasts are only
+    // allowed in the generated code.
+    //
+    // handleMessage(Message message) {
+    //     ((SquareServer_Call) message.data).call(message, this)
+    // }
     handleMessage(Message message) {
-        ((SquareServer_Call) message.data).call(message, this)
+        if let SquareServer_Call ssCall = message.data {
+             ssCall.call(message, this)
+        }
     }
 
     square(int n, SquareResultHandler resultHandler) {
@@ -2476,7 +2490,6 @@ class SquareClient_MessageHandler: SquareClient, MessageHandler {
     //             {} // Do nothing.
     //     }
     // }
-
     handleMessage(Message message) {
         match message.interfaceId {
             SquareClient_InterfaceId.SquareClientId -> {
@@ -2612,8 +2625,16 @@ class SquareClientHelper: SquareResultHandler, MessageHandler {
         messageHandlerId = Process.registerMessageHandler(this)
     }
 
+    // The generated code should be like this, but unchecked downcasts are only
+    // allowed in the generated code.
+    //
+    // handleMessage(Message message) {
+    //     ((SquareResultHandler_Call) message.data).call(message, this)
+    // }
     handleMessage(Message message) {
-        ((SquareResultHandler_Call) message.data).call(message, this)
+        if let SquareResultHandler_Call srhCall = message.data {
+             srhCall.call(message, this)
+        }
     }
 
     SquareResultHandler getSquareResultHandler_Proxy() {
@@ -2661,8 +2682,17 @@ class SquareClient4_run_Call: SquareClient4_Call {
 
 // Class that implements the SquareClient4 process.
 class SquareClient4_MessageHandler: SquareClient4, MessageHandler {
+
+    // The generated code should be like this, but unchecked downcasts are only
+    // allowed in the generated code.
+    //
+    // handleMessage(Message message) {
+    //     ((SquareClient4_Call) message.data).call(message, this)
+    // }
     handleMessage(Message message) {
-        ((SquareClient4_Call) message.data).call(message, this)
+        if let SquareClient4_Call scCall = message.data {
+             scCall.call(message, this)
+        }
     }
 
     run() {

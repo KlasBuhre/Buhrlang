@@ -453,7 +453,7 @@ public:
 
 private:
     void changeTypeIfGeneric(const NameBindings& nameBindings);
-    Expression* typeCheckInitExpression(Context& context);
+    void typeCheckInitExpression(Context& context);
 
     Type* type;
     Expression* expression;

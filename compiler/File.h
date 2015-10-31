@@ -17,6 +17,9 @@ public:
         const std::string& text,
         const std::string& fileName);
     static bool exists(const std::string& fname);
+    static const std::string& getSelfPath();
+    static bool isStdlib(const std::string& fname);
+    static std::string getFilename(const std::string& fullPath);
 
 private:
     std::string name;

@@ -1645,7 +1645,7 @@ void Parser::importModule(const std::string& moduleName) {
         }
 
         if (!File::exists(filename)) {
-            filename = "stdlib/" + filename;
+            filename = File::getSelfPath() + "stdlib/" + filename;
         }
 
         Parser parser(filename, tree, nullptr);

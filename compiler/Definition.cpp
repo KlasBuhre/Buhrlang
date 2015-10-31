@@ -1375,22 +1375,20 @@ void DataMemberDefinition::process() {
                          this);
         }
     } else {
-        Expression* typeCheckedInitExpression = nullptr;
         if (isStatic()) {
-            typeCheckedInitExpression = typeCheckInitExpression(
-                classDef->getStaticMemberInitializationContext());
+            typeCheckInitExpression(
+               classDef->getStaticMemberInitializationContext());
         } else {
-            typeCheckedInitExpression = typeCheckInitExpression(
-                classDef->getMemberInitializationContext());
+            typeCheckInitExpression(classDef->getMemberInitializationContext());
         }
-        const Type* initType = typeCheckedInitExpression->getType();
+        const Type* initType = expression->getType();
         if (type->isImplicit()) {
             Type* copiedInitType = initType->clone();
             copiedInitType->setConstant(type->isConstant());
             type = copiedInitType;
         } else if (!Type::isInitializableByExpression(
                         type,
-                        typeCheckedInitExpression)) {
+                        expression)) {
             Trace::error("Type mismatch.", type, initType, this);
         }
     }
@@ -1415,11 +1413,9 @@ void DataMemberDefinition::changeTypeIfGeneric(
     }
 }
 
-Expression* DataMemberDefinition::typeCheckInitExpression(Context& context) {
-    Expression* initExpression = expression->clone();
-    initExpression = initExpression->transform(context);
-    initExpression->typeCheck(context);
-    return initExpression;
+void DataMemberDefinition::typeCheckInitExpression(Context& context) {
+    expression = expression->transform(context);
+    expression->typeCheck(context);
 }
 
 bool DataMemberDefinition::isDataMember(Definition* definition) {

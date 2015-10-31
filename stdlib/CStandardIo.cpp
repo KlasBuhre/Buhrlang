@@ -19,7 +19,7 @@ Pointer<FileHandle> CStandardIo::fopen(
 
     FILE* file = ::fopen(fname.c_str(), fmode.c_str());
     if (file == NULL) {
-        Exception::io("CStandardIo.fopen()");
+        throw IoException("CStandardIo.fopen()");
     }
 
     Pointer<FileHandle> fileHandle(new FileHandle());
@@ -35,7 +35,7 @@ Pointer<FileHandle> CStandardIo::fdopen(
 
     FILE* file = ::fdopen(fileDescriptor, fmode.c_str());
     if (file == NULL) {
-        Exception::io("CStandardIo.fdopen()");
+        throw IoException("CStandardIo.fdopen()");
     }
 
     Pointer<FileHandle> fileHandle(new FileHandle());
@@ -65,7 +65,7 @@ Pointer<string> CStandardIo::fgets(Pointer<FileHandle> fileHandle) {
     char buf[lineBufSize];
     if (::fgets(buf, lineBufSize, fileHandle->file) == NULL) {
         if (ferror(fileHandle->file)) {
-            Exception::io("CStandardIo.fgets()");
+            throw IoException("CStandardIo.fgets()");
         }
         return Utils::makeString(buf, 0);
     }
@@ -75,7 +75,7 @@ Pointer<string> CStandardIo::fgets(Pointer<FileHandle> fileHandle) {
 void CStandardIo::fwrite(Pointer<string> buf, Pointer<FileHandle> fileHandle) {
     size_t bufSize = buf->buf->length();
     if (::fwrite(buf->buf->data(), 1, bufSize, fileHandle->file) != bufSize) {
-        Exception::io("CStandardIo.fwrite()");
+        throw IoException("CStandardIo.fwrite()");
     }
 }
 
@@ -97,11 +97,11 @@ Pointer<string> CStandardIo::fread(
 int CStandardIo::fileSize(Pointer<FileHandle> fileHandle) {
     FILE* file = fileHandle->file;
     if (fseek(file, 0, SEEK_END) == -1) {
-        Exception::io("CStandardIo.fileSize()");
+        throw IoException("CStandardIo.fileSize()");
     }
     size_t size = ftell(file);
     if (size == -1) {
-        Exception::io("CStandardIo.fileSize()");
+        throw IoException("CStandardIo.fileSize()");
     }
     rewind(file);
     return size;

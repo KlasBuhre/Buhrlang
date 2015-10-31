@@ -12,6 +12,11 @@ class Vector<T> {
         data = new T[capacity]
     }
 
+    // Return the size of the vecotr.
+    int size() {
+        return data.size
+    }
+
     // Add an element at the end of the vector.
     add(T element) {
         data.append(element)

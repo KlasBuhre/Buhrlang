@@ -553,13 +553,14 @@ ClassDefinition* Tree::generateConcreteClassFromGeneric(
     // Set the concrete type parameters on the cloned class. When the process
     // stage is executed for the cloned class, each occurence of a generic type
     // will be changed into the respective concrete type.
-    generatedClass->setConcreteTypeParameters(
-        concreteTypeParameters,
-        location);
+    generatedClass->setConcreteTypeParameters(concreteTypeParameters, location);
 
-    // Even though the original generic class could have been imported, the
-    // generated concrete class is not.
-    generatedClass->setIsImported(false);
+    if (!(*definitionBeingProcessed)->isImported()) {
+        // Even though the original generic class could have been imported, the
+        // generated concrete class is not imported if the using class is not
+        // imported.
+        generatedClass->setIsImported(false);
+    }
 
     if (const Type* recursiveType = findRecursiveType(concreteTypeParameters)) {
         // A class definition of one of the type parameters contains data of the

@@ -5,6 +5,8 @@
 #include <map>
 #include <memory>
 #include <sstream>
+#include <unistd.h>
+#include <limits.h>
 
 #include "File.h"
 
@@ -12,6 +14,7 @@ namespace {
     typedef std::map<std::string, std::string> FileMap;
 
     FileMap fileMap;
+    std::string selfPath;
 }
 
 File::File(const std::string& fname, const std::string& fmode) 
@@ -56,7 +59,7 @@ void File::writeToFile(const std::string& text, const std::string& fileName) {
     }
     size_t textSize = text.size();
     if (file.write(text.data(), textSize) != textSize) {
-        fprintf(stderr, "Could write to file '%s'.\n", fileName.c_str());
+        fprintf(stderr, "Could not write to file '%s'.\n", fileName.c_str());
         exit(0);
     }
 }
@@ -64,6 +67,35 @@ void File::writeToFile(const std::string& text, const std::string& fileName) {
 bool File::exists(const std::string& fname) {
     File file(fname, "r");
     return file.open();
+}
+
+const std::string& File::getSelfPath() {
+    if (selfPath.empty()) {
+        char buf[PATH_MAX];
+        ssize_t length = ::readlink("/proc/self/exe", buf, sizeof(buf) - 1);
+        if (length == -1) {
+            fprintf(stderr, "Could not get path of executable.\n");
+            exit(0);
+        }
+        buf[length] = 0;
+        std::string path(buf);
+        size_t position = path.find_last_of('/') + 1;
+        selfPath = path.erase(position);
+    }
+    return selfPath;
+}
+
+bool File::isStdlib(const std::string& fname) {
+    return fname.find("stdlib/") != std::string::npos;
+}
+
+std::string File::getFilename(const std::string& fullPath) {
+    size_t position = fullPath.find_last_of('/');
+    if (position == std::string::npos) {
+        return fullPath;
+    } else {
+        return fullPath.substr(position + 1);
+    }
 }
 
 const std::string& FileCache::getFile(const std::string& fname) {
