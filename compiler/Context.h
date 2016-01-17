@@ -90,12 +90,12 @@ public:
         return constructorCallStatement;
     }
 
-    void setIsInsideWhileStatement(bool w) {
-        insideWhileStatement = w;
+    void setIsInsideLoop(bool w) {
+        insideLoop = w;
     }
 
-    bool isInsideWhileStatement() const {
-        return insideWhileStatement;
+    bool isInsideLoop() const {
+        return insideLoop;
     }
 
     class BindingsGuard {
@@ -118,7 +118,7 @@ private:
     Type* arrayType;
     bool staticContext;
     bool stringConstructorCall;
-    bool insideWhileStatement;
+    bool insideLoop;
     bool constructorCallStatement;
 };
 

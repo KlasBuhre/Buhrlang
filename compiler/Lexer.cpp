@@ -128,6 +128,8 @@ void Lexer::tokenize() {
             case '?':
             case '|':
             case '&':
+            case '^':
+            case '~':
             case '(': case ')':
             case '{': case '}':
             case '[': case ']':
@@ -296,6 +298,9 @@ void Lexer::makeOperatorToken(const Location& startLocation) {
             if (isNextChar('=', tStart)) {
                 op = Operator::GreaterOrEqual;
                 location.stepColumn();
+            } else if (isNextChar('>', tStart)) {
+                op = Operator::RightShift;
+                location.stepColumn();
             } else {
                 op = Operator::Greater;
             }
@@ -303,6 +308,9 @@ void Lexer::makeOperatorToken(const Location& startLocation) {
         case '<':
             if (isNextChar('=', tStart)) {
                 op = Operator::LessOrEqual;
+                location.stepColumn();
+            } else if (isNextChar('<', tStart)) {
+                op = Operator::LeftShift;
                 location.stepColumn();
             } else {
                 op = Operator::Less;
@@ -313,7 +321,7 @@ void Lexer::makeOperatorToken(const Location& startLocation) {
                 op = Operator::LogicalAnd;
                 location.stepColumn();
             } else {
-                op = Operator::None;
+                op = Operator::BitwiseAnd;
             }
             break;
         case '|':
@@ -321,9 +329,9 @@ void Lexer::makeOperatorToken(const Location& startLocation) {
                 op = Operator::LogicalOr;
                 location.stepColumn();
             } else {
-                op = Operator::VerticalBar;
+                op = Operator::BitwiseOr;
             }
-            break;
+            break;    
         case '+':
             if (isNextChar('+', tStart)) {
                 op = Operator::Increment;
@@ -408,6 +416,12 @@ void Lexer::makeOperatorToken(const Location& startLocation) {
         case '_':
             op = Operator::Placeholder;
             break;
+        case '^':
+            op = Operator::BitwiseXor;
+            break;
+        case '~':
+            op = Operator::BitwiseNot;
+            break;
         default:
             break;
     }
@@ -460,6 +474,7 @@ void Lexer::initKeywordMap() {
     keywordMap[Keyword::interfaceString] = Keyword::Interface;
     keywordMap[Keyword::processString] = Keyword::Process;
     keywordMap[Keyword::namedString] = Keyword::Named;
+    keywordMap[Keyword::messageString] = Keyword::Message;
     keywordMap[Keyword::initString] = Keyword::Init;
     keywordMap[Keyword::privateString] = Keyword::Private;
     keywordMap[Keyword::staticString] = Keyword::Static;
@@ -470,6 +485,7 @@ void Lexer::initKeywordMap() {
     keywordMap[Keyword::floatString] = Keyword::Float;
     keywordMap[Keyword::stringString] = Keyword::String;
     keywordMap[Keyword::enumString] = Keyword::Enum;
+    keywordMap[Keyword::funString] = Keyword::Fun;
     keywordMap[Keyword::ifString] = Keyword::If;
     keywordMap[Keyword::elseString] = Keyword::Else;
     keywordMap[Keyword::boolString] = Keyword::Bool;
@@ -489,5 +505,6 @@ void Lexer::initKeywordMap() {
     keywordMap[Keyword::nativeString] = Keyword::Native;
     keywordMap[Keyword::yieldString] = Keyword::Yield;
     keywordMap[Keyword::matchString] = Keyword::Match;
+    keywordMap[Keyword::deferString] = Keyword::Defer;
     keywordMap[Keyword::jumpString] = Keyword::Jump;
 }

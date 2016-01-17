@@ -31,6 +31,7 @@ public:
     Binding(const Binding& other);
 
     bool isReferencingType() const;
+    Type* getVariableType() const;
 
     ReferencedEntity getReferencedEntity() const {
         return referencedEntity;

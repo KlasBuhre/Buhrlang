@@ -1,6 +1,7 @@
+import "System"
 
-class Vector<T> {
-    var T[] data
+message class Vector<T> {
+    private var T[] data
 
     // Create a vector with default capacity.
     init() {
@@ -29,7 +30,7 @@ class Vector<T> {
 
     // Iterate over each element in the vector.
     each() (T) {
-        data.each { |element|
+        data.each |element| {
             yield(element)
         }
     }
@@ -45,7 +46,7 @@ class Vector<T> {
     // Iterative fold left.
     T foldl(T start) T(T, T) {
         var T acc = start
-        data.each { |element|
+        data.each |element| {
             acc = yield(acc, element)
         }
         return acc
@@ -53,9 +54,9 @@ class Vector<T> {
 
     // Create a new vector from the old one and select which elements to 
     // include.
-    Vector<T> select() bool(T) {
+    Vector<T> filter() bool(T) {
         let result = new Vector<T>
-        data.each { |element|
+        data.each |element| {
             if yield(element) {
                 result.add(element)
             }

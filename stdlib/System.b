@@ -1,5 +1,11 @@
 
-class __string {
+message interface _Cloneable {
+
+    // Clone the object (do a deep copy).
+    object _clone()
+}
+
+message class __string {
     private var char[] buf
 
     init(char[] value) {

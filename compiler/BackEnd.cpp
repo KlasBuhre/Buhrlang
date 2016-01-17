@@ -38,8 +38,11 @@ namespace {
     const char operatorLogicalNegation('!');
     const char operatorGreater('>');
     const char operatorLess('<');
-    const char operatorBitwiseNegation('~');
     const char operatorDot('.');
+    const char operatorBitwiseNot('~');
+    const char operatorBitwiseAnd('&');
+    const char operatorBitwiseOr('|');
+    const char operatorBitwiseXor('^');
 
     const std::string semicolonAndNewLine(";\n");
     const std::string operatorEqual("==");
@@ -52,6 +55,8 @@ namespace {
     const std::string operatorLogicalOr("||");
     const std::string operatorGreaterOrEqual(">=");
     const std::string operatorLessOrEqual("<=");
+    const std::string operatorLeftShift("<<");
+    const std::string operatorRightShift(">>");
 
     const std::string keywordChar("char");
     const std::string keywordUnsignedChar("unsigned char");
@@ -67,6 +72,7 @@ namespace {
     const std::string keywordTrue("true");
     const std::string keywordFalse("false");
     const std::string keywordWhile("while");
+    const std::string keywordFor("for");
     const std::string keywordBreak("break");
     const std::string keywordContinue("continue");
     const std::string keywordReturn("return");
@@ -111,6 +117,9 @@ namespace {
         replace(mangledSymbol, "<", '_');
         replace(mangledSymbol, ">", '_');
         replace(mangledSymbol, "$", '_');
+        replace(mangledSymbol, "(", '_');
+        replace(mangledSymbol, ")", '_');
+        replace(mangledSymbol, " ", '_');
         return mangledSymbol;
     }
 
@@ -172,9 +181,7 @@ void CppBackEnd::generateIncludes(
     generateCpp(includeRuntime);
     generateNewline();
 
-    for (std::vector<std::string>::const_iterator i = dependencies.begin();
-         i != dependencies.end();
-         i++) {
+    for (auto i = dependencies.cbegin(); i != dependencies.cend(); i++) {
         const std::string& dependency = *i;
         generateInclude(dependency);
     }
@@ -206,9 +213,7 @@ void CppBackEnd::generateForwardDeclaration(
 }
 
 void CppBackEnd::generateDefinitions(const DefinitionList& definitions) {
-    for (DefinitionList::const_iterator i = definitions.begin();
-         i != definitions.end();
-         i++) {
+    for (auto i = definitions.cbegin(); i != definitions.cend(); i++) {
         const Definition* definition = *i;
         if (definition->isImported()) {
             // Don't generate code from imported definitions.
@@ -237,6 +242,7 @@ void CppBackEnd::generateClass(const ClassDefinition* classDef) {
     if (classDef->isGeneric()) {
         return;
     }
+
     setHeaderMode();
     generateCpp(keywordClass);
     generateCpp(space);
@@ -244,6 +250,7 @@ void CppBackEnd::generateClass(const ClassDefinition* classDef) {
     if (!classDef->isEnumeration() && !classDef->isEnumerationVariant()) {
         generateClassParentList(classDef);
     }
+
     generateNewline();
     generateCpp(openBrace);
     generateNewline();
@@ -254,6 +261,7 @@ void CppBackEnd::generateClass(const ClassDefinition* classDef) {
     if (classDef->isInterface()) {
         generateVirtualDestructor(classDef);
     }
+
     generateClassMembers(classDef);
     decreaseIndent();
     eraseLastChars(indentSize);
@@ -268,8 +276,7 @@ void CppBackEnd::generateClassParentList(const ClassDefinition* classDef) {
     if (parents.empty()) {
         generateClassParent(objectName);
     } else {
-        for (ClassList::const_iterator i = parents.begin();
-             i != parents.end(); ) {
+        for (auto i = parents.cbegin(); i != parents.cend(); ) {
             const ClassDefinition* parent = *i;
             generateClassParent(mangle(parent->getName()));
             if (++i != parents.end()) {
@@ -292,8 +299,8 @@ void CppBackEnd::generateClassParent(const Identifier& parentName) {
 
 void CppBackEnd::generateClassMembers(const ClassDefinition* classDef) {
     const DefinitionList& memberDefinitions = classDef->getMembers();
-    for (DefinitionList::const_iterator i = memberDefinitions.begin();
-         i != memberDefinitions.end();
+    for (auto i = memberDefinitions.cbegin();
+         i != memberDefinitions.cend();
          i++) {
         const Definition* definition = *i;
         switch (definition->getKind()) {
@@ -317,7 +324,7 @@ void CppBackEnd::generateClassMembers(const ClassDefinition* classDef) {
 void CppBackEnd::generateVirtualDestructor(const ClassDefinition* classDef) {
     generateCpp(keywordVirtual);
     generateCpp(space);
-    generateCpp(operatorBitwiseNegation);
+    generateCpp(operatorBitwiseNot);
     generateCpp(mangle(classDef->getName()));
     generateCpp(openParentheses);
     generateCpp(closeParentheses);
@@ -346,10 +353,12 @@ void CppBackEnd::generateMethod(const MethodDefinition* method) {
         // calling methods.
         return;
     }
+
     generateMethodSignature(method);
     if (method->isAbstract()) {
         return;
     }
+
     BlockStatement* body = method->getBody();
     if (body->getStatements().size() >= inlineThreshold ||
         method->isFunction()) {
@@ -357,6 +366,7 @@ void CppBackEnd::generateMethod(const MethodDefinition* method) {
         setImplementationMode();
         generateMethodSignature(method);
     }
+
     generateCpp(space);
     if (method->isConstructor()) {
         BlockStatement::StatementList& statements = body->getStatements();
@@ -373,7 +383,7 @@ void CppBackEnd::generateMethod(const MethodDefinition* method) {
             }
         }
     }
-    generateNewline();
+
     generateBlock(body);
     generateNewline();
     setHeaderMode();
@@ -385,10 +395,12 @@ void CppBackEnd::generateMethodSignature(const MethodDefinition* method) {
         generateCpp(keywordStatic);
         generateCpp(space);
     }
+
     if (method->isAbstract()) {
         generateCpp(keywordVirtual);
         generateCpp(space);    
     }
+
     if (method->isConstructor()) {
         if (!implementationMode && method->getArgumentList().size() == 1 &&
             !method->getClass()->isEnumeration()) {
@@ -398,14 +410,17 @@ void CppBackEnd::generateMethodSignature(const MethodDefinition* method) {
     } else {
         generateType(method->getReturnType());
     }
+
     if (implementationMode && !method->isFunction()) {
         generateScope(method->getEnclosingDefinition());
     }
+
     Identifier name = method->getName();
     if (method->isConstructor()) {
         name = eraseInitFromConstructorName(name);
     }
     generateCpp(mangle(name));
+
     generateArgumentList(method->getArgumentList());
     if (method->isAbstract()) {
         generateCpp(space);    
@@ -430,13 +445,13 @@ void CppBackEnd::generateScope(const Definition* enclosing) {
 
 void CppBackEnd::generateArgumentList(const ArgumentList& arguments) {
     generateCpp(openParentheses);
-    for (ArgumentList::const_iterator i = arguments.begin();
-         i != arguments.end(); ) {
+    for (auto i = arguments.cbegin(); i != arguments.cend(); ) {
         const VariableDeclaration* argument = *i;
         const Type* type = argument->getType();
         if (type->isLambda()) {
             break;
         }
+
         generateType(type); 
         generateCpp(mangle(argument->getIdentifier()));
         if (++i != arguments.end()) {
@@ -454,6 +469,7 @@ void CppBackEnd::generateDataMember(const DataMemberDefinition* dataMember) {
         generateCpp(space);
         generateThreadLocal(dataMember->getType());
     }
+
     const Type* type = dataMember->getType();
     assert(type);
     generateType(type);
@@ -465,6 +481,7 @@ void CppBackEnd::generateDataMember(const DataMemberDefinition* dataMember) {
         generateType(type);
         generateScope(dataMember->getEnclosingDefinition());
         generateCpp(mangle(dataMember->getName()));
+
         Expression* init = dataMember->getExpression();
         if (init) {
             generateCpp(space);
@@ -492,9 +509,7 @@ void CppBackEnd::generateBlock(const BlockStatement* block) {
 
     const Statement* statement = nullptr;
     const BlockStatement::StatementList& statements = block->getStatements();
-    for (BlockStatement::StatementList::const_iterator i = statements.begin(); 
-         i != statements.end(); 
-         i++) {
+    for (auto i = statements.cbegin(); i != statements.cend(); i++) {
         statement = *i;
         generateStatement(statement);
     }
@@ -502,7 +517,8 @@ void CppBackEnd::generateBlock(const BlockStatement* block) {
     if (statement != nullptr &&
         statement->getKind() != Statement::Block) {
         eraseLastChars(indentSize);
-    } 
+    }
+
     generateCpp(closeBrace);
     decreaseIndent();
 }
@@ -525,6 +541,9 @@ void CppBackEnd::generateStatement(const Statement* statement) {
             break;
         case Statement::While:
             generateWhileStatement(statement->cast<WhileStatement>());
+            break;
+        case Statement::For:
+            generateForStatement(statement->cast<ForStatement>());
             break;
         case Statement::Break:
             generateBreakStatement();
@@ -551,6 +570,7 @@ void CppBackEnd::generateVariableDeclaration(
 
     generateType(varDecl->getType()); 
     generateCpp(mangle(varDecl->getIdentifier()));
+
     const Expression* init = varDecl->getInitExpression();
     if (init) {
         generateCpp(space);
@@ -577,12 +597,14 @@ void CppBackEnd::generateType(const Type* type, bool generatePointer) {
             generateCpp(pointerClassName);
             generateCpp(operatorLess);
         }
+
         if (type->isArray()) {
             generateArrayType(type);
             generateCpp(space);
         } else {
             generateTypeName(type);
         }
+
         if (generatePointer) {
             generateCpp(operatorGreater);
         }
@@ -781,10 +803,10 @@ void CppBackEnd::generateArrayLiteral(
     arraySizeStr << elements.size();
     generateCpp(arraySizeStr.str());
     generateCpp(closeBracket);
-    generateCpp(space);
+
+    generateCpp(space);    
     generateCpp(openBrace);
-    for (ExpressionList::const_iterator i = elements.begin();
-         i != elements.end(); ) {
+    for (auto i = elements.cbegin(); i != elements.cend(); ) {
         const Expression* element = *i;
         generateExpression(element);
         if (++i != elements.end()) {
@@ -802,11 +824,13 @@ void CppBackEnd::generateBinaryExpression(
     if (generateParentheses) {
         generateCpp(openParentheses);
     }
+
     generateExpression(expression->getLeft(), true);
     generateCpp(space);
     generateExpressionOperator(expression->getOperator());
     generateCpp(space);
     generateExpression(expression->getRight(), true);
+
     if (generateParentheses) {
         generateCpp(closeParentheses);
     }
@@ -874,6 +898,24 @@ void CppBackEnd::generateExpressionOperator(Operator::Kind op) {
         case Operator::LogicalOr:
             generateCpp(operatorLogicalOr);
             break;
+        case Operator::BitwiseNot:
+            generateCpp(operatorBitwiseNot);
+            break;
+        case Operator::BitwiseAnd:
+            generateCpp(operatorBitwiseAnd);
+            break;
+        case Operator::BitwiseOr:
+            generateCpp(operatorBitwiseOr);
+            break;
+        case Operator::BitwiseXor:
+            generateCpp(operatorBitwiseXor);
+            break;
+        case Operator::LeftShift:
+            generateCpp(operatorLeftShift);
+            break;
+        case Operator::RightShift:
+            generateCpp(operatorRightShift);
+            break;
         default:
             internalError("generateExpressionOperator");
     }
@@ -906,6 +948,7 @@ void CppBackEnd::generateArrayAllocationExpression(
     generateCpp(space);
     generateType(allocExpression->getType(), false);
     generateCpp(openParentheses);
+
     const Expression* capacityExpression =
         allocExpression->getArrayCapacityExpression();
     if (capacityExpression != nullptr) {
@@ -949,6 +992,7 @@ void CppBackEnd::generateTypeCastExpression(
     } else {
         generateCpp(dynamicPointerCastName);
     }
+
     generateCpp(operatorLess);
     generateTypeName(type);
     generateCpp(operatorGreater);
@@ -985,10 +1029,10 @@ void CppBackEnd::generateMethodCall(const MethodCallExpression* methodCall) {
         name = eraseInitFromConstructorName(name);
     }
     generateCpp(mangle(name));
+
     generateCpp(openParentheses);
     const ExpressionList& arguments = methodCall->getArguments();
-    for (ExpressionList::const_iterator i = arguments.begin();
-         i != arguments.end(); ) {
+    for (auto i = arguments.cbegin(); i != arguments.cend(); ) {
         const Expression* argument = *i;
         generateExpression(argument);
         if (++i != arguments.end()) {
@@ -1048,6 +1092,7 @@ void CppBackEnd::generateIfStatement(const IfStatement* ifStatement) {
     generateCpp(closeParentheses);
     generateCpp(space);
     generateBlock(ifStatement->getBlock());
+
     const BlockStatement* elseBlock = ifStatement->getElseBlock();
     if (elseBlock) {
         generateCpp(space);
@@ -1066,6 +1111,31 @@ void CppBackEnd::generateWhileStatement(const WhileStatement* whileStatement) {
     generateCpp(closeParentheses);
     generateCpp(space);
     generateBlock(whileStatement->getBlock());
+    generateNewline();
+}
+
+void CppBackEnd::generateForStatement(const ForStatement* forStatement) {
+    generateCpp(keywordFor);
+    generateCpp(space);
+    generateCpp(openParentheses);
+    generateCpp(semicolon);
+
+    Expression* conditionExpression = forStatement->getConditionExpression();
+    if (conditionExpression) {
+        generateCpp(space);
+        generateExpression(conditionExpression);
+    }
+    generateCpp(semicolon);
+
+    Expression* iterExpression = forStatement->getIterExpression();
+    if (iterExpression != nullptr) {
+        generateCpp(space);
+        generateExpression(iterExpression);
+    }
+
+    generateCpp(closeParentheses);
+    generateCpp(space);
+    generateBlock(forStatement->getBlock());
     generateNewline();
 }
 

@@ -14,7 +14,7 @@ Context::Context(MethodDefinition* m) :
     arrayType(nullptr),
     staticContext(m->isStatic()),
     stringConstructorCall(false),
-    insideWhileStatement(false),
+    insideLoop(false),
     constructorCallStatement(false) {}
 
 Binding* Context::lookup(const Identifier& name) const {

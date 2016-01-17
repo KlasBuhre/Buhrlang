@@ -120,23 +120,23 @@ class EmergencyStateService(OamMoData mOamMoData): ISfwEventDispatcherObserver {
         return new ServicePrimitive(Primitive.Stop)
     }
 
-    SfwEventDescription getEvent() {
+    Option<SfwEventDescription> getEvent() {
         println("getEvent called on Emergency State Service service in state " +
                 getServiceStateString(mState))
         
         match mState {
             WaitingToSendNotifyReject -> {
                 setServiceState(Guard)
-                return createNotifyRejectEvent
+                return Some(createNotifyRejectEvent)
             },
-            _ -> {}
+            _ -> return None
         }
-        // Should not reach this line. Should panic.
     }
 
     SfwEventDescription createNotifyRejectEvent() {
         if let Some(sessionContext) = mSessionContext {
-            return new SfwEventDescription(sessionContext.getIncomingCallDialogId)
+            return new SfwEventDescription(
+                sessionContext.getIncomingCallDialogId)
         }
         // Should not reach this line. Should panic.
     }

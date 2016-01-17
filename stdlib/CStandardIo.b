@@ -1,6 +1,6 @@
 import "System"
 
-native class FileHandle
+message native class FileHandle
 
 native class CStandardIo {
 

@@ -1,1 +1,3 @@
-class Box<T>(T value)
+import "System"
+
+message class Box<T>(T value)

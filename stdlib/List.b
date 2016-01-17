@@ -1,10 +1,6 @@
 import "Option"
 
 class List<T> {
-    class Node(T data, var Option<Node> next)
-
-    var Option<Node> front = None
-    var Option<Node> back = None
 
     // Add an element at the end of the list.
     add(T data) {
@@ -45,13 +41,6 @@ class List<T> {
         return getData(back)
     }
 
-    private Option<T> getData(Option<Node> node) {
-        return match node {
-            Some(n) -> Some(n.data),
-            None    -> None
-        }
-    }
-
     // Iterate over the list.
     each() (T) {
         var node = front
@@ -63,6 +52,19 @@ class List<T> {
                     node = n.next
                 }
             }
+        }
+    }
+
+private:
+    class Node(T data, var Option<Node> next)
+
+    var Option<Node> front = None
+    var Option<Node> back = None
+
+    Option<T> getData(Option<Node> node) {
+        return match node {
+            Some(n) -> Some(n.data),
+            None    -> None
         }
     }
 }

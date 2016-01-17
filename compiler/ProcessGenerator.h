@@ -23,6 +23,10 @@ private:
     MethodDefinition* generateCallMethodSignature(BlockStatement* body);
     void generateCallClasses();
     void generateCallClass(MethodDefinition* remoteMethodSignature);
+    void generateCallConstructor(MethodDefinition* remoteMethodSignature);
+    MethodDefinition* generateCallConstructorSignature(
+        BlockStatement* body,
+        MethodDefinition* remoteMethodSignature);
     void generateCallMethod(MethodDefinition* remoteMethodSignature);
     MemberSelectorExpression* generateProcessMethodCall(
         MethodDefinition* remoteMethodSignature);

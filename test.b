@@ -70,7 +70,7 @@ genericTypesExample() {
     let strings = new List<string>
     strings.add("Hello")
     strings.add("World!")
-    strings.each { |s| print(s + " ") }
+    strings.each |s| { print(s + " ") }
     strings.addFront("in Buhrlang")
     if let Some(s) = strings.getFront {
         println(s)
@@ -82,13 +82,13 @@ genericTypesExample() {
     books.add(new Book("Kurzweil", "How to Create a Mind", 299.50))
 
     println("All books:")
-    books.each { |book|
+    books.each |book| {
         println(book.toString)
     }
 
     println("Cheap books:")
-    let cheapBooks = books.select { |book| book.price < 400.0 }
-    cheapBooks.each { |book|
+    let cheapBooks = books.filter |book| { book.price < 400.0 }
+    cheapBooks.each |book| {
         println(book.toString)
     }
 }
@@ -129,7 +129,6 @@ runExamples() {
     memorySafetyExample
     interfaceExample
     genericTypesExample
-
 }
 
 // ----------------------------------------------------------------------------
@@ -184,6 +183,10 @@ class Truck: Vehicle {
     }
 }
 
+class Z(string data) {
+    let str = data
+}
+
 class ConstructorTest {
     run() {
         println("----------[Constructor Test]----------")
@@ -206,6 +209,42 @@ class ConstructorTest {
 
         let rocket2 = new Rocket2("Mars", 100)
         println("Rocket to " + rocket2.destination)
+
+        let z = new Z("Z")
+        println(z.str)
+    }
+}
+
+// --------------------------------------------------------------------------
+
+class MethodTest {
+    run() {
+        println("----------[Method Test]----------")
+
+        println(returnValue)
+        println(returnValue2)
+        println(returnValue3)
+    }
+
+    int returnValue() {
+        if true {
+            return 1  // Removing a return statement results in an error.
+        } else {
+            return 2
+        }
+    }
+
+    int returnValue2() {
+        for var i = 0; i < 3; i++ {}
+        return 2
+    }
+
+    int returnValue3() {
+        match 3 {
+            1 -> return 1,
+            // 2 -> {},    // Error: Missing return at end of method.
+            _ -> return 3
+        }
     }
 }
 
@@ -309,11 +348,17 @@ class ExpressionTest {
         //     print(m)
         // }
 
-        testBytesAndChars()
-        testBooleans()
+        testBytesAndChars
+        testBooleans
+        testBitwiseOperators
 
         this.number = 10
         println(number)
+    }
+
+    static staticMethod() {
+        // println(this.number) // Error: Cannot access 'this' from a static
+                                // context.
     }
 
     string returnStr() {
@@ -370,6 +415,22 @@ class ExpressionTest {
             println("This should be printed")
         }
     }
+
+    testBitwiseOperators() {
+        let x = (1 << 2) | (1 << 1) | 1
+        println(x)
+        if x & 2 {
+            println("2nd LSB set")
+        }
+
+        let a = (1 << 3) | (1 << 2)
+        let b = (1 << 3) | (1 << 1)
+        println(a ^ b)
+        println(x | a | b)
+
+        let byte n = (byte)~1
+        println(n)
+    }
 }
 
 class SomeNamespace {
@@ -422,7 +483,7 @@ class StringArray {
     }
 
     each2() (string) {
-        array.each { |s|
+        array.each |s| {
             yield(s)
         }
     }
@@ -455,7 +516,7 @@ class LambdaMethods(int member) {
 
     int outer(int a) (int) {
         let k = a + member
-        return inner(k) { |m|
+        return inner(k) |m| {
             let n = m + member
             yield(n)
         }
@@ -485,24 +546,24 @@ class LambdaTest {
         println("----------[Lambda Test]----------")
 
         let strings = new StringArray
-        strings.each { |str|
-            str.characters.each { |character|
+        strings.each |str| {
+            str.characters.each |character| {
                 print(character)
             }
             println
         }
 
-        strings.each2 { |str|
-            str.characters.each { |character|
+        strings.each2 |str| {
+            str.characters.each |character| {
                 print(character)
             }
             println
         }
 
         let outerStrings = new StringArray
-        outerStrings.each { |outer|
+        outerStrings.each |outer| {
             let innnerStrings = new StringArray
-            innnerStrings.each { |inner|
+            innnerStrings.each |inner| {
                 print(outer)
                 print(inner)
             }
@@ -510,11 +571,11 @@ class LambdaTest {
         }
 
         let integers = new IntArray
-        let sum = integers.fold { |acc, e| acc + e }
+        let sum = integers.fold |acc, e| { acc + e }
         println("sum=" + Convert.toStr(sum))
 
         var outer = 2
-        method() { |i, str|
+        method() |i, str| {
             var j = i + 5
             j = outer
             outer = 0
@@ -522,38 +583,45 @@ class LambdaTest {
             j
         }
 
-        twoYields() { |i| 
+        twoYields() |i| {
             println("Yield " + Convert.toStr(i))
         }
 
         let obj = new DoNotTransform
-        lambdaMethod(obj.doNotTransformMember1) { |i|
+        lambdaMethod(obj.doNotTransformMember1) |i| {
             print(i)
         }
 
-        lambdaMethod(doNotTransformMember) { |i|
+        lambdaMethod(doNotTransformMember) |i| {
             print(i)
         }
 
         let lambdas = new LambdaMethods(2)
-        lambdas.method() { |i|
+        lambdas.method() |i| {
             print(i)
         }
-        lambdas.outer(1) { |a| println(a) }
+        lambdas.outer(1) |a| { println(a) }
 
         let lambdas2 = new LambdaMethods(2)
-        lambdas2.outer(1) { |a| println(a) }
+        lambdas2.outer(1) |a| { println(a) }
 
-        LambdaMethods.staticMethod() { |i|
+        LambdaMethods.staticMethod() |i| {
             print(i)
         }
 
         let wv = new WrappedVector<byte>
         wv.v.add((byte) 10)
         wv.v.add((byte) 20)
-        wv.each { |e| print(e) }
+        wv.each |e| { print(e) }
 
         println
+
+        let ints = new Vector<int>
+        ints.add(1)
+        ints.add(2)
+        ints.add(3)
+        let smallSum = ints.filter |i| { i < 3 }.foldl(0) |i, sum| { i + sum }
+        println(smallSum)
     }
 
     method() int(int, string) {
@@ -573,7 +641,7 @@ class LambdaTest {
 class LambdaMethods2(int member) {
     int outer(int a) (int) {
         let k = a + member
-        return inner(k) { |m|
+        return inner(k) |m| {
             let n = m + member
             yield(n)
         }
@@ -592,9 +660,123 @@ class WrappedVector<T> {
     let v = new Vector<T>
 
     each() (T) {
-        v.each { |e|
+        v.each |e| {
             yield(e)
         }
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+fun int(int) startAt(int x) {
+    let incrementBy = |y| { x + y }
+    return incrementBy
+}
+
+class TakesClosure<T, U> {
+    T method(fun T(U) f, U a) {
+        return f(a)
+    }
+}
+
+class hasClosure<T> {
+    test() {
+        let y = 2
+        let f = || { println(y) }
+        f()
+    }
+
+    method() {
+        let f = |x| {
+            let T t = 1
+            return t + x
+        }
+        println(f(2))
+    }
+}
+
+class Container(var int a, var int b)
+
+class HasClosure2<T> {
+    method() {
+        let f = || {
+            var arr = new T[]
+            arr.append(new T(1, 2))
+            let a = arr[0].a
+            let t = (T) new T(2, 3)
+
+            match new T(3, 4) {
+                T { a: 1, b } -> {},
+                T t -> {}
+            }
+        }
+    }
+}
+
+class ClosureTest {
+    run() {
+        println("----------[Closure Test]----------")
+
+        let closure1 = startAt(1)
+        let closure2 = startAt(5)
+        println(closure1(3))
+        println(closure2(3))
+
+        let limit = 3
+        let takesClosure = new TakesClosure<bool, int>
+        println(takesClosure.method(|a| { a > limit }, 4))
+
+        let hasClosure2 = new HasClosure2<Container>
+        hasClosure2.method
+
+        let y = 2
+
+        let f = |x| { x + y }
+        println(f(1))
+
+        let g = |x| { x * y }
+        method(g)
+
+        let h = factory(1)
+        println(h(4, 2))
+
+        let j = |z| { z < 3 }
+        println(j(2))
+
+        let container = new Container(1, 1)
+        let k = |x| {
+            container.a = x
+            container.b = x * 2
+        }
+        k(2)
+        println(container.b)
+    }
+
+    method(fun int(int) f) {
+        println(f(2))
+    }
+
+    fun int(int, int) factory(int c) {
+        return |int a, int b| { (a / b) + c }
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+class DeferTest {
+    run() {
+        println("----------[Defer Test]----------")
+
+        defer {
+            println(1)
+            println(2)
+        }
+
+        defer {
+            println(3)
+        }
+
+        println("after defer")
     }
 }
 
@@ -700,6 +882,129 @@ class Cd: Cc {
     d() {}
 }
 
+interface Clonable {
+    object clone()
+}
+
+interface Printable {
+    printInfo()
+}
+
+class Device(int price): Clonable, Printable
+
+class Screen(arg int price, int size): Device(price) {
+    init(Screen other) : Device(other.price) {
+        size = other.size
+    }
+
+    object clone() {
+        return new Screen(this)
+    }
+
+    printInfo() {
+        print("Screen size: " + Convert.toStr(size))
+    }
+}
+
+class Keyboard(arg int price): Device(price) {
+    var keys = new char[]
+
+    init(Keyboard other) : Device(other.price) {
+        other.keys.each |key| {
+            keys.append(key)
+        }
+    }
+
+    object clone() {
+        return new Keyboard(this)
+    }
+
+    printInfo() {
+        keys.each |key| { print(key) }
+    }
+}
+
+class Computer(arg int price, Screen screen): Device(price) {
+    var components = new List<Device>
+
+    init(Computer other) : Device(other.price) {
+        if let Screen s = other.screen.clone {
+            screen = s
+        }
+        other.components.each |component| {
+            if let Device d = component.clone {
+                components.add(d)
+            }
+        }
+    }
+
+    object clone() {
+        return new Computer(this)
+    }
+
+    printInfo() {
+        print("Computer price: " + Convert.toStr(price) + " components: ")
+        components.each |component| {
+            component.printInfo 
+            print(", ")
+        }
+        println
+    }
+}
+
+Screen clone(Screen other) {
+    return new Screen(other.price, other.size)
+}
+
+Computer clone(Computer other) {
+    let copy = new Computer(other.price, clone(other.screen))
+    copy.components = clone(other.components)    
+    return copy
+}
+
+List<Device> clone(List<Device> other) {
+    let copy = new List<Device>
+    other.each |device| {
+        if let Device d = device.clone {
+            copy.add(d)
+        }
+    }
+    return copy
+}
+
+/*
+
+With covariant return types, the clonable pattern would be implemented like as
+follows. The problem is that C++ does not allow covariant return types for smart
+pointers.
+
+interface Clonable {
+    object clone()
+}
+
+class Device(int price): Clonable
+
+class Screen(arg int price, int size): Device(price) {
+    init(Screen other) : Device(other.price) {
+        size = other.size
+    }
+
+    Screen clone() {
+        return new Screen(this)
+    }
+}
+
+class Computer(arg int price, Screen screen) : Device(price) {
+    init(Computer other) : Device(other.price) {
+        screen = other.screen.clone
+    }
+
+    Computer clone() {
+        return new Computer(this)
+    }
+}
+*/
+
 class InheritanceTest: CallbackInterface {
     run() {
         println("----------[Inheritance Test]----------")
@@ -718,6 +1023,20 @@ class InheritanceTest: CallbackInterface {
         executor.doCallback(this)
 
         let d = new Cd
+
+        let computer = new Computer(500, new Screen(100, 30))
+        computer.components.add(new Screen(120, 32))
+        let keyboard = new Keyboard(30)
+        keyboard.keys = ['q', 'w', 'e', 'r', 't', 'y']
+        computer.components.add(keyboard)
+        computer.printInfo
+
+        if let Computer clone = computer.clone {
+            clone.printInfo
+        }
+
+        let copy = clone(computer)
+        copy.printInfo        
     }
 
     callback() {
@@ -738,7 +1057,7 @@ enum BoolEnum { True, False }
 
 class RecursiveRefType(string data, Option<RecursiveRefType> next)
 
-class RecursiveGenRefType<T>(T data, Option<RecursiveGenRefType<T>> next)
+class RecursiveGenRefType<T>(T data, Option<RecursiveGenRefType<T> > next)
 
 class Outer {
     class Inner
@@ -765,7 +1084,7 @@ class GenericsTest {
         if let Some(b) = list.getBack {
             print(b)
         }
-        list.each { |e|
+        list.each |e| {
             print(e)
         }
         println
@@ -773,7 +1092,7 @@ class GenericsTest {
         let enumList = new List<BoolEnum>
         enumList.add(BoolEnum.True)
         enumList.add(BoolEnum.False)
-        enumList.each { |e|
+        enumList.each |e| {
             match e {
                 BoolEnum.True -> print("True"),
                 BoolEnum.False -> print("False")
@@ -811,12 +1130,12 @@ class GenericsTest {
         ints.add(3)
         ints.add(4)
         print("Vector.foldl: ")
-        let f = ints.foldl(1) { |acc, elem| acc * elem }
+        let f = ints.foldl(1) |acc, elem| { acc * elem }
         println(f)
 
-        let largeInts = ints.select { |elem| elem > 2 }
-        print("Vector.select: ")
-        largeInts.each { |i|
+        let largeInts = ints.filter |elem| { elem > 2 }
+        print("Vector.filter: ")
+        largeInts.each |i| {
             print(i)
         }
         println
@@ -824,7 +1143,7 @@ class GenericsTest {
         let cars = new List<Car>
         cars.add(new Bmw(1600, 300))
         cars.add(new Audi(1700, 450, true))
-        cars.each { |car|
+        cars.each |car| {
             car.driveFast
         }
 
@@ -832,10 +1151,10 @@ class GenericsTest {
         vector.add("abc")
         vector.add("def")
         vector.add("ghi")
-        vector.each { |s|
+        vector.each |s| {
             println(s)
         }        
-        vector.eachWithIndex { |s, index|
+        vector.eachWithIndex |s, index| {
             if index == 2 {
                 break
             }
@@ -847,8 +1166,8 @@ class GenericsTest {
             numbers.add(j)
         }
         println(numbers.at(50))
-        numbers.each { |n|
-            // if n == 50 continue
+        numbers.each |n| {
+            if n == 50 continue
             print(n)
         }
 
@@ -863,15 +1182,15 @@ class GenericsTest {
         let memberVector = new Vector<string>
         memberVector.add("a")
         memberVector.add("b")
-        memberVector.each { |s|
+        memberVector.each |s| {
             print(s)
         }
         println
 
-        let vectorOfBoxes = new Vector<Box<int>>
+        let vectorOfBoxes = new Vector<Box<int> >
         vectorOfBoxes.add(new Box(10))
         vectorOfBoxes.add(new Box(20))
-        vectorOfBoxes.each { |box|
+        vectorOfBoxes.each |box| {
             print(box.value)
         }
         println
@@ -882,7 +1201,7 @@ class GenericsTest {
         let boxedBool = new Box(true)
         println(boxedBool.value)
 
-        let listOfVectors = new List<Vector<string>>
+        let listOfVectors = new List<Vector<string> >
         let v1 = new Vector<string>
         v1.add("v1_1")
         v1.add("v1_2")
@@ -891,8 +1210,8 @@ class GenericsTest {
         v2.add("v2_1")
         v2.add("v2_2")
         listOfVectors.add(v2)
-        listOfVectors.each { |v|
-            v.each { |s|
+        listOfVectors.each |v| {
+            v.each |s| {
                 print(s)
             }
             println
@@ -944,7 +1263,7 @@ class ArrayTest {
         memberArray.append(1)
 
         let numbers = [1, 2, 3]
-        numbers.each { |number|
+        numbers.each |number| {
             print(number)
             if number == 2 {
                 println("This element equals two")
@@ -955,19 +1274,19 @@ class ArrayTest {
         }
 
         let str = "string"
-        str.characters.each { |character|
+        str.characters.each |character| {
             print(character)
         }
 
         let hs = new HasString
-        hs.memberString.characters.each { |c|
+        hs.memberString.characters.each |c| {
             print(c)
         }
 
         println
 
         let strArray = ["str1", "str2"]
-        strArray.each { |s|
+        strArray.each |s| {
             print(s)
         }
 
@@ -977,27 +1296,27 @@ class ArrayTest {
         for var i = 0; i < ints.length; i++ {
             ints[i]++
         }
-        ints.each { |i| print(i) }
+        ints.each |i| { print(i) }
         println
 
         ints.append(4)
         ints.appendAll([1, 2])
-        ints.each { |i| print(i) }
+        ints.each |i| { print(i) }
         println
 
         let c = numbers.concat(ints)
         print("c=")
-        c.each { |i| print(i) }
+        c.each |i| { print(i) }
         println
 
         let c2 = numbers + ints
         print("c2=")
-        c2.each { |i| print(i) }
+        c2.each |i| { print(i) }
         println
 
         let slice = ints.slice(1, 2)
         print("slice=")
-        slice.each { |i| print(i) }
+        slice.each |i| { print(i) }
         println
 
         let hasStrArray = new HasString[3]
@@ -1005,13 +1324,13 @@ class ArrayTest {
         print(hasArray.array[1])
         println
 
-        [1, 2, 3, 4].each { |i| print(i) }
+        [1, 2, 3, 4].each |i| { print(i) }
         println
 
         let arr = [0, 1, 2, 3, 4]
         let slice2 = arr[1...3]
         print("slice2=")
-        slice2.each { |i| print(i) }
+        slice2.each |i| { print(i) }
         println
 
         // let q = 1...2
@@ -1019,14 +1338,14 @@ class ArrayTest {
         defaultCapacity.append(0)
         defaultCapacity.append(1)
         defaultCapacity.appendAll(arr)
-        defaultCapacity.each { |i| print(i) }
+        defaultCapacity.each |i| { print(i) }
         println
 
         var d2 = new int[]
         d2.append(0)
         d2.append(1)
         d2 += arr
-        d2.each { |i| print(i) }
+        d2.each |i| { print(i) }
         println
 
         println(createIntArray(5)[2])
@@ -1068,6 +1387,19 @@ class WhileTest {
             }
         }
 
+        println
+        println("Testing continue:")
+        for var h = 0; h < 2; h++ {
+            if h == 1 {
+                continue
+            }
+            for var j = 0; j < 3; j++ {
+                if j == 1 {
+                    continue
+                }
+                print(j)
+            }
+        }
         println("\nFor loop:")
 
         for var k = 0; k < 3; k++ {
@@ -1156,7 +1488,7 @@ class StringTest {
         }
 
         let tokens = "GET /index.html HTTP/1.1\r\n".split
-        tokens.each { |token|
+        tokens.each |token| {
             println("'" + token + "'")
         }
 
@@ -1237,7 +1569,7 @@ class ParseTest {
 
         println(add(2, 5))
 
-        loop(2) { |j|
+        loop(2) |j| {
             println(j)
         }
 
@@ -1362,7 +1694,7 @@ testConstructorPatterns() {
     match p {
         Point(2, 3)          -> println("x is 2 and y is 3"),
         Point(2, y) if y > 3 -> println("x is 2 and y is > 3"),
-        Point(5, _)          -> println("y is 5"),
+        Point(5, _)          -> println("x is 5"),
         Point(x, y)          -> println(x + y)
     }
 
@@ -1697,7 +2029,7 @@ takeOptionBoat(Option<Boat> optional) {
     if let Some(boat) = optional {
         println("Got a boat named " + boat.name)
     }
-    // optional.map { |boat| println("Got a boat named " + boat.name) }
+    // optional.map |boat| { println("Got a boat named " + boat.name) }
 }
 
 Option<HttpRequest> parseHttpRequest(string requestLine) {
@@ -1722,7 +2054,7 @@ testOption() {
         None          -> println("Could not parse request")
     }
 
-    // The type Option<Boat> can not be inferred from None in declarations. Type
+    // The type Option<Boat> can not be inferred from None in declaration. Type
     // needs to be specified.
     let Option<Boat> noBoat = None
     takeOptionBoat(noBoat)
@@ -1745,7 +2077,7 @@ testOption() {
     }
 
     let boats = [Some(new Boat("Titanic")), None, Some(new Boat("Unsinkable"))]
-    boats.each { |b|
+    boats.each |b| {
         match b {
             Some(boat) -> println(boat.name),
             None       -> println("No boat")
@@ -1852,25 +2184,25 @@ class IoTest {
         println("----------[I/O Test]----------")
 
         let text = "Some text in a file.\nLine2"
-        File.open("file_test", "w+") { |file|
+        File.open("file_test", "w+") |file| {
             file.write(text)
         }
 
-        File.open("file_test", "r") { |file|
+        File.open("file_test", "r") |file| {
             print(file.readLine)
         }
 
         let size = 10000
-        File.open("big_file", "w+") { |file|
+        File.open("big_file", "w+") |file| {
             file.write(makeBigString(size))
         }
 
-        File.open("big_file", "r") { |file|
+        File.open("big_file", "r") |file| {
             print("Big file size (1)=")
             println(file.read(size + 10).length)
         }
 
-        File.open("big_file", "r") { |f|
+        File.open("big_file", "r") |f| {
             print("Big file size (2)=")
             println(f.readAll.length)
         }
@@ -1885,7 +2217,7 @@ class IoTest {
         print(socket.readLine)
         socket.close
 
-        TcpSocket.open("www.google.com", 80) { |socket|
+        TcpSocket.open("www.google.com", 80) |socket| {
             socket.write(
                 "GET /index.html HTTP/1.1\r\nHost: www.google.com\r\n\r\n")
             print(socket.readLine)
@@ -2017,7 +2349,7 @@ process CounterServer {
 
     increaseCounter() {
         n++
-        if n == 100 {
+        if n == 1000 {
             println(Process.getPid)
             Process.terminate
         }
@@ -2027,7 +2359,7 @@ process CounterServer {
 process CounterClient {
     run() {
         let server = new CounterServer
-        for var int i = 0; i < 100; i++ {
+        for var int i = 0; i < 1000; i++ {
             server.increaseCounter
         }
         server.wait
@@ -2037,17 +2369,50 @@ process CounterClient {
 
 // ------------------------------------
 
+message class DbCondition(string expression)
+
+message class QueryBase(int protocol)
+
+class Query(int key, string table): QueryBase(2) {
+    var conditions = new DbCondition[]
+    var buf = new byte[]
+    let condition = Some(new DbCondition("*"))
+    let vector = new Vector<DbCondition>
+
+    printInfo() {
+        println("DbQuery: protocol: " + Convert.toStr(protocol) + " key: " +
+                Convert.toStr(key) + " in " + table)
+        conditions.each |condition| { println(condition.expression) }
+    }
+}
+
+message enum QueryResult {
+    Ok,
+    Error
+}
+
+class QueryResponse(QueryResult result): QueryBase(2)
+
+process DbProcess {
+    QueryResponse query(Query query) {
+        query.printInfo
+        return new QueryResponse(QueryResult.Ok)
+    }
+}
+
+// ------------------------------------
+
 class CoreProcessTest {
     performanceTest() {
         println("Performance test start.")
-        let numClients = 1
+        let numClients = 16
         var clients = new CounterClient[numClients]
         for var i = 0; i < numClients; i++ {
             let client = new CounterClient
             client.run
             clients.append(client)
         }
-        clients.each { |client|
+        clients.each |client| {
             client.wait
         }
         println("Performance test done!")
@@ -2087,6 +2452,13 @@ class CoreProcessTest {
         client.wait
     }
 
+    testMessageClass() {
+        let query = new Query(5, "table1")
+        query.conditions.append(new DbCondition("table1.column2 == 3"))
+        let db = new DbProcess
+        let response = db.query(query)
+    }
+
     run() {
         println("----------[Core Process Test]----------")
 
@@ -2095,7 +2467,7 @@ class CoreProcessTest {
         asynchronousProcessCallTest1
         asynchronousProcessCallTest2
         asynchronousProcessCallTest3
-
+        testMessageClass
         performanceTest
     }
 }
@@ -2117,13 +2489,11 @@ class CoreProcessTest {
 //     }
 // }
 //
-// class Main {
-//     static main() {
-//         let server = new EchoProcess
-//         println(server.echo("test"))
-//         server.sleep(1000)
-//         server.wait
-//     }
+// main() {
+//     let server = new EchoProcess
+//     println(server.echo("test"))
+//     server.sleep(1000)
+//     server.wait
 // }
 //
 // Code that should be generated:
@@ -2137,8 +2507,50 @@ interface EchoProcess {
     wait()
 }
 
-interface EchoProcess_Call {
-    call(Message message, EchoProcess processInstance)
+// EchoProcess proxy class.
+message class EchoProcess_Proxy: EchoProcess {
+    int pid
+
+    init() {
+        pid = Process.spawn(new EchoProcess_MessageHandlerFactory)
+    }
+
+    init(string name) {
+        pid = Process.spawn(new EchoProcess_MessageHandlerFactory, name)
+    }
+
+    // The generated code should be like this, but unchecked downcasts are only
+    // allowed in the generated code.
+    //
+    // string echo(string str) {
+    //     let msg = new Message(MessageType.MethodCall,
+    //                           new EchoProcess_echo_Call(Process.getPid, str))
+    //     Process.send(pid, msg)
+    //     return ((string) Process.receiveMethodResult(msg.id).data).value
+    // }
+    string echo(string str) {
+        let msg = new Message(MessageType.MethodCall,
+                              new EchoProcess_echo_Call(Process.getPid, str))
+        Process.send(pid, msg)
+        return match Process.receiveMethodResult(msg.id).data {
+            string retval -> retval,
+            _ -> ""
+        }
+    }
+
+    sleep(int milliseconds) {
+        let msg = new Message(MessageType.MethodCall,
+                              new EchoProcess_sleep_Call(milliseconds))
+        Process.send(pid, msg)
+    }
+
+    wait() {
+        Process.wait(pid)
+    }
+}
+
+message interface EchoProcess_Call {
+    call(Message msg, EchoProcess processInstance)
 }
 
 // Class that encapsulates the arguments to the echo method.
@@ -2151,9 +2563,9 @@ class EchoProcess_echo_Call: EchoProcess_Call {
         str = arg1
     }
 
-    call(Message message, EchoProcess processInstance) {
+    call(Message msg, EchoProcess processInstance) {
         let retval = processInstance.echo(str)
-        Process.send(sourcePid, message.createMethodResult(retval))
+        Process.send(sourcePid, msg.createMethodResult(retval))
     }
 }
 
@@ -2165,7 +2577,7 @@ class EchoProcess_sleep_Call: EchoProcess_Call {
         milliseconds = arg1
     }
 
-    call(Message message, EchoProcess processInstance) {
+    call(Message msg, EchoProcess processInstance) {
         processInstance.sleep(milliseconds)
     }
 }
@@ -2176,12 +2588,12 @@ class EchoProcess_MessageHandler: EchoProcess, MessageHandler {
     // The generated code should be like this, but unchecked downcasts are only
     // allowed in the generated code.
     //
-    // handleMessage(Message message) {
-    //     ((EchoProcess_Call) message.data).call(message, this)
+    // handleMessage(Message msg) {
+    //     ((EchoProcess_Call) msg.data).call(msg, this)
     // }
-    handleMessage(Message message) {
-        if let EchoProcess_Call epCall = message.data {
-             epCall.call(message, this)
+    handleMessage(Message msg) {
+        if let EchoProcess_Call epCall = msg.data {
+             epCall.call(msg, this)
         }
     }
 
@@ -2204,54 +2616,13 @@ class EchoProcess_MessageHandlerFactory: MessageHandlerFactory {
     }
 }
 
-// EchoProcess proxy class.
-class EchoProcess_Proxy: EchoProcess {
-    int pid
-
-    init() {
-        pid = Process.spawn(new EchoProcess_MessageHandlerFactory)
-    }
-
-    init(string name) {
-        pid = Process.spawn(new EchoProcess_MessageHandlerFactory, name)
-    }
-
-    // The generated code should be like this, but unchecked downcasts are only
-    // allowed in the generated code.
-    //
-    // string echo(string str) {
-    //     let message = new Message(new EchoProcess_echo_Call(Process.getPid,
-    //                                                         str))
-    //     Process.send(pid, message)
-    //     return ((string) Process.receiveMethodResult(message.id).data).value
-    // }
-    string echo(string str) {
-        let message = new Message(new EchoProcess_echo_Call(Process.getPid,
-                                                            str))
-        Process.send(pid, message)
-        return match Process.receiveMethodResult(message.id).data {
-            string retval -> retval,
-            _ -> ""
-        }
-    }
-
-    sleep(int milliseconds) {
-        let message = new Message(new EchoProcess_sleep_Call(milliseconds))
-        Process.send(pid, message)
-    }
-
-    wait() {
-        Process.wait(pid)
-    }
-}
-
 // ----------------------------------------------------------------------------
 //
 // Test 2. Spawn named process. Scenario:
 //
 // process EchoServer {
-//     string echo(string message) {
-//         return message
+//     string echo(string msg) {
+//         return msg
 //     }
 //
 //     sleep(int milliseconds) {
@@ -2260,13 +2631,11 @@ class EchoProcess_Proxy: EchoProcess {
 //     }
 // }
 //
-// class Main {
-//     static main() {
-//         let server = new EchoServer named "Echo"
-//         print(server.echo("Echo this"))
-//         server.sleep(30)
-//         server.wait
-//     }
+// main() {
+//     let server = new EchoServer named "Echo"
+//     print(server.echo("Echo this"))
+//     server.sleep(30)
+//     server.wait
 // }
 //
 // Same generated code as in Test 1.
@@ -2299,12 +2668,10 @@ class EchoProcess_Proxy: EchoProcess {
 //     }
 // }
 //
-// class Main {
-//     static main() {
-//         let client = new SquareClient
-//         client.run
-//         client.wait
-//     }
+// main() {
+//     let client = new SquareClient
+//     client.run
+//     client.wait
 // }
 //
 // Code that should be generated:
@@ -2319,8 +2686,33 @@ interface SquareResultHandler {
     SquareResultHandler getSquareResultHandler_Proxy()
 }
 
-interface SquareResultHandler_Call {
-    call(Message message, SquareResultHandler processInstance)
+// SquareResultHandler proxy class.
+message class SquareResultHandler_Proxy: SquareResultHandler {
+    int pid
+    int messageHandlerId
+    int interfaceId
+
+    init(int processId, int handlerId, int ifId) {
+        pid = processId
+        messageHandlerId = handlerId
+        interfaceId = ifId
+    }
+
+    handleResult(int n, int result) {
+        let msg = new Message(
+            messageHandlerId,
+            interfaceId,
+            new SquareResultHandler_handleResult_Call(n, result))
+        Process.send(pid, msg)
+    }
+
+    SquareResultHandler getSquareResultHandler_Proxy() {
+        return this
+    }
+}
+
+message interface SquareResultHandler_Call {
+    call(Message msg, SquareResultHandler processInstance)
 }
 
 // Class that encapsulates the arguments to the handleResult method.
@@ -2333,33 +2725,8 @@ class SquareResultHandler_handleResult_Call: SquareResultHandler_Call {
         result = arg2
     }
 
-    call(Message message, SquareResultHandler processInstance) {
+    call(Message msg, SquareResultHandler processInstance) {
         processInstance.handleResult(n, result)
-    }
-}
-
-// SquareResultHandler proxy class.
-class SquareResultHandler_Proxy: SquareResultHandler {
-    int pid
-    int messageHandlerId
-    int interfaceId
-
-    init(int processId, int handlerId, int ifId) {
-        pid = processId
-        messageHandlerId = handlerId
-        interfaceId = ifId
-    }
-
-    handleResult(int n, int result) {
-        let message = new Message(
-            messageHandlerId,
-            interfaceId,
-            new SquareResultHandler_handleResult_Call(n, result))
-        Process.send(pid, message)
-    }
-
-    SquareResultHandler getSquareResultHandler_Proxy() {
-        return this
     }
 }
 
@@ -2374,21 +2741,56 @@ interface SquareServer {
     wait()
 }
 
-interface SquareServer_Call {
-    call(Message message, SquareServer processInstance)
+// SquareServer proxy class.
+message class SquareServer_Proxy: SquareServer {
+    int pid
+
+    init() {
+        pid = Process.spawn(new SquareServer_MessageHandlerFactory)
+    }
+
+    init(string name) {
+        pid = Process.spawn(new SquareServer_MessageHandlerFactory, name)
+    }
+
+    square(int n, SquareResultHandler resultHandler) {
+        let msg = new Message(
+            MessageType.MethodCall,
+            new SquareServer_square_Call(
+                n,
+                resultHandler.getSquareResultHandler_Proxy))
+        Process.send(pid, msg)
+    }
+
+    wait() {
+        Process.wait(pid)
+    }
+}
+
+message interface SquareServer_Call {
+    call(Message msg, SquareServer processInstance)
 }
 
 // Class that encapsulates the arguments to the square method.
 class SquareServer_square_Call: SquareServer_Call {
     int n
-    SquareResultHandler resultHandler
+    SquareResultHandler_Proxy resultHandler
 
+    // The generated code should be like this, but unchecked downcasts are only
+    // allowed in the generated code.
+    //
+    // init(int arg1, SquareResultHandler arg2) {
+    //     n = arg1
+    //     resultHandler = (SquareResultHandler_Proxy) arg2
+    // }
     init(int arg1, SquareResultHandler arg2) {
         n = arg1
-        resultHandler = arg2
+        if let SquareResultHandler_Proxy proxy = arg2 {
+            resultHandler = proxy
+        }
     }
 
-    call(Message message, SquareServer processInstance) {
+    call(Message msg, SquareServer processInstance) {
         processInstance.square(n, resultHandler)
     }
 }
@@ -2399,12 +2801,12 @@ class SquareServer_MessageHandler: SquareServer, MessageHandler {
     // The generated code should be like this, but unchecked downcasts are only
     // allowed in the generated code.
     //
-    // handleMessage(Message message) {
-    //     ((SquareServer_Call) message.data).call(message, this)
+    // handleMessage(Message msg) {
+    //     ((SquareServer_Call) msg.data).call(msg, this)
     // }
-    handleMessage(Message message) {
-        if let SquareServer_Call ssCall = message.data {
-             ssCall.call(message, this)
+    handleMessage(Message msg) {
+        if let SquareServer_Call ssCall = msg.data {
+             ssCall.call(msg, this)
         }
     }
 
@@ -2422,31 +2824,6 @@ class SquareServer_MessageHandlerFactory: MessageHandlerFactory {
     }
 }
 
-// SquareServer proxy class.
-class SquareServer_Proxy: SquareServer {
-    int pid
-
-    init() {
-        pid = Process.spawn(new SquareServer_MessageHandlerFactory)
-    }
-
-    init(string name) {
-        pid = Process.spawn(new SquareServer_MessageHandlerFactory, name)
-    }
-
-    square(int n, SquareResultHandler resultHandler) {
-        let message = new Message(
-            new SquareServer_square_Call(
-                n,
-                resultHandler.getSquareResultHandler_Proxy))
-        Process.send(pid, message)
-    }
-
-    wait() {
-        Process.wait(pid)
-    }
-}
-
 // ------------------------------------
 // process SquareClient: SquareResultHandler
 // ------------------------------------
@@ -2458,13 +2835,47 @@ interface SquareClient: SquareResultHandler {
     wait()
 }
 
-interface SquareClient_Call {
-    call(Message message, SquareClient processInstance)
+// SquareClient proxy class.
+message class SquareClient_Proxy: SquareClient {
+    int pid
+
+    init() {
+        pid = Process.spawn(new SquareClient_MessageHandlerFactory)
+    }
+
+    init(string name) {
+        pid = Process.spawn(new SquareClient_MessageHandlerFactory, name)
+    }
+
+    run() {
+        let msg = new Message(MessageType.MethodCall, new SquareClient_run_Call)
+        Process.send(pid, msg)
+    }
+
+    handleResult(int n, int result) {
+        let msg = new Message(0,
+                              SquareClient_InterfaceId.SquareResultHandlerId,
+                              new SquareResultHandler_handleResult_Call(n, 
+                                                                        result))
+        Process.send(pid, msg)
+    }
+
+    SquareResultHandler getSquareResultHandler_Proxy() {
+        return this
+    }
+
+    wait() {
+        Process.wait(pid)
+    }
+}
+
+message interface SquareClient_Call {
+    call(Message msg, SquareClient processInstance)
 }
 
 // Class that encapsulates the arguments to the run method.
 class SquareClient_run_Call: SquareClient_Call {
-    call(Message message, SquareClient processInstance) {
+    call(Message msg, SquareClient processInstance) {
         processInstance.run
     }
 }
@@ -2480,26 +2891,26 @@ class SquareClient_MessageHandler: SquareClient, MessageHandler {
     // The generated code should be like this, but unchecked downcasts are only
     // allowed in the generated code.
     //
-    // handleMessage(Message message) {
-    //     match message.interfaceId {
+    // handleMessage(Message msg) {
+    //     match msg.interfaceId {
     //         SquareClient_InterfaceId.SquareClientId ->
-    //             ((SquareClient_Call) message.data).call(message, this),
+    //             ((SquareClient_Call) msg.data).call(msg, this),
     //         SquareClient_InterfaceId.SquareResultHandlerId ->
-    //             ((SquareResultHandler_Call) message.data).call(message, this),
+    //             ((SquareResultHandler_Call) msg.data).call(msg, this),
     //         _ ->
     //             {} // Do nothing.
     //     }
     // }
-    handleMessage(Message message) {
-        match message.interfaceId {
+    handleMessage(Message msg) {
+        match msg.interfaceId {
             SquareClient_InterfaceId.SquareClientId -> {
-                if let SquareClient_Call scCall = message.data {
-                    scCall.call(message, this)
+                if let SquareClient_Call scCall = msg.data {
+                    scCall.call(msg, this)
                 }
             },
             SquareClient_InterfaceId.SquareResultHandlerId -> {
-                if let SquareResultHandler_Call srhCall = message.data {
-                    srhCall.call(message, this)
+                if let SquareResultHandler_Call srhCall = msg.data {
+                    srhCall.call(msg, this)
                 }
             },
             _ ->
@@ -2532,40 +2943,6 @@ class SquareClient_MessageHandler: SquareClient, MessageHandler {
 class SquareClient_MessageHandlerFactory: MessageHandlerFactory {
     MessageHandler createMessageHandler() {
         return new SquareClient_MessageHandler
-    }
-}
-
-// SquareClient proxy class.
-class SquareClient_Proxy: SquareClient {
-    int pid
-
-    init() {
-        pid = Process.spawn(new SquareClient_MessageHandlerFactory)
-    }
-
-    init(string name) {
-        pid = Process.spawn(new SquareClient_MessageHandlerFactory, name)
-    }
-
-    run() {
-        let message = new Message(new SquareClient_run_Call)
-        Process.send(pid, message)
-    }
-
-    handleResult(int n, int result) {
-        let message = new Message(
-            0,
-            SquareClient_InterfaceId.SquareResultHandlerId,
-            new SquareResultHandler_handleResult_Call(n, result))
-        Process.send(pid, message)
-    }
-
-    SquareResultHandler getSquareResultHandler_Proxy() {
-        return this
-    }
-
-    wait() {
-        Process.wait(pid)
     }
 }
 
@@ -2603,12 +2980,10 @@ class SquareClient_Proxy: SquareClient {
 //     }
 // }
 //
-// class Main {
-//     static main() {
-//         let client = new SquareClient4
-//         client.run
-//         client.wait
-//     }
+// main() {
+//     let client = new SquareClient4
+//     client.run
+//     client.wait
 // }
 //
 // Code that should be generated:
@@ -2628,12 +3003,12 @@ class SquareClientHelper: SquareResultHandler, MessageHandler {
     // The generated code should be like this, but unchecked downcasts are only
     // allowed in the generated code.
     //
-    // handleMessage(Message message) {
-    //     ((SquareResultHandler_Call) message.data).call(message, this)
+    // handleMessage(Message msg) {
+    //     ((SquareResultHandler_Call) msg.data).call(msg, this)
     // }
-    handleMessage(Message message) {
-        if let SquareResultHandler_Call srhCall = message.data {
-             srhCall.call(message, this)
+    handleMessage(Message msg) {
+        if let SquareResultHandler_Call srhCall = msg.data {
+             srhCall.call(msg, this)
         }
     }
 
@@ -2669,13 +3044,36 @@ interface SquareClient4 {
     wait()
 }
 
-interface SquareClient4_Call {
-    call(Message message, SquareClient4 processInstance)
+// SquareClient4 proxy class.
+message class SquareClient4_Proxy: SquareClient4 {
+    int pid
+
+    init() {
+        pid = Process.spawn(new SquareClient4_MessageHandlerFactory)
+    }
+
+    init(string name) {
+        pid = Process.spawn(new SquareClient4_MessageHandlerFactory, name)
+    }
+
+    run() {
+        let msg = new Message(MessageType.MethodCall, 
+                              new SquareClient4_run_Call)
+        Process.send(pid, msg)
+    }
+
+    wait() {
+        Process.wait(pid)
+    }
+}
+
+message interface SquareClient4_Call {
+    call(Message msg, SquareClient4 processInstance)
 }
 
 // Class that encapsulates the arguments to the run method.
 class SquareClient4_run_Call: SquareClient4_Call {
-    call(Message message, SquareClient4 processInstance) {
+    call(Message msg, SquareClient4 processInstance) {
         processInstance.run
     }
 }
@@ -2686,12 +3084,12 @@ class SquareClient4_MessageHandler: SquareClient4, MessageHandler {
     // The generated code should be like this, but unchecked downcasts are only
     // allowed in the generated code.
     //
-    // handleMessage(Message message) {
-    //     ((SquareClient4_Call) message.data).call(message, this)
+    // handleMessage(Message msg) {
+    //     ((SquareClient4_Call) msg.data).call(msg, this)
     // }
-    handleMessage(Message message) {
-        if let SquareClient4_Call scCall = message.data {
-             scCall.call(message, this)
+    handleMessage(Message msg) {
+        if let SquareClient4_Call scCall = msg.data {
+             scCall.call(msg, this)
         }
     }
 
@@ -2710,25 +3108,141 @@ class SquareClient4_MessageHandlerFactory: MessageHandlerFactory {
     }
 }
 
-// SquareClient4 proxy class.
-class SquareClient4_Proxy: SquareClient4 {
-    int pid
+// ----------------------------------------------------------------------------
+//
+// Test 5. Sending a custom message class. Scenario:
+//
+// message class Condition(string expression)
+//
+// message class DbQuery(int key, string table) {
+//     var conditions = new Condition[]
+// }
+// 
+// process DbServer {
+//     handleQuery(DbQuery query) {}
+// }
+//
+// testMessageClass() {
+//     let server = new DbServer
+//     let query = new DbQuery(5, "table1")
+//     query.conditions.append("table1.column2 == 3")
+//     server.handleQuery(query)     
+// }
+//
+// ----------------------------------------------------------------------------
 
-    init() {
-        pid = Process.spawn(new SquareClient4_MessageHandlerFactory)
+interface Cloneable {
+
+    // Clone the object (do a deep copy).
+    object clone()
+}
+
+class Condition(string expression): Cloneable {
+    init(Condition other) {
+        expression = other.expression
+        // expression = other.expression.clone
     }
 
-    init(string name) {
-        pid = Process.spawn(new SquareClient4_MessageHandlerFactory, name)
+    object clone() {
+        return new Condition(this)
+    }
+}
+
+class DbQueryBase(int protocol): Cloneable {
+    init(DbQueryBase other) {
+        protocol = other.protocol
+    }
+}
+
+class DbQuery(int key, string table): DbQueryBase(1) {
+    var conditions = new Condition[]
+    var buf = new byte[]
+
+    // The generated copy constructor should be generated like this because in
+    // the generated code we can do unchecked downcasts.
+    //
+    // init(DbQuery other): DbQueryBase(other) {
+    //     key = other.key
+    //     table = other.table.clone
+    //     conditions = new Condition[other.conditions.size]
+    //     other.conditions.each |condition| {
+    //         conditions.append((Condition) condition.clone)
+    //     }
+    // }
+    // 
+    init(DbQuery other): DbQueryBase(other) {
+        key = other.key
+        table = other.table
+        // table = other.table.clone
+        conditions = new Condition[other.conditions.size]
+        other.conditions.each |condition| {
+            if let Condition c = condition.clone {
+                conditions.append(c)
+            }
+        }
+        buf = new byte[other.buf.size]
+        buf.appendAll(other.buf)
     }
 
-    run() {
-        let message = new Message(new SquareClient4_run_Call)
-        Process.send(pid, message)
+    object clone() {
+        return new DbQuery(this)
     }
 
-    wait() {
-        Process.wait(pid)
+    printInfo() {
+        println("DbQuery: protocol: " + Convert.toStr(protocol) + " key: " +
+                Convert.toStr(key) + " in " + table)
+        conditions.each |condition| { println(condition.expression) }
+    }
+}
+
+testMessageClass() {
+    let query = new DbQuery(5, "table1")
+    query.conditions.append(new Condition("table1.column2 == 3"))
+    
+    if let DbQuery clone = query.clone {
+        clone.printInfo
+    }
+}
+
+// ----------------------------------------------------------------------------
+//
+// Test 6. Sending a custom message enum. Scenario:
+//
+// message enum DbMsg {
+//     Create(int, string),
+//     Read(int)
+// }
+// 
+// process DbServer {
+//     handleDbMsg(DbMsg msg) {}
+// }
+//
+// testMessageEnum() {
+//     let server = new DbServer
+//     let createMsg = DbMsg.Create(5, "data")
+//     server.handleDbMsg(createMsg)     
+// }
+//
+// ----------------------------------------------------------------------------
+
+message enum DbResult {
+    Ok,
+    Error
+}
+
+message enum DbMsg {
+    Create(int, string, DbResult),
+    Read(int)
+}
+
+testMessageEnum() {
+    let createMsg = DbMsg.Create(5, "data", DbResult.Ok)
+    let clone = DbMsg._deepCopy(createMsg)
+    match clone {
+        DbMsg.Create(key, data, result) ->
+            println("Create, key: " + Convert.toStr(key) + " data: " + data),
+        DbMsg.Read(key) -> 
+            println("Read, key: " + Convert.toStr(key))
     }
 }
 
@@ -2742,6 +3256,8 @@ class StdlibProcessTest {
         test2
         test3
         test4
+        testMessageClass
+        testMessageEnum
 
         println("done")
     }
@@ -2784,6 +3300,9 @@ main() {
     let constructorTest = new ConstructorTest
     constructorTest.run
 
+    let methodTest = new MethodTest
+    methodTest.run
+
     let inheritanceTest = new InheritanceTest
     inheritanceTest.run
 
@@ -2801,6 +3320,12 @@ main() {
 
     let lambdaTest = new LambdaTest
     lambdaTest.run
+
+    let closureTest = new ClosureTest
+    closureTest.run
+
+    let deferTest = new DeferTest
+    deferTest.run
 
     let arrayTest = new ArrayTest
     arrayTest.run

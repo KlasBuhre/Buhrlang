@@ -6,11 +6,13 @@
 #include "Definition.h"
 #include "Tree.h"
 #include "Pattern.h"
+#include "Closure.h"
 
 namespace {
     const Identifier thisPointerName("__thisPointer");
     const Identifier indexVaraibleName("__i");
     const Identifier arrayReferenceName("__array");
+    const Identifier arrayLengthName("__array_length");
     const Identifier lambdaRetvalName("__lambda_retval");
     const Identifier retvalName("__inlined_retval");
     const Identifier matchResultName("__match_result");
@@ -87,7 +89,6 @@ Expression* LiteralExpression::generateDefault(
             expression = new BooleanLiteralExpression(false, location);
             break;
         default:
-            Trace::internalError("LiteralExpression::generateDefault");
             break;
     }
     return expression;
@@ -208,11 +209,22 @@ Expression* ArrayLiteralExpression::transform(Context& context) {
     return arrayAllocation;
 }
 
+Traverse::Result ArrayLiteralExpression::traverse(Visitor& visitor) {
+    if (visitor.visitStatement(*this) == Traverse::Skip) {
+        return Traverse::Continue;
+    }
+
+    for (auto i = elements.begin(); i != elements.end(); i++) {
+        Expression* element = *i;
+        element->traverse(visitor);
+    }
+
+    return Traverse::Continue;
+}
+
 void ArrayLiteralExpression::checkElements(Context& context) {
     const Type* commonType = nullptr;
-    for (ExpressionList::iterator i = elements.begin();
-         i != elements.end();
-         i++) {
+    for (auto i = elements.begin(); i != elements.end(); i++) {
         *i = (*i)->transform(context);
         Expression* element = *i;
         Type* elementType = element->typeCheck(context);
@@ -301,6 +313,11 @@ Type* NamedEntityExpression::typeCheck(Context&) {
     // of expression by the transform() method.
     Trace::internalError("NamedEntityExpression::typeCheck");            
     return nullptr;
+}
+
+Traverse::Result NamedEntityExpression::traverse(Visitor& visitor) {
+    visitor.visitNamedEntity(*this);
+    return Traverse::Continue;
 }
 
 MethodCallExpression* NamedEntityExpression::getCall(
@@ -439,8 +456,8 @@ Expression* ClassNameExpression::transform(Context& context) {
         // The referenced class is contained in an outer class.
         if (outerClass != context.getClassDefinition()) {
             const Location& loc = getLocation();
-            ClassNameExpression* className = new ClassNameExpression(outerClass,
-                                                                     loc);
+            ClassNameExpression* className =
+                new ClassNameExpression(outerClass, loc);
             MemberSelectorExpression* memberSelector =
                 new MemberSelectorExpression(className, this, loc);
             hasTransformed = true;
@@ -548,8 +565,9 @@ Expression* MemberSelectorExpression::transform(Context& context) {
 
     Type* arrayType = nullptr;
     Type* oldArrayType = context.getArrayType();
-    if (left->getType()->isArray()) {
-        arrayType = left->getType();
+    Type* leftType = left->getType();
+    if (leftType->isArray()) {
+        arrayType = leftType;
         context.setArrayType(arrayType);
     }
 
@@ -594,14 +612,14 @@ NameBindings* MemberSelectorExpression::bindingScopeOfLeft(Context& context) {
         ClassNameExpression* expr = left->cast<ClassNameExpression>();
         localBindings = &(expr->getClassDefinition()->getNameBindings());
     } else {
-        context.setIsStatic(false);
         Type* resultingLeftType = left->typeCheck(context);
+        context.setIsStatic(false);
         Definition* definition = nullptr;
         if (resultingLeftType->isArray()) {
             definition = context.lookupType(BuiltInTypes::arrayTypeName);
         } else {
             definition = resultingLeftType->getDefinition();
-            if (definition == nullptr) {
+            if (definition == nullptr) {                
                 resultingLeftType =
                     context.lookupConcreteType(resultingLeftType,
                                                getLocation());
@@ -657,7 +675,7 @@ TemporaryExpression* MemberSelectorExpression::transformIntoTemporaryExpression(
         temporary->getNonStaticInlinedMethodBody();
     if (nonStaticInlinedMethodBody != nullptr) {
         // Right-hand side was a method call to an non-static inlined method
-        // that takes a lambda. We Need to generate a variable declaration for a
+        // that takes a lambda. We need to generate a variable declaration for a
         // 'this' pointer that points to the object on which we called the
         // method.
         generateThisPointerDeclaration(nonStaticInlinedMethodBody,
@@ -691,11 +709,11 @@ void MemberSelectorExpression::generateThisPointerDeclaration(
             new MemberSelectorExpression(left, initExpression, getLocation());
         thisPointerDeclaration->setInitExpression(modifiedInitExpression);
     } else {
-        thisPointerDeclaration = new VariableDeclarationStatement(
-            new Type(Type::Implicit), 
-            thisPointerIdentifier, 
-            left,
-            location);
+        thisPointerDeclaration =
+            new VariableDeclarationStatement(new Type(Type::Implicit),
+                                             thisPointerIdentifier,
+                                             left,
+                                             location);
         block->insertStatementAtFront(thisPointerDeclaration);
     }
 }
@@ -706,6 +724,16 @@ Type* MemberSelectorExpression::typeCheck(Context&) {
         Trace::internalError("MemberSelectorExpression::typeCheck");    
     }
     return type;
+}
+
+Traverse::Result MemberSelectorExpression::traverse(Visitor& visitor) {
+    if (visitor.visitMemberSelector(*this) == Traverse::Skip) {
+        return Traverse::Continue;
+    }
+
+    left->traverse(visitor);
+    right->traverse(visitor);
+    return Traverse::Continue;
 }
 
 Identifier MemberSelectorExpression::generateVariableName() const {
@@ -724,13 +752,15 @@ MemberExpression::MemberExpression(
     Expression(Expression::Member, loc),
     memberDefinition(m),
     kind(k),
-    hasTransformedIntoMemberSelector(false) {}
+    hasTransformedIntoMemberSelector(false),
+    hasCheckedAccess(false) {}
 
 MemberExpression::MemberExpression(const MemberExpression& other) :
     Expression(other),
     memberDefinition(other.memberDefinition),
     kind(other.kind),
-    hasTransformedIntoMemberSelector(other.hasTransformedIntoMemberSelector) {}
+    hasTransformedIntoMemberSelector(other.hasTransformedIntoMemberSelector),
+    hasCheckedAccess(other.hasCheckedAccess) {}
 
 Expression* MemberExpression::transformIntoMemberSelector(Context& context) {
     if (hasTransformedIntoMemberSelector) {
@@ -780,6 +810,13 @@ Expression* MemberExpression::transformIntoMemberSelector(Context& context) {
 }
 
 void MemberExpression::accessCheck(Context& context) {
+    if (hasCheckedAccess) {
+        // Only check access once for each member expression. It should be
+        // checked before any code is inlined in a potentially different class,
+        // which would make the private access check fail.
+        return;
+    }
+
     if (context.isStatic() && !memberDefinition->isStatic()) {
         if (memberDefinition->isMethod()) {
             MethodDefinition* method =
@@ -795,11 +832,17 @@ void MemberExpression::accessCheck(Context& context) {
                 this);
         }
     }
-    // TODO: perform access level checks such as accessing private member
-    // from outside class. Class of the caller we get from the context.
-    // The context just needs a pointer to Method and we get the class from the 
-    // method. Class of the called method we get from 
-    // binding->getMethodDefinition()->getEnclosingDefinition().
+
+    if (memberDefinition->isPrivate()) {
+        if (memberDefinition->getEnclosingClass() !=
+            context.getClassDefinition()) {
+            Trace::error("Member " + memberDefinition->getName() +
+                         " is private.",
+                         this);
+        }
+    }
+
+    hasCheckedAccess = true;
 }
 
 DataMemberExpression::DataMemberExpression(
@@ -818,7 +861,8 @@ Expression* DataMemberExpression::clone() const {
 }
 
 Expression* DataMemberExpression::transform(Context& context) {
-    if (context.isConstructorCallStatement()) {
+    if (context.isConstructorCallStatement() &&
+        context.getClassLocalNameBindings() == nullptr) {
         // In constructors, uninitialized data must not be passed to super class
         // costructor like this: 'class Derived(int member): Base(member)'.
         // 'class Derived(int member)' is actually
@@ -937,9 +981,7 @@ void MethodCallExpression::resolve(Context& context) {
 
     if (memberDefinition == nullptr) {
         bool candidateClassIsGeneric = false;
-        for (Binding::MethodList::const_iterator i = candidates.begin();
-             i != candidates.end();
-             i++) {
+        for (auto i = candidates.cbegin(); i != candidates.cend(); i++) {
             MethodDefinition* candidate = *i;
             if (candidate->getClass()->isGeneric()) {
                 candidateClassIsGeneric = true;
@@ -1002,8 +1044,8 @@ Type* MethodCallExpression::inferConcreteType(
         // call expression with the argument types in the candidate signature
         // that are generic type parameters.
         Type* concreteType = Type::create(candidateClassName);
-        ArgumentList::const_iterator i = candidateArgumentList.begin();
-        TypeList::const_iterator j = argumentTypes.begin();
+        auto i = candidateArgumentList.cbegin();
+        auto j = argumentTypes.cbegin();
         while (i != candidateArgumentList.end()) {
             VariableDeclaration* candidateArgument = *i;
             Type* argumentType = *j;
@@ -1064,8 +1106,8 @@ void MethodCallExpression::findCompatibleMethod(
     const Binding::MethodList& candidates,
     const TypeList& argumentTypes) {
 
-    for (Binding::MethodList::const_iterator i = candidates.begin();
-         i != candidates.end();
+    for (Binding::MethodList::const_reverse_iterator i = candidates.rbegin();
+         i != candidates.rend();
          i++) {
         MethodDefinition* candidate = *i;
         if (candidate->isCompatible(argumentTypes) &&
@@ -1077,12 +1119,11 @@ void MethodCallExpression::findCompatibleMethod(
 }
 
 void MethodCallExpression::setConstructorCallName(Type* allocatedObjectType) {
-    if (allocatedObjectType->hasGenericTypeParameters()) {
-        // Need to update the name of the constructor call to match the name of
-        // the constructed concrete class which includes the concrete type
-        // parameters.
-        name = allocatedObjectType->getFullConstructedName();
-    }
+    // We may need to update the name of the constructor call to match the name
+    // of the constructed concrete class which includes the concrete type
+    // parameters.
+    name = allocatedObjectType->getFullConstructedName();
+
     setIsConstructorCall();
 }
 
@@ -1092,8 +1133,12 @@ Expression* MethodCallExpression::transform(Context& context) {
         Context::BindingsGuard guard(context);
 
         if (memberDefinition == nullptr) {
+            if (resolvesToClosure(context)) {
+                return transformIntoClosureCallMethod(context);
+            }
             resolve(context);
         }
+
         accessCheck(context);
         methodDefinition = memberDefinition->cast<MethodDefinition>();
         type = methodDefinition->getReturnType();
@@ -1121,28 +1166,41 @@ Expression* MethodCallExpression::transform(Context& context) {
     }
 
     if (lambda != nullptr) {
-        LambdaSignature* lambdaSignature =
-            methodDefinition->getLambdaSignature();
-        lambda->setLambdaSignature(lambdaSignature);
-        if (lambda->getArguments().size() !=
-            lambdaSignature->getArguments().size()) {
-            Trace::error("Wrong number of arguments in lambda expression.",
-                         this);
-        }
-
-        if (isBuiltInArrayMethod() &&
-            name.compare(BuiltInTypes::arrayEachMethodName) == 0) {
-            // For special array.each() lambda: transform this
-            // MethodCallExpression into a block statement with a while loop
-            // containing the lambda.
-            return transformIntoWhileStatement(context);
-        } else {
-            // For normal lambda: Clone and inline the called method and lambda
-            // in the calling method.
-            return inlineCalledMethod(context);
-        }
+        return transformDueToLambda(methodDefinition, context);
     }
     return this;
+}
+
+bool MethodCallExpression::resolvesToClosure(Context& context) {
+    const Binding* binding = context.lookup(name);
+    if (binding == nullptr) {
+        Trace::error("Unknown method: " + name, this);
+    }
+
+    Type* type = binding->getVariableType();
+    if (type == nullptr) {
+        return false;
+    }
+
+    Definition* definition = type->getDefinition();
+    if (ClassDefinition* classDef = definition->dynCast<ClassDefinition>()) {
+        if (classDef->isClosure()) {
+            return true;
+        }
+    }
+    return false;
+}
+
+Expression* MethodCallExpression::transformIntoClosureCallMethod(
+    Context& context) {
+
+    const Location& location = getLocation();
+    NamedEntityExpression* left =
+        new NamedEntityExpression(name, location);
+    name = CommonNames::callMethodName;
+    MemberSelectorExpression* memberSelector =
+        new MemberSelectorExpression(left, this, location);
+    return memberSelector->transform(context);
 }
 
 bool MethodCallExpression::isBuiltInArrayMethod() {
@@ -1241,9 +1299,7 @@ void MethodCallExpression::reportError(
     }
     std::string error("Method argument mismatch: " + methodName + "(");
     bool addComma = false;
-    for (TypeList::const_iterator i = argumentTypes.begin();
-         i != argumentTypes.end();
-         i++) {
+    for (auto i = argumentTypes.cbegin(); i != argumentTypes.cend(); i++) {
         if (addComma) {
             error += ", ";
         }
@@ -1252,22 +1308,47 @@ void MethodCallExpression::reportError(
         addComma = true;
     }
     error += ")\nCandidates are:\n";
-    for (Binding::MethodList::const_iterator i = candidates.begin();
-         i != candidates.end();
-         i++) {
+    for (auto i = candidates.cbegin(); i != candidates.cend(); i++) {
         MethodDefinition* candidate = *i;
         error += candidate->toString() + "\n";
     }
     Trace::error(error, this);
 }
 
+Expression* MethodCallExpression::transformDueToLambda(
+    MethodDefinition* methodDefinition,
+    Context& context) {
+
+    FunctionSignature* lambdaSignature =
+        methodDefinition->getLambdaSignature();
+    lambda->setLambdaSignature(lambdaSignature);
+    if (lambda->getArguments().size() !=
+        lambdaSignature->getArguments().size()) {
+        Trace::error("Wrong number of arguments in lambda expression.",
+                     this);
+    }
+
+    if (isBuiltInArrayMethod() &&
+        name.compare(BuiltInTypes::arrayEachMethodName) == 0) {
+        // For special array.each() lambda: transform this
+        // MethodCallExpression into a block statement with a for loop
+        // containing the lambda.
+        return transformIntoForStatement(context);
+    } else {
+        // For normal lambda: Clone and inline the called method and lambda
+        // in the calling method.
+        return inlineCalledMethod(context);
+    }
+}
+
 Expression* MethodCallExpression::inlineCalledMethod(Context& context) {
     MethodDefinition* calledMethod = memberDefinition->cast<MethodDefinition>();
 
-    if (!calledMethod->hasBeenProcessedBefore()) {
-        // The inlined method must be processed in order to make the local
-        // variable names unique.
-        calledMethod->process();
+    if (!calledMethod->hasBeenTypeCheckedAndTransformedBefore()) {
+        // The inlined method must be transformed in order to turn the named
+        // entities into data member expressions, which can be transformed into
+        // thisPtr.datamember when the method is inlined into another class.
+        calledMethod->typeCheckAndTransform();
     }
 
     BlockStatement* clonedBody = calledMethod->getBody()->clone();
@@ -1310,8 +1391,8 @@ void MethodCallExpression::addArgumentsToInlinedMethodBody(
         memberDefinition->cast<MethodDefinition>();
     const ArgumentList& argumentsFromSignature =
         calledMethod->getArgumentList();
-    ArgumentList::const_iterator i = argumentsFromSignature.begin();
-    ExpressionList::iterator j = arguments.begin();
+    auto i = argumentsFromSignature.cbegin();
+    auto j = arguments.cbegin();
 
     while (j != arguments.end()) {
         VariableDeclaration* signatureArgument = *i;
@@ -1323,9 +1404,9 @@ void MethodCallExpression::addArgumentsToInlinedMethodBody(
                                              location);
 
         // Since the inlined method takes a lambda, the arguments names have
-        // already been changed into being unique during processing of the
-        // method. Therefore, flag the variable name as unique so that we do not
-        // change the name again when the variable declaration is type checked.
+        // already been changed into being unique during an earlier pass.
+        // Therefore, flag the variable name as unique so that we do not change
+        // the name again when the variable declaration is type checked.
         argumentDeclaration->setIsNameUnique(true);
 
         clonedBody->insertStatementAtFront(argumentDeclaration);
@@ -1385,7 +1466,7 @@ MethodCallExpression::inlineMethodWithReturnValue(
     return temporary;
 }
 
-WrappedStatementExpression* MethodCallExpression::transformIntoWhileStatement(
+WrappedStatementExpression* MethodCallExpression::transformIntoForStatement(
     Context& context) {
 
     const Location& location = getLocation();
@@ -1405,41 +1486,48 @@ WrappedStatementExpression* MethodCallExpression::transformIntoWhileStatement(
             location);
     outerBlock->addStatement(indexDeclaration);
 
-    BinaryExpression* whileCondition = new BinaryExpression(
+    VariableDeclarationStatement* arrayLengthDeclaration =
+        new VariableDeclarationStatement(
+            new Type(Type::Implicit),
+            arrayLengthName,
+            new MemberSelectorExpression(
+                new NamedEntityExpression(arrayReferenceName, location),
+                new MethodCallExpression(BuiltInTypes::arrayLengthMethodName,
+                                         location),
+                location),
+            location);
+    outerBlock->addStatement(arrayLengthDeclaration);
+
+    BinaryExpression* forCondition = new BinaryExpression(
         Operator::Less,
         new NamedEntityExpression(indexVaraibleName, location),
-        new MemberSelectorExpression(
-            new NamedEntityExpression(arrayReferenceName, location),
-            new MethodCallExpression(BuiltInTypes::arrayLengthMethodName,
-                                     location),
-            location),
+        new NamedEntityExpression(arrayLengthName, location),
         location);
 
-    BlockStatement* whileBlock = new BlockStatement(
+    BlockStatement* forBlock = new BlockStatement(
         context.getClassDefinition(), 
         outerBlock, 
         location);
 
     BlockStatement* lambdaBlock = addLamdaArgumentsToLambdaBlock(
-        whileBlock, 
+        forBlock,
         indexVaraibleName, 
         arrayReferenceName);
-    whileBlock->insertStatementAtFront(lambdaBlock);
+    forBlock->insertStatementAtFront(lambdaBlock);
 
-    BinaryExpression* increaseIndex = new BinaryExpression(
-        Operator::Assignment,
-        new NamedEntityExpression(indexVaraibleName, location),
-        new BinaryExpression(
-            Operator::Addition,
-            new NamedEntityExpression(indexVaraibleName, location),
-            new IntegerLiteralExpression(1, location),
-            location),
-        location);
-    whileBlock->addStatement(increaseIndex);
+    UnaryExpression* increaseIndex =
+        new UnaryExpression(Operator::Increment,
+                            new NamedEntityExpression(indexVaraibleName,
+                                                      location),
+                            false,
+                            location);
 
-    WhileStatement* whileStatement =
-        new WhileStatement(whileCondition, whileBlock, location);
-    outerBlock->addStatement(whileStatement);
+    ForStatement* forStatement = new ForStatement(forCondition,
+                                                  increaseIndex,
+                                                  forBlock,
+                                                  location);
+    outerBlock->addStatement(forStatement);
+
     WrappedStatementExpression* wrappedBlockStatement = 
             new WrappedStatementExpression(outerBlock, location);
     wrappedBlockStatement->setInlinedArrayForEach(true);
@@ -1479,6 +1567,23 @@ Type* MethodCallExpression::typeCheck(Context&) {
     return type;
 }
 
+Traverse::Result MethodCallExpression::traverse(Visitor& visitor) {
+    if (visitor.visitStatement(*this) == Traverse::Skip) {
+        return Traverse::Continue;
+    }
+
+    for (auto i = arguments.cbegin(); i != arguments.cend(); i++) {
+        Expression* argument = *i;
+        argument->traverse(visitor);
+    }
+
+    if (lambda != nullptr) {
+        lambda->traverse(visitor);
+    }
+
+    return Traverse::Continue;
+}
+
 void MethodCallExpression::resolveArgumentTypes(
     TypeList& typeList, 
     Context& context) {
@@ -1487,13 +1592,13 @@ void MethodCallExpression::resolveArgumentTypes(
         name.compare(Keyword::stringString + "_" + Keyword::initString) == 0) {
         context.setIsStringConstructorCall(true);
     }
-    for (ExpressionList::iterator i = arguments.begin(); 
-         i != arguments.end();
-         i++) {
+
+    for (auto i = arguments.begin(); i != arguments.end(); i++) {
         *i = (*i)->transform(context);
         Expression* expression = *i;
         typeList.push_back(expression->typeCheck(context));
     }
+
     context.setIsStringConstructorCall(false);
     if (lambda != nullptr) {
         typeList.push_back(new Type(Type::Lambda));
@@ -1590,9 +1695,22 @@ Type* HeapAllocationExpression::typeCheck(Context& context) {
     return type;
 }
 
+Traverse::Result HeapAllocationExpression::traverse(Visitor& visitor) {
+    if (visitor.visitHeapAllocation(*this) == Traverse::Skip) {
+        return Traverse::Continue;
+    }
+
+    constructorCall->traverse(visitor);
+
+    if (processName != nullptr) {
+        processName->traverse(visitor);
+    }
+
+    return Traverse::Continue;
+}
+
 ClassDefinition* HeapAllocationExpression::lookupClass(Context& context) {
-    allocatedObjectType = context.lookupConcreteType(allocatedObjectType,
-                                                     getLocation());
+    lookupType(context);
     if (!allocatedObjectType->isReference()) {
         Trace::error("Only objects of reference type can be allocated using the"
                      " 'new' keyword. Allocated object type: " +
@@ -1606,6 +1724,11 @@ ClassDefinition* HeapAllocationExpression::lookupClass(Context& context) {
     return definition->cast<ClassDefinition>();
 }
 
+void HeapAllocationExpression::lookupType(const Context& context) {
+    allocatedObjectType = context.lookupConcreteType(allocatedObjectType,
+                                                     getLocation());
+}
+
 ArrayAllocationExpression::ArrayAllocationExpression(
     Type* t,
     Expression* c,
@@ -1614,6 +1737,9 @@ ArrayAllocationExpression::ArrayAllocationExpression(
     arrayType(t),
     arrayCapacityExpression(c),
     initExpression(nullptr) {}
+
+ArrayAllocationExpression::ArrayAllocationExpression(Type* t, Expression* c) :
+    ArrayAllocationExpression(t, c, Location()) {}
 
 ArrayAllocationExpression::ArrayAllocationExpression(
     const ArrayAllocationExpression& other) :
@@ -1645,11 +1771,31 @@ Type* ArrayAllocationExpression::typeCheck(Context& context) {
     }
 
     // Lookup the array type.
-    arrayType = context.lookupConcreteType(arrayType, getLocation());
+    lookupType(context);
 
     type = arrayType; 
     type->setArray(true);
     return type;
+}
+
+Traverse::Result ArrayAllocationExpression::traverse(Visitor& visitor) {
+    if (visitor.visitArrayAllocation(*this) == Traverse::Skip) {
+        return Traverse::Continue;
+    }
+
+    if (arrayCapacityExpression != nullptr) {
+        arrayCapacityExpression->traverse(visitor);
+    }
+
+    if (initExpression != nullptr) {
+        initExpression->traverse(visitor);
+    }
+
+    return Traverse::Continue;
+}
+
+void ArrayAllocationExpression::lookupType(const Context& context) {
+    arrayType = context.lookupConcreteType(arrayType, getLocation());
 }
 
 ArraySubscriptExpression::ArraySubscriptExpression(
@@ -1704,6 +1850,16 @@ Type* ArraySubscriptExpression::typeCheck(Context&) {
     return type;
 }
 
+Traverse::Result ArraySubscriptExpression::traverse(Visitor& visitor) {
+    if (visitor.visitStatement(*this) == Traverse::Skip) {
+        return Traverse::Continue;
+    }
+
+    arrayNameExpression->traverse(visitor);
+    indexExpression->traverse(visitor);
+    return Traverse::Continue;
+}
+
 MemberSelectorExpression* ArraySubscriptExpression::createSliceMethodCall(
     BinaryExpression* range,
     Context& context) {
@@ -1753,8 +1909,7 @@ Type* TypeCastExpression::typeCheck(Context& context) {
     operand = operand->transform(context);
     Type* fromType = operand->typeCheck(context);
 
-    // Lookup the target type.
-    targetType = context.lookupConcreteType(targetType, getLocation());
+    lookupTargetType(context);
 
     bool isDowncast = fromType->isDowncast(targetType);
     if (isDowncast && !isGenerated) {
@@ -1774,7 +1929,8 @@ Type* TypeCastExpression::typeCheck(Context& context) {
                                             targetType->getBuiltInType())) {
         staticCast = true;
         type = targetType;
-    } else if (*fromType == *targetType){
+    } else if (Type::areEqualNoConstCheck(fromType, targetType) &&
+               !fromType->isArray()){
         staticCast = true;
         type = targetType;
     } else {
@@ -1786,6 +1942,19 @@ Type* TypeCastExpression::typeCheck(Context& context) {
                      this);
     }
     return type;
+}
+
+void TypeCastExpression::lookupTargetType(const Context& context) {
+    targetType = context.lookupConcreteType(targetType, getLocation());
+}
+
+Traverse::Result TypeCastExpression::traverse(Visitor& visitor) {
+    if (visitor.visitTypeCast(*this) == Traverse::Skip) {
+        return Traverse::Continue;
+    }
+
+    operand->traverse(visitor);
+    return Traverse::Continue;
 }
 
 bool TypeCastExpression::isCastBetweenObjectAndInterface(const Type* fromType) {
@@ -1857,6 +2026,7 @@ Type* BinaryExpression::typeCheck(Context& context) {
     // BinaryExpression::transform().
     Type* leftType = left->typeCheck(context);
     Type* rightType = right->typeCheck(context);
+
     switch (op) {
         case Operator::Equal:
         case Operator::NotEqual:
@@ -1893,6 +2063,11 @@ Type* BinaryExpression::typeCheck(Context& context) {
                              this);
             }
             break;
+        case Operator::BitwiseAnd:
+        case Operator::BitwiseOr:
+        case Operator::BitwiseXor:
+        case Operator::LeftShift:
+        case Operator::RightShift:
         case Operator::Range:
             if (!leftType->isIntegerNumber() || !rightType->isIntegerNumber()) {
                 Trace::error("Range operator requires integer number types.",
@@ -1917,6 +2092,7 @@ Type* BinaryExpression::typeCheck(Context& context) {
                          this);
             break;
     }
+
     type = resultingType(leftType);
     return type;
 }
@@ -1928,7 +2104,7 @@ void BinaryExpression::checkAssignment(
 
     if (leftType->isConstant()) {
         const MethodDefinition* method = context.getMethodDefinition();
-        if (method->isEnumConstructor() ||
+        if (method->isEnumConstructor() || method->isEnumCopyConstructor() ||
             (leftIsMemberConstant() && method->isConstructor())) {
             // Member constant initialization.
             if (!Type::isInitializableByExpression(leftType, right)) {
@@ -1989,9 +2165,15 @@ Type* BinaryExpression::resultingType(Type* leftType) {
 
 Expression* BinaryExpression::transform(Context& context) {
     left = left->transform(context);
-    Type* leftType = left->typeCheck(context);
+    left->typeCheck(context);
+
     right = right->transform(context);
-    Type* rightType = right->typeCheck(context);
+    right->typeCheck(context);
+
+    inferTypes(context);
+    Type* leftType = left->getType();
+    Type* rightType = right->getType();
+
     if (leftType->isString() && rightType->isString() &&
         op != Operator::Assignment && op != Operator::AssignmentExpression) {
         if (!Type::areInitializable(leftType, rightType)) {
@@ -2018,6 +2200,59 @@ Expression* BinaryExpression::transform(Context& context) {
     } else {
         return this;
     }    
+}
+
+Traverse::Result BinaryExpression::traverse(Visitor& visitor) {
+    if (visitor.visitStatement(*this) == Traverse::Skip) {
+        return Traverse::Continue;
+    }
+
+    left->traverse(visitor);
+    right->traverse(visitor);
+    return Traverse::Continue;
+}
+
+void BinaryExpression::inferTypes(const Context& context) {
+    Type* leftType = left->getType();
+    Type* rightType = right->getType();
+
+    if (leftType->isImplicit()) {
+        if (rightType->isImplicit()) {
+            Trace::error("Can not infer types.", leftType, rightType, this);
+        }
+        left->setType(inferTypeFromOtherSide(left, rightType, context));
+    } else if (rightType->isImplicit()) {
+        right->setType(inferTypeFromOtherSide(right, leftType, context));
+    }
+}
+
+Type* BinaryExpression::inferTypeFromOtherSide(
+    const Expression* implicitlyTypedExpr,
+    const Type* otherSideType,
+    const Context& context) {
+
+    const LocalVariableExpression* localVar =
+        implicitlyTypedExpr->dynCast<LocalVariableExpression>();
+    if (localVar == nullptr) {
+        Trace::error("Can not infer type.",
+                     left->getType(),
+                     right->getType(),
+                     this);
+    }
+
+    Binding* binding = context.lookup(localVar->getName());
+    assert(binding != nullptr);
+    if (binding->getReferencedEntity() != Binding::LocalObject) {
+        Trace::error("Can not infer type.",
+                     left->getType(),
+                     right->getType(),
+                     this);
+    }
+
+    VariableDeclaration* varDeclaration = binding->getLocalObject();
+    Type* inferredType = otherSideType->clone();
+    varDeclaration->setType(inferredType);
+    return inferredType;
 }
 
 MemberSelectorExpression* BinaryExpression::createStringOperation(
@@ -2103,6 +2338,11 @@ Type* UnaryExpression::typeCheck(Context& context) {
     operand = operand->transform(context);
     type = operand->typeCheck(context);
     switch (op) {
+        case Operator::BitwiseNot:
+            if (!type->isIntegerNumber()) {
+                Trace::error("Operator requires integer type operand.", this);
+            }
+            break;
         case Operator::Addition:
         case Operator::Subtraction:
             if (!type->isNumber()) {
@@ -2132,10 +2372,22 @@ Type* UnaryExpression::typeCheck(Context& context) {
     return type;
 }
 
+Traverse::Result UnaryExpression::traverse(Visitor& visitor) {
+    if (visitor.visitStatement(*this) == Traverse::Skip) {
+        return Traverse::Continue;
+    }
+
+    operand->traverse(visitor);
+    return Traverse::Continue;
+}
+
 LambdaExpression::LambdaExpression(BlockStatement* b, const Location& l) :
     Expression(Expression::Lambda, l),
     block(b),
     signature(nullptr) {}
+
+LambdaExpression::LambdaExpression(BlockStatement* b) :
+    LambdaExpression(b, Location()) {}
 
 LambdaExpression::LambdaExpression(const LambdaExpression& other) :
     Expression(other),
@@ -2154,8 +2406,22 @@ void LambdaExpression::addArgument(VariableDeclarationStatement* argument) {
     arguments.push_back(argument);
 }
 
-Type* LambdaExpression::typeCheck(Context& context) {
+Type* LambdaExpression::typeCheck(Context&) {
     return type;
+}
+
+Traverse::Result LambdaExpression::traverse(Visitor& visitor) {
+    if (visitor.visitStatement(*this) == Traverse::Skip) {
+        return Traverse::Continue;
+    }
+
+    for (auto i = arguments.cbegin(); i != arguments.cend(); i++) {
+        VariableDeclarationStatement* argument = *i;
+        argument->traverse(visitor);
+    }
+
+    block->traverse(visitor);
+    return Traverse::Continue;
 }
 
 YieldExpression::YieldExpression(const Location& l) :
@@ -2260,10 +2526,9 @@ BlockStatement* YieldExpression::inlineLambdaExpression(
 
     const VariableDeclarationStatementList& lambdaArguments =
         lambdaExpression->getArguments();
-    VariableDeclarationStatementList::const_iterator i =
-        lambdaArguments.begin();
-    ExpressionList::const_iterator j = arguments.begin();
-    while (i != lambdaArguments.end()) {
+    auto i = lambdaArguments.cbegin();
+    auto j = arguments.cbegin();
+    while (i != lambdaArguments.cend()) {
         VariableDeclarationStatement* lambdaArgument = *i;
         Expression* yieldArgumentExpression = *j;
         VariableDeclarationStatement* argumentDeclaration =
@@ -2280,14 +2545,15 @@ BlockStatement* YieldExpression::inlineLambdaExpression(
 }
 
 Type* YieldExpression::typeCheck(Context& context) {
-    LambdaSignature* lambdaSignature =
+    FunctionSignature* lambdaSignature =
         context.getMethodDefinition()->getLambdaSignature();
     const TypeList& signatureArgumentTypes = lambdaSignature->getArguments();
     if (signatureArgumentTypes.size() != arguments.size()) {
         Trace::error("Wrong number of arguments in yield expression.", this);    
     }
-    TypeList::const_iterator i = signatureArgumentTypes.begin();
-    ExpressionList::iterator j = arguments.begin();
+
+    auto i = signatureArgumentTypes.cbegin();
+    auto j = arguments.begin();
 
     while (j != arguments.end()) {
         *j = (*j)->transform(context);
@@ -2304,6 +2570,87 @@ Type* YieldExpression::typeCheck(Context& context) {
 
     type = lambdaSignature->getReturnType();
     return type;
+}
+
+Traverse::Result YieldExpression::traverse(Visitor& visitor) {
+    if (visitor.visitStatement(*this) == Traverse::Skip) {
+        return Traverse::Continue;
+    }
+
+    for (auto i = arguments.cbegin(); i != arguments.cend(); i++) {
+        Expression* argument = *i;
+        argument->traverse(visitor);
+    }
+
+    return Traverse::Continue;
+}
+
+AnonymousFunctionExpression::AnonymousFunctionExpression(
+    BlockStatement* b,
+    const Location& l) :
+    Expression(Expression::AnonymousFunction, l),
+    argumentList(),
+    body(b) {}
+
+AnonymousFunctionExpression::AnonymousFunctionExpression(
+    const AnonymousFunctionExpression& other) :
+    Expression(other),
+    argumentList(),
+    body(other.body->clone()) {
+
+    const ArgumentList& from = other.argumentList;
+    for (auto i = from.cbegin(); i != from.cend(); i++) {
+        VariableDeclaration* argument = *i;
+        addArgument(argument->clone());
+    }
+}
+
+Expression* AnonymousFunctionExpression::clone() const {
+    return new AnonymousFunctionExpression(*this);
+}
+
+Type* AnonymousFunctionExpression::typeCheck(Context&) {
+    // The AnonymousFunctionExpression should have been transformed into another
+    // type of expression by the transform() method.
+    Trace::internalError("AnonymousFunctionExpression::typeCheck");
+    return nullptr;
+}
+
+Expression* AnonymousFunctionExpression::transform(Context& context) {
+    // The anonymous function will be converted into a reference to an object
+    // containing both the function and the non-local variables used in the
+    // function.
+    Closure closure(Tree::getCurrentTree());
+    ClosureInfo closureInfo;
+    closure.generateClass(this, context, &closureInfo);
+
+    const Location& loc = getLocation();
+    MethodCallExpression* constructorCall =
+        new MethodCallExpression(closureInfo.className, loc);
+    const VariableDeclarationList& nonLocalVars = closureInfo.nonLocalVars;
+    for (auto i = nonLocalVars.cbegin(); i != nonLocalVars.cend(); i++) {
+        VariableDeclaration* nonLocalVarDecl = *i;
+        constructorCall->addArgument(
+            new NamedEntityExpression(nonLocalVarDecl->getIdentifier(), loc));
+    }
+
+    return new TypeCastExpression(closureInfo.closureInterfaceType,
+                                  new HeapAllocationExpression(constructorCall),
+                                  loc);
+}
+
+Traverse::Result AnonymousFunctionExpression::traverse(Visitor& visitor) {
+    if (visitor.visitStatement(*this) == Traverse::Skip) {
+        return Traverse::Continue;
+    }
+
+    body->traverse(visitor);
+    return Traverse::Continue;
+}
+
+void AnonymousFunctionExpression::addArgument(VariableDeclaration* argument) {
+    argumentList.push_back(argument);
+    body->addLocalBinding(argument);
 }
 
 MatchCase::MatchCase(const Location& loc) :
@@ -2328,6 +2675,25 @@ MatchCase::MatchCase(const MatchCase& other) :
     Utils::cloneList(patterns, other.patterns);
 }
 
+Traverse::Result MatchCase::traverse(Visitor& visitor) {
+    for (auto i = patternExpressions.cbegin();
+         i != patternExpressions.cend();
+         i++) {
+        Expression* expression = *i;
+        expression->traverse(visitor);
+    }
+
+    if (patternGuard != nullptr) {
+        patternGuard->traverse(visitor);
+    }
+
+    if (resultBlock != nullptr) {
+        resultBlock->traverse(visitor);
+    }
+
+    return Traverse::Continue;
+}
+
 MatchCase* MatchCase::clone() const {
     return new MatchCase(*this);
 }
@@ -2346,8 +2712,8 @@ void MatchCase::setResultExpression(
 }
 
 void MatchCase::buildPatterns(Context& context) {
-    for (ExpressionList::const_iterator i = patternExpressions.begin();
-         i != patternExpressions.end();
+    for (auto i = patternExpressions.cbegin();
+         i != patternExpressions.cend();
          i++) {
         Expression* expression = *i;
         patterns.push_back(Pattern::create(expression, context));
@@ -2359,9 +2725,7 @@ bool MatchCase::isMatchExhaustive(
     MatchCoverage& coverage,
     Context& context) {
 
-    for (PatternList::const_iterator i = patterns.begin();
-         i != patterns.end();
-         i++) {
+    for (auto i = patterns.cbegin(); i != patterns.cend(); i++) {
         Pattern* pattern = *i;
         if (pattern->isMatchExhaustive(subject,
                                        coverage,
@@ -2378,12 +2742,12 @@ BinaryExpression* MatchCase::generateComparisonExpression(
     Expression* subject,
     Context& context) {
 
-    PatternList::const_iterator i = patterns.begin();
+    auto i = patterns.cbegin();
     Pattern* pattern = *i;
     BinaryExpression* binExpression =
         pattern->generateComparisonExpression(subject, context);
     i++;
-    while (i != patterns.end()) {
+    while (i != patterns.cend()) {
         pattern = *i;
         binExpression = new BinaryExpression(
             Operator::LogicalOr,
@@ -2395,20 +2759,25 @@ BinaryExpression* MatchCase::generateComparisonExpression(
     return binExpression;
 }
 
-void MatchCase::generateTemporariesCreatedByPatterns(BlockStatement* block) {
-    for (PatternList::const_iterator i = patterns.begin();
-         i != patterns.end();
-         i++) {
+bool MatchCase::generateTemporariesCreatedByPatterns(BlockStatement* block) {
+    bool anyTemporaries = false;
+
+    for (auto i = patterns.cbegin(); i != patterns.cend(); i++) {
         const Pattern* pattern = *i;
         const VariableDeclarationStatementList& temps =
             pattern->getTemporariesCreatedByPattern();
-        for (VariableDeclarationStatementList::const_iterator j = temps.begin();
-             j != temps.end();
-             j++) {
-            VariableDeclarationStatement* varDeclaration = *j;
-            block->addStatement(varDeclaration);
+        if (!temps.empty()) {
+            anyTemporaries = true;
+            for (auto j = temps.begin();
+                 j != temps.end();
+                 j++) {
+                VariableDeclarationStatement* varDeclaration = *j;
+                block->addStatement(varDeclaration);
+            }
         }
     }
+
+    return anyTemporaries;
 }
 
 Type* MatchCase::generateCaseBlock(
@@ -2419,15 +2788,14 @@ Type* MatchCase::generateCaseBlock(
     const Identifier& matchEndLabelName) {
 
     Expression* expression = generateComparisonExpression(subject, context);
+    bool anyTemporaries = generateTemporariesCreatedByPatterns(caseBlock);
 
-    if (isExhaustive) {
+    if (isExhaustive && !anyTemporaries) {
         return generateCaseResultBlock(caseBlock,
                                        context,
                                        matchResultTmpName,
                                        matchEndLabelName);
     }
-
-    generateTemporariesCreatedByPatterns(caseBlock);
 
     const Location& location = getLocation();
     BlockStatement* caseResultBlock =
@@ -2516,9 +2884,8 @@ void MatchCase::generateVariablesCreatedByPatterns(BlockStatement* block) {
     const Pattern* pattern = patterns.front();
     const VariableDeclarationStatementList& variablesCreatedByPattern =
          pattern->getVariablesCreatedByPattern();
-    for (VariableDeclarationStatementList::const_iterator i =
-             variablesCreatedByPattern.begin();
-         i != variablesCreatedByPattern.end();
+    for (auto i = variablesCreatedByPattern.cbegin();
+         i != variablesCreatedByPattern.cend();
          i++) {
         VariableDeclarationStatement* varDeclaration = *i;
         block->addStatement(varDeclaration);
@@ -2526,12 +2893,12 @@ void MatchCase::generateVariablesCreatedByPatterns(BlockStatement* block) {
 }
 
 void MatchCase::checkVariablesCreatedByPatterns() {
-    PatternList::const_iterator i = patterns.begin();
+    auto i = patterns.cbegin();
     const Pattern* firstPattern = *i;
     const VariableDeclarationStatementList& firstPatternVariables =
         firstPattern->getVariablesCreatedByPattern();
     i++;
-    while (i != patterns.end()) {
+    while (i != patterns.cend()) {
         const Pattern* pattern = *i;
         const VariableDeclarationStatementList& patternVariables =
             pattern->getVariablesCreatedByPattern();
@@ -2539,15 +2906,13 @@ void MatchCase::checkVariablesCreatedByPatterns() {
             Trace::error("All patterns in a case must bind the same variables.",
                          this);
         }
-        for (VariableDeclarationStatementList::const_iterator j =
-                 firstPatternVariables.begin();
-             j != firstPatternVariables.end();
+        for (auto j = firstPatternVariables.cbegin();
+             j != firstPatternVariables.cend();
              j++) {
             bool variableFound = false;
             VariableDeclarationStatement* firstPatternVariable = *j;
-            for (VariableDeclarationStatementList::const_iterator k =
-                     patternVariables.begin();
-                 k != patternVariables.end();
+            for (auto k = patternVariables.cbegin();
+                 k != patternVariables.cend();
                  k++) {
                 VariableDeclarationStatement* patternVariable = *k;
                 if (*(firstPatternVariable->getDeclaration()) ==
@@ -2582,11 +2947,7 @@ MatchExpression::MatchExpression(const MatchExpression& other) :
     cases(),
     isGenerated(other.isGenerated) {
 
-    for (CaseList::const_iterator i = other.cases.begin();
-         i != other.cases.end();
-         i++) {
-        cases.push_back((*i)->clone());
-    }
+    Utils::cloneList(cases, other.cases);
 }
 
 Expression* MatchExpression::clone() const {
@@ -2661,9 +3022,8 @@ BlockStatement* MatchExpression::generateMatchLogic(
     }
 
     Identifier matchEndLabelName = generateMatchEndLabelName();
-        // VariableDeclarationStatement::generateTemporaryName(matchEndName);
 
-    for (CaseList::const_iterator i = cases.begin(); i != cases.end(); i++) {
+    for (auto i = cases.cbegin(); i != cases.cend(); i++) {
         MatchCase* matchCase = *i;
         BlockStatement* caseBlock =
             new BlockStatement(context.getClassDefinition(),
@@ -2733,7 +3093,7 @@ void MatchExpression::checkResultType(
 }
 
 void MatchExpression::buildCasePatterns(Context& context) {
-    for (CaseList::const_iterator i = cases.begin(); i != cases.end(); i++) {
+    for (auto i = cases.cbegin(); i != cases.cend(); i++) {
         MatchCase* matchCase = *i;
         matchCase->buildPatterns(context);
     }
@@ -2741,7 +3101,7 @@ void MatchExpression::buildCasePatterns(Context& context) {
 
 void MatchExpression::checkCases(Context& context) {
     MatchCoverage coverage(subject->getType());
-    for (CaseList::const_iterator i = cases.begin(); i != cases.end(); i++) {
+    for (auto i = cases.cbegin(); i != cases.cend(); i++) {
         MatchCase* matchCase = *i;
         if (matchCase->isMatchExhaustive(subject, coverage, context)) {
             if (i + 1 != cases.end()) {
@@ -2764,6 +3124,35 @@ Type* MatchExpression::typeCheck(Context&) {
     return nullptr;
 }
 
+bool MatchExpression::mayFallThrough() const {
+    if (cases.empty()) {
+        return true;
+    }
+
+    for (auto i = cases.cbegin(); i != cases.cend(); i++) {
+        MatchCase* matchCase = *i;
+        if (matchCase->getResultBlock()->mayFallThrough()) {
+            return true;
+        }
+    }
+    return false;
+}
+
+Traverse::Result MatchExpression::traverse(Visitor& visitor) {
+    if (visitor.visitStatement(*this) == Traverse::Skip) {
+        return Traverse::Continue;
+    }
+
+    subject->traverse(visitor);
+
+    for (auto i = cases.cbegin(); i != cases.cend(); i++) {
+        MatchCase* matchCase = *i;
+        matchCase->traverse(visitor);
+    }
+
+    return Traverse::Continue;
+}
+
 ClassDecompositionExpression::ClassDecompositionExpression(
     Type* t,
     const Location& l) :
@@ -2781,9 +3170,7 @@ ClassDecompositionExpression::ClassDecompositionExpression(
     enumVariantName(other.enumVariantName) {
 
     const MemberList& otherMembers = other.members;
-    for (MemberList::const_iterator i = otherMembers.begin();
-         i != otherMembers.end();
-         i++) {
+    for (auto i = otherMembers.cbegin(); i != otherMembers.cend(); i++) {
         Member member;
         member.nameExpr = i->nameExpr->clone();
         member.patternExpr = i->patternExpr ? i->patternExpr->clone() : nullptr;
@@ -2796,8 +3183,32 @@ ClassDecompositionExpression* ClassDecompositionExpression::clone() const {
 }
 
 Type* ClassDecompositionExpression::typeCheck(Context& context) {
-    type = context.lookupConcreteType(type, getLocation());
+    lookupType(context);
     return type;
+}
+
+void ClassDecompositionExpression::lookupType(const Context& context) {
+    type = context.lookupConcreteType(type, getLocation());
+}
+
+Traverse::Result ClassDecompositionExpression::traverse(Visitor& visitor) {
+    if (visitor.visitClassDecomposition(*this) == Traverse::Skip) {
+        return Traverse::Continue;
+    }
+
+    for (auto i = members.cbegin(); i != members.cend(); i++) {
+        Expression* nameExpr = i->nameExpr;
+        if (nameExpr != nullptr) {
+            nameExpr->traverse(visitor);
+        }
+
+        Expression* patternExpr = i->patternExpr;
+        if (patternExpr != nullptr) {
+            patternExpr->traverse(visitor);
+        }
+    }
+
+    return Traverse::Continue;
 }
 
 void ClassDecompositionExpression::addMember(
@@ -2829,8 +3240,21 @@ TypedExpression* TypedExpression::clone() const {
 }
 
 Type* TypedExpression::typeCheck(Context& context) {
-    type = context.lookupConcreteType(type, getLocation());
+    lookupType(context);
     return type;
+}
+
+Traverse::Result TypedExpression::traverse(Visitor& visitor) {
+    if (visitor.visitTypedExpression(*this) == Traverse::Skip) {
+        return Traverse::Continue;
+    }
+
+    resultName->traverse(visitor);
+    return Traverse::Continue;
+}
+
+void TypedExpression::lookupType(const Context& context) {
+    type = context.lookupConcreteType(type, getLocation());
 }
 
 PlaceholderExpression::PlaceholderExpression(const Location& l) :

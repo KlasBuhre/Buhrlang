@@ -46,24 +46,31 @@ bool Binding::isReferencingType() const {
     }
 }
 
+Type* Binding::getVariableType() const {
+    switch (referencedEntity) {
+        case Binding::LocalObject:
+            return localObject->getType();
+        case Binding::DataMember:
+            return definition->cast<DataMemberDefinition>()->getType();
+        default:
+            return nullptr;
+    }
+}
+
 NameBindings::NameBindings() : enclosing(nullptr) {}
 
 NameBindings::NameBindings(NameBindings* enc) : enclosing(enc) {}
 
 void NameBindings::copyFrom(const NameBindings& from) {
     const BindingMap& fromBindings = from.bindings;
-    for (BindingMap::const_iterator i = fromBindings.begin();
-         i != fromBindings.end();
-         i++) {
+    for (auto i = fromBindings.cbegin(); i != fromBindings.cend(); i++) {
         bindings.insert(make_pair(i->first, new Binding(*(i->second))));
     }
 }
 
 void NameBindings::use(const NameBindings& usedNamespace) {
     const BindingMap& usedBindings = usedNamespace.bindings;
-    for (BindingMap::const_iterator i = usedBindings.begin();
-         i != usedBindings.end();
-         i++) {
+    for (auto i = usedBindings.cbegin(); i != usedBindings.cend(); i++) {
         Binding* binding = i->second;
         switch (binding->getReferencedEntity()) {
             case Binding::Class:
@@ -114,8 +121,7 @@ bool NameBindings::insertLocalObject(VariableDeclaration* localObject) {
 }
 
 void NameBindings::removeObsoleteLocalBindings() {
-    for (BindingMap::const_iterator i = bindings.begin();
-         i != bindings.end(); ) {
+    for (auto i = bindings.cbegin(); i != bindings.cend(); ) {
         Binding* binding = i->second;
         const Identifier& nameInBindings = i->first;
         if (binding->getReferencedEntity() == Binding::LocalObject &&

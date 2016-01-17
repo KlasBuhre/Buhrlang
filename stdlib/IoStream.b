@@ -1,10 +1,7 @@
 import "System"
 import "CStandardIo"
 
-class IoStream(FileHandle outStream, FileHandle inStream) {
-
-    // Create an I/O stream.
-    init(FileHandle fileHandle) : init(fileHandle, fileHandle) {}
+message class IoStream(FileHandle outStream, FileHandle inStream) {
 
     // Create a bidirectional I/O stream that uses two native streams.
     init(int fileDescriptor) : init(CStandardIo.fdopen(fileDescriptor, "w"),

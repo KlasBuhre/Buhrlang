@@ -72,6 +72,13 @@ public:
         Pointer(rhs).swap(*this); 
     }
 
+    T* release() {
+        --(*referenceCountPtr);
+        T* tmp = ptr;
+        ptr = 0;
+        return tmp;
+    }
+
     T* get() const {
         return ptr; 
     }
@@ -90,7 +97,7 @@ public:
 
     void decreasereferenceCount() {
         (*referenceCountPtr)--;
-    }
+    }   
 
     int* referenceCountPtr;
 

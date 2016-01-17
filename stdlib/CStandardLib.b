@@ -2,6 +2,9 @@ import "System"
 
 native class CStandardLib {
 
+    // Convert byte to string.
+    static string toString(byte b)
+
     // Convert int to string.
     static string toString(int i)
 

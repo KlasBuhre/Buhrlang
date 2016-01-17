@@ -41,6 +41,7 @@ process HttpWorker {
         Process.terminate
     }
 
+private:
     HttpResponse handleRequest(HttpRequest request) {
         return match request.method {
             "GET"  -> handleGet(request),
@@ -54,7 +55,7 @@ process HttpWorker {
             return new HttpResponse("404", "Not Found")
         }
         let response = new HttpResponse("200", "OK")
-        File.open(request.url, "r") { |file|
+        File.open(request.url, "r") |file| {
             response.body = Some(file.readAll)
         }
         return response
@@ -74,4 +75,3 @@ main() {
         worker.handleConnection(acceptedSocket)
     }
 }
-

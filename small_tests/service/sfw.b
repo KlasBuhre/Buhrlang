@@ -3,7 +3,7 @@ import "Trace"
 class SfwEventDescription(int dialogId)
 
 interface ISfwEventDispatcherObserver {
-     SfwEventDescription getEvent()
+     Option<SfwEventDescription> getEvent()
 }
 
 class ISfwEventDispatcher {

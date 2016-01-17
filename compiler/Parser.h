@@ -13,11 +13,13 @@ class BlockStatement;
 class Expression;
 class MethodCallExpression;
 class LambdaExpression;
+class AnonymousFunctionExpression;
 class MatchExpression;
 class NamedEntityExpression;
 class Module;
 class MatchCase;
 class ConstructorCallStatement;
+class VariableDeclarationStatement;
 class EnumGenerator;
 
 class Parser {
@@ -27,6 +29,8 @@ public:
     void importDefaultModules();
     void parse();
     void error(const std::string& message, const Token& token);
+    void setLookaheadMode();
+    void setNormalMode();
 
     Lexer& getLexer() {
         return lexer;
@@ -34,16 +38,17 @@ public:
 
 private:
     void addDefinition(Definition* definition);
-    ClassDefinition* parseClass();
+    ClassDefinition* parseClass(bool isMessage = false);
     void parseClassWithPrimaryConstructor(
         const Identifier& className,
+        bool isMessage,
         const GenericTypeParameterList& genericTypeParameters,
         const Location& location);
     void parseParentClassNameList(IdentifierList& parents);
     void parseGenericTypeParametersDeclaration(
         GenericTypeParameterList& genericTypeParameters);
     void parseClassMembers(bool classIsNative);
-    void parseClassMember(bool classIsNative);
+    void parseClassMember(AccessLevel::Kind access, bool classIsNative);
     MethodDefinition* parseMethod(
         const Token& name,
         Type* type,
@@ -57,12 +62,15 @@ private:
         AccessLevel::Kind access,
         bool isStatic);
     void parseArgumentList(ArgumentList& argumentList);
-    void parseLambdaSignature(MethodDefinition* method);
-    ClassDefinition* parseInterface(bool isProcessInterface = false);
+    FunctionSignature* parseFunctionSignature();
+    ClassDefinition* parseInterface(
+        bool isProcessInterface = false,
+        bool isMessage = false);
     void parseInterfaceMember();
     void parseProcessOrProcessInterface();
-    void parseEnumeration();
+    void parseEnumeration(bool isMessage = false);
     void parseEnumerationVariant(EnumGenerator& enumGenerator);
+    void parseMessage();
     MethodDefinition* parseFunction();
     BlockStatement* parseBlock(
         bool startBlock = true,
@@ -80,10 +88,10 @@ private:
         bool patternAllowed = false,
         Operator::Precedence precedence = Operator::NormalPrecedence);
     Expression* parseSubexpression(bool patternAllowed = false);
+    Expression* parseSimpleExpression(bool patternAllowed);
     Expression* parseUnaryExpression(
         const Token& operatorToken,
         Expression* operand);
-    Expression* parseMemberSelectorExpression(Expression* left);
     Expression* parseBooleanLiteralExpression(const Token& consumedToken);
     Expression* parseArrayLiteralExpression();
     Expression* parseParenthesesOrTypeCastExpression();
@@ -92,7 +100,10 @@ private:
     Expression* parseMethodCall(const Token& name);
     bool lambdaExpressionStartsHere();
     void parseLambdaExpression(MethodCallExpression* methodCall);
-    void parseLambdaArguments(LambdaExpression* lambda);
+    void parseLambdaArguments(
+        LambdaExpression* lambda,
+        AnonymousFunctionExpression* anonymousFunction);
+    AnonymousFunctionExpression* parseAnonymousFunctionExpression();
     Expression* parseUnknownExpression(
         const Token& previousToken,
         bool patternAllowed);
@@ -117,6 +128,7 @@ private:
     void parseBreakStatement();
     void parseContinueStatement();
     void parseReturnStatement();
+    void parseDeferStatement();
     void parseJumpStatement();
     void parseLabelStatement();
     void parseUse();
@@ -131,8 +143,6 @@ private:
     void parseIdentifierList(IdentifierList& identifierList);
     void expectNewline();
     void expectCloseBraceOrNewline();
-    void setLookaheadMode();
-    void setNormalMode();
 
     Lexer lexer;
     Tree& tree;

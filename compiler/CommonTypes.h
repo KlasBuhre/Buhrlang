@@ -16,6 +16,7 @@ namespace Keyword {
         Interface,
         Process,
         Named,
+        Message,
         Init,
         Private,
         Static,
@@ -26,6 +27,7 @@ namespace Keyword {
         Float,
         String,
         Enum,
+        Fun,
         If,
         Else,
         Bool,
@@ -45,6 +47,7 @@ namespace Keyword {
         Native,
         Yield,
         Match,
+        Defer,
         Jump
     };
 
@@ -55,6 +58,7 @@ namespace Keyword {
     extern const std::string interfaceString;
     extern const std::string processString;
     extern const std::string namedString;
+    extern const std::string messageString;
     extern const std::string initString;
     extern const std::string objectString;
     extern const std::string privateString;
@@ -66,6 +70,7 @@ namespace Keyword {
     extern const std::string floatString;
     extern const std::string stringString;
     extern const std::string enumString;
+    extern const std::string funString;
     extern const std::string ifString;
     extern const std::string elseString;
     extern const std::string boolString;
@@ -85,6 +90,7 @@ namespace Keyword {
     extern const std::string nativeString;
     extern const std::string yieldString;
     extern const std::string matchString;
+    extern const std::string deferString;
     extern const std::string jumpString;
 }
 
@@ -127,10 +133,15 @@ namespace Operator {
         LogicalNegation,          // !
         LogicalAnd,               // &&
         LogicalOr,                // ||
+        BitwiseAnd,               // &
+        BitwiseOr,                // |
+        BitwiseXor,               // ^
+        BitwiseNot,               // ~
+        LeftShift,                // <<
+        RightShift,               // >>
         Colon,                    // :
         Semicolon,                // ;
         Question,                 // ?
-        VerticalBar,              // |
         Arrow,                    // ->
         Placeholder,              // _
         Wildcard,                 // ..
@@ -143,8 +154,12 @@ namespace Operator {
         AssignmentTo,     // =, :=
         OrOr,             // ||
         AndAnd,           // &&
+        BitwiseOrP,       // |
+        BitwiseXorP,      // ^
+        BitwiseAndP,      // &
         EqualNotEqual,    // ==, !=
         GreaterLess,      // >,  <, >=, <=
+        LeftRightShift,   // <<, >>
         OpenClosedRange,  // ...
         AddSubtract,      // +,  -
         MultiplyDivision  // *,  /
@@ -171,10 +186,23 @@ struct Location {
 typedef std::string Identifier;
 typedef std::list<Identifier> IdentifierList;
 
+class Visitor;
+
+namespace Traverse {
+    enum Result {
+        Continue,
+        Skip
+    };
+}
+
 class Node {
 public:
     explicit Node(const Location& l) : location(l) {}
     virtual ~Node() {}
+
+    virtual Traverse::Result traverse(Visitor&) {
+        return Traverse::Continue;
+    }
 
     template<class T>
     T* cast() {
@@ -221,6 +249,7 @@ public:
     VariableDeclaration(Type* t, const Identifier& i);
     VariableDeclaration(const VariableDeclaration& other);
 
+    VariableDeclaration* clone() const;
     bool operator==(const VariableDeclaration& other) const;
     std::string toString() const;
 
@@ -260,10 +289,13 @@ typedef std::list<VariableDeclaration*> ArgumentList;
 typedef std::vector<Type*> TypeList;
 typedef std::list<Expression*> ExpressionList;
 
-class LambdaSignature {
+class FunctionSignature {
 public:
-    explicit LambdaSignature(Type* rt);
-    LambdaSignature(const LambdaSignature& other);
+    explicit FunctionSignature(Type* rt);
+    FunctionSignature(const FunctionSignature& other);
+
+    FunctionSignature* clone() const;
+    bool equals(const FunctionSignature& other) const;
 
     void addArgument(Type* type) {
         arguments.push_back(type);
@@ -304,6 +336,13 @@ namespace CommonNames {
     extern const Identifier matchSubjectName;
     extern const Identifier enumTagVariableName;
     extern const Identifier messageHandlerTypeName;
+    extern const Identifier cloneableTypeName;
+    extern const Identifier cloneMethodName;
+    extern const Identifier deepCopyMethodName;
+    extern const Identifier otherVariableName;
+    extern const Identifier callMethodName;
+    extern const Identifier deferTypeName;
+    extern const Identifier addClosureMethodName;
 }
 
 namespace Symbol {
@@ -316,6 +355,10 @@ namespace Symbol {
     Identifier makeEnumVariantDataName(const Identifier& variantName);
     Identifier makeEnumVariantClassName(const Identifier& variantName);
     Identifier makeConvertableEnumName(const Identifier& enumName);
+    Identifier makeClosureClassName(
+        const Identifier& userClassName,
+        const Identifier& userMethodName,
+        const Location& location);
 }
 
 namespace Trace {

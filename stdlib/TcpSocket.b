@@ -3,6 +3,17 @@ import "IoStream"
 
 class TcpSocket(int fileDescriptor): IoStream(fileDescriptor) {
 
+    // Accept incomming connection.
+    TcpSocket accept() {
+        let acceptedFd = NativeSocket.accept(fileDescriptor)
+        return new TcpSocket(acceptedFd)
+    }
+
+    // Connect to a host.
+    bool connect(string host, int port) {
+        return NativeSocket.connect(fileDescriptor, host, port)
+    }
+
     // Create socket.
     static TcpSocket create() {
         return new TcpSocket(NativeSocket.socket)
@@ -24,17 +35,6 @@ class TcpSocket(int fileDescriptor): IoStream(fileDescriptor) {
             yield(acceptedSocket)
             acceptedSocket.close
         }
-    }
-
-    // Accept incomming connection.
-    TcpSocket accept() {
-        let acceptedFd = NativeSocket.accept(fileDescriptor)
-        return new TcpSocket(acceptedFd)
-    }
-
-    // Connect to a host.
-    bool connect(string host, int port) {
-        return NativeSocket.connect(fileDescriptor, host, port)
     }
 
     // Open a socket, give it to a lambda and then close it.

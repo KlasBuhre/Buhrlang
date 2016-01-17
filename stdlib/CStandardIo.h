@@ -6,8 +6,10 @@
 
 #include "System.h"
 
-class FileHandle: public object {
+class FileHandle: public virtual object, public _Cloneable {
 public:
+    virtual Pointer<object> _clone();
+
     FILE* file;
 };
 

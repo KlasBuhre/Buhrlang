@@ -4,8 +4,25 @@
 #include "TPointer.h"
 #include "Pointer.h"
 
+class string: public virtual object {
+public:
+    string(const char c) : character(c) {}
+    string(Pointer<string> other) : character(other->character) {}
+
+    Pointer<object> _clone() {
+        return new string(this);
+    }
+
+    char character;
+};
+
 // ----------------------------------------------------------------------------
-// Shape
+// enum Shape {
+//     Square(int),
+//     Rectangle(int, int),
+//     Circle(int),
+//     Point
+// }
 // ----------------------------------------------------------------------------
 
 struct Shape {
@@ -67,6 +84,64 @@ int Shape::_SquareTag = 0;
 int Shape::_RectangleTag = 1;
 int Shape::_CircleTag = 2;
 int Shape::_PointTag = 3;
+
+// ----------------------------------------------------------------------------
+// message enum DbMsg {
+//     Create(int, string),
+//     Read(int)
+// }
+// ----------------------------------------------------------------------------
+
+struct DbMsg {
+    static int _CreateTag;
+    static int _ReadTag;
+
+    struct _CreateData {        
+        int _0;
+        Pointer<string> _1;
+    };
+    
+    struct _ReadData {
+        int _0;
+    };
+
+    int _tag;
+    // union {
+        DbMsg::_CreateData _Create;
+        DbMsg::_ReadData _Read;
+    // };
+    
+    static DbMsg Create(int _0, Pointer<string> _1) {
+        DbMsg retval;
+        retval._tag = _CreateTag;
+        retval._Create._0 = _0;
+        retval._Create._1 = _1;
+        return retval;
+    }
+        
+    static DbMsg Read(int _0) {
+        DbMsg retval;
+        retval._tag = _ReadTag;
+        retval._Read._0 = _0;
+        return retval;
+    }
+
+    static DbMsg deepCopy(DbMsg other) {
+        DbMsg retval;
+        int otherTag = other._tag;
+        retval._tag = otherTag;
+        if (otherTag == _CreateTag) {
+            retval._Create._0 = other._Create._0;
+            retval._Create._1 = dynamicPointerCast<string>(other._Create._1->_clone());
+        } else if (otherTag == _ReadTag) {
+            retval._Read._0 = other._Read._0;
+        }
+        return retval;
+    }
+};
+
+int DbMsg::_CreateTag = 0;
+int DbMsg::_ReadTag = 1;
 
 // ----------------------------------------------------------------------------
 // Option<T>
@@ -179,10 +254,11 @@ int Option_Foo_::_SomeTag = 0;
 int Option_Foo_::_NoneTag = 1;
 Option_Foo_::VariantDestructor Option_Foo_::destructors[2] = { Some_destructor, NULL };
 
+// ----------------------------------------------------------------------------
+
 int main() {
     Shape square = Shape::Square(3);
     Shape rectangle = Shape::Rectangle(2, 4);
-
     printf("sizeof(Shape)=%d\n", sizeof(Shape));
     printf("square._tag=%d square._Square._0=%lu\n", square._tag, square._Square._0);
     printf("rectangle._tag=%d rectangle._Rectangle._0=%d rectangle._Rectangle._1=%d\n",
@@ -192,14 +268,12 @@ int main() {
 
     Option_int_ someInt = Option_int_::Some(7);
     Option_int_ noInt = Option___::None();
-
     printf("sizeof(Option_int_)=%lu\n", sizeof(Option_int_));
     printf("someInt._tag=%d someInt._Some._0=%d\n", someInt._tag, someInt._Some._0);
     printf("noInt._tag=%d \n", noInt._tag);
 
     Option_Foo_ someFoo = Option_Foo_::Some(Pointer<Foo>(new Foo(13)));
     Option_Foo_ noFoo = Option_Foo_::None();
-
     printf("sizeof(Option_Foo_)=%lu\n", sizeof(Option_Foo_));
     printf("someFoo._tag=%d someFoo._Some._0.j=%d\n", someFoo._tag, someFoo._Some._0->j);
     printf("noFoo._tag=%d \n", noFoo._tag);
@@ -207,6 +281,14 @@ int main() {
     printf("sizeof(TPointer<Foo>)=%lu\n", sizeof(TPointer<Foo>));
     printf("sizeof(Foo*)=%lu\n", sizeof(Foo*));
     printf("sizeof(int)=%lu\n", sizeof(int));
+
+    DbMsg dbMsg = DbMsg::Create(4, Pointer<string>(new string('c')));
+    DbMsg copy = DbMsg::deepCopy(dbMsg);
+    dbMsg._Create._1->character = 'd';
+    printf("copy._tag=%d copy._Create._0=%d copy._Create._1->character=%c\n", 
+           copy._tag, 
+           copy._Create._0, 
+           copy._Create._1->character);   
 
     return 0;
 }

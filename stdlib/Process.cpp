@@ -23,7 +23,7 @@ public:
     int registerMessageHandler(Pointer<MessageHandler> messageHandler);
     void addMessage(Message* message);
     Message* getMessage();
-    Message* getMessage(MessageType messageType, int messageId);
+    Message* getMessage(int messageType, int messageId);
 
     int getPid() const {
         return pid;
@@ -135,15 +135,13 @@ void ProcessControlBlock::start(MessageHandlerFactory* factory) {
 
 void ProcessControlBlock::run(MessageHandlerFactory* factory) {
     Pointer<MessageHandlerFactory> factoryPtr(factory);
-    factoryPtr.decreasereferenceCount();
     defaultMessageHandler = factoryPtr->createMessageHandler();
 
     while (true) {
-        Message* message = currentProcess->getMessage();
-        MessageType messageType = message->type;
-        if (ENUM_IS(messageType, MessageType, MethodCall)) {
+        Message* message = currentProcess->getMessage();        
+        int messageType = message->type;
+        if (messageType == MessageType::MethodCall) {
             Pointer<Message> messagePtr(message);
-            messagePtr.decreasereferenceCount();
             int messageHandlerId = message->messageHandlerId;
             if (messageHandlerId == 0) {
                 // Route the message to the default message handler (process
@@ -156,7 +154,7 @@ void ProcessControlBlock::run(MessageHandlerFactory* factory) {
                     messageHandlerVector[index]->handleMessage(messagePtr);
                 }
             }
-        } else if (ENUM_IS(messageType, MessageType, Terminate)) {
+        } else if (messageType == MessageType::Terminate) {
             delete message;
             break;
         } else {
@@ -169,7 +167,7 @@ void ProcessControlBlock::terminate() {
     Message* parentNotification = nullptr;
     int parent = 0;
     if (pid != 0) {
-        parentNotification = new Message(MessageType::ChildTerminated());
+        parentNotification = new Message(MessageType::ChildTerminated);
         parentNotification->id = pid;
         parent = parentPid;
     }
@@ -211,9 +209,7 @@ Message* ProcessControlBlock::getMessage() {
     return message;
 }
 
-Message* ProcessControlBlock::getMessage(
-    MessageType messageType,
-    int messageId) {
+Message* ProcessControlBlock::getMessage(int messageType, int messageId) {
 
     Message* matchingMessage = nullptr;
     std::unique_lock<std::mutex> lock(mutex);
@@ -227,8 +223,7 @@ Message* ProcessControlBlock::getMessage(
              i != mailbox.end();
              i++) {
             Message* message = *i;
-            if (ENUM_EQUALS(message->type, messageType) &&
-                message->id == messageId) {
+            if (message->type == messageType && message->id == messageId) {
                 mailbox.erase(i);
                 matchingMessage = message;
                 break;
@@ -297,9 +292,9 @@ void Kernel::sendMessage(int destinationPid, Message* message) {
     PidToProcessMap::const_iterator i = processMap.find(destinationPid);
     if (i != processMap.end()) {
         ProcessControlBlock* process = i->second;
-        MessageType messageType = message->type;
-        if (ENUM_IS(messageType, MessageType, MethodCall) ||
-            ENUM_IS(messageType, MessageType, Terminate)) {
+        int messageType = message->type;
+        if (messageType == MessageType::MethodCall ||
+            messageType == MessageType::Terminate) {
             message->id = messageIdCounter++;
         }
         process->addMessage(message);
@@ -324,8 +319,7 @@ void Kernel::removeProcess(int pid) {
 void Kernel::waitForProcessTermination(int childPid) {
     if (isProcessAlive(childPid)) {
         Message* message =
-            currentProcess->getMessage(MessageType::ChildTerminated(),
-                                       childPid);
+            currentProcess->getMessage(MessageType::ChildTerminated, childPid);
         delete message;
     }
 }
@@ -343,25 +337,27 @@ bool Kernel::isProcessAlive(int pid) {
 }
 
 int Process::spawn(Pointer<MessageHandlerFactory> factory) {
-    MessageHandlerFactory* factoryObj = factory.get();
-
-    factory.increasereferenceCount();
-    std::string name;
-    return kernel.spawnProcess(factoryObj, name);
+    return spawn(factory, nullptr);
 }
 
 int Process::spawn(
     Pointer<MessageHandlerFactory> factory,
     Pointer<string> name) {
 
-    MessageHandlerFactory* factoryObj = factory.get();
-    
-    factory.increasereferenceCount();
+    // Clone the factory so that the sending and receiving process don't share
+    // the factory.
+    Pointer<MessageHandlerFactory> clonedFactory =
+        dynamicPointerCast<MessageHandlerFactory>(factory->_clone());
+
+    // Release the cloned factory from the smart pointer so that the cloned
+    // factory is not deleted once this method returns.
+    MessageHandlerFactory* clonedFactoryRawPtr = clonedFactory.release();
+
     std::string nameStr;
-    if (name != nullptr) {
+    if (name.get() != nullptr) {
         nameStr = std::string(name->buf->data(), name->buf->length());
     }
-    return kernel.spawnProcess(factoryObj, nameStr);
+    return kernel.spawnProcess(clonedFactoryRawPtr, nameStr);
 }
 
 int Process::registerMessageHandler(Pointer<MessageHandler> messageHandler) {
@@ -369,29 +365,36 @@ int Process::registerMessageHandler(Pointer<MessageHandler> messageHandler) {
 }
 
 void Process::send(int destinationPid, Pointer<Message> message) {
-    // Should clone the message here so that the sending and receiving process
-    // don't share the message.
-    Message* messageObj = message.get();
-    message.increasereferenceCount();
-    kernel.sendMessage(destinationPid, messageObj);
+    // Clone the message so that the sending and receiving process don't share
+    // the message.
+    Pointer<Message> clonedMsg = dynamicPointerCast<Message>(message->_clone());
+
+    // Release the cloned message from the smart pointer so that the cloned
+    // message is not deleted once this method returns. The reference count for
+    // messages in the kernel is zero.
+    Message* clonedMsgRawPtr = clonedMsg.release();
+
+    // Send the message.
+    kernel.sendMessage(destinationPid, clonedMsgRawPtr);
+
+    // Set the message ID filled in by the kernel so that the generated code can
+    // receive a result message based on the message id in the request message.
+    message->id = clonedMsgRawPtr->id;
 }
 
 Pointer<Message> Process::receive() {
-    Message* messageObj = currentProcess->getMessage();
-    Pointer<Message> messagePtr(messageObj);
-    messagePtr.decreasereferenceCount();
-    return messagePtr;
+    Pointer<Message> message(currentProcess->getMessage());
+    return message;
 }
 
 Pointer<Message> Process::receiveMethodResult(int messageId) {
-    return receive(MessageType::MethodResult(), messageId);
+    return receive(MessageType::MethodResult, messageId);
 }
 
-Pointer<Message> Process::receive(MessageType messageType, int messageId) {
-    Message* messageObj = currentProcess->getMessage(messageType, messageId);
-    Pointer<Message> messagePtr(messageObj);
-    messagePtr.decreasereferenceCount();
-    return messagePtr;
+Pointer<Message> Process::receive(int messageType, int messageId) {
+    Pointer<Message> message(currentProcess->getMessage(messageType,
+                                                        messageId));
+    return message;
 }
 
 int Process::getPid() {
@@ -399,7 +402,7 @@ int Process::getPid() {
 }
 
 void Process::terminate() {
-    Message* message = new Message(MessageType::Terminate());
+    Message* message = new Message(MessageType::Terminate);
     currentProcess->addMessage(message);
 }
 

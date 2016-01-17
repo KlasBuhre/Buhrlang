@@ -85,6 +85,7 @@ private:
     void generateTemporaryExpression(const TemporaryExpression* temporary);
     void generateIfStatement(const IfStatement* ifStatement);
     void generateWhileStatement(const WhileStatement* whileStatement);
+    void generateForStatement(const ForStatement* forStatement);
     void generateBreakStatement();
     void generateContinueStatement();
     void generateReturnStatement(const ReturnStatement* returnStatement);

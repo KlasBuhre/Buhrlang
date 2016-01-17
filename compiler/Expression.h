@@ -23,8 +23,9 @@ public:
         ArraySubscript,      // a[...]
         Null,                // null
         This,                // this
-        Lambda,              // { |args| ... }
+        Lambda,              // |args| { ... }
         Yield,               // yield(...)
+        AnonymousFunction,   // |args| { ... }
         Match,               // match ... { a -> b ... }
         ClassDecomposition,  // A { b: c, ... }
         Typed,               // A a
@@ -49,6 +50,10 @@ public:
 
     Type* getType() const {
         return type;
+    }
+
+    void setType(Type* t) {
+        type = t;
     }
 
     bool isNamedEntity() const {
@@ -195,6 +200,7 @@ public:
 
     virtual ArrayLiteralExpression* clone() const;
     virtual Expression* transform(Context& context);
+    virtual Traverse::Result traverse(Visitor& visitor);
 
     void addElement(Expression* element) {
         elements.push_back(element);
@@ -222,6 +228,7 @@ public:
     virtual NamedEntityExpression* clone() const;
     virtual Type* typeCheck(Context& context);
     virtual Expression* transform(Context& context);
+    virtual Traverse::Result traverse(Visitor& visitor);
 
     bool resolve(Context& context);
     bool isReferencingStaticDataMember(Context& context);
@@ -301,6 +308,7 @@ public:
     virtual Expression* clone() const;
     virtual Expression* transform(Context& context);
     virtual Type* typeCheck(Context& context);
+    virtual Traverse::Result traverse(Visitor& visitor);
     virtual Identifier generateVariableName() const;
     virtual Kind getRightmostExpressionKind() const;
 
@@ -344,6 +352,7 @@ public:
     virtual Expression* clone() const;
     virtual Type* typeCheck(Context& context);
     virtual Expression* transform(Context& context);
+    virtual Traverse::Result traverse(Visitor& visitor);
 
     Operator::Kind getOperator() const {
         return op;
@@ -363,6 +372,11 @@ private:
         const Type* rightType,
         const Context& context);
     Type* resultingType(Type* leftType);
+    void inferTypes(const Context& context);
+    Type* inferTypeFromOtherSide(
+        const Expression* implicitlyTypedExpr,
+        const Type* otherSideType,
+        const Context& context);
     MemberSelectorExpression* createStringOperation(Context& context);
     MemberSelectorExpression* createArrayOperation(Context& context);
     BinaryExpression* decomposeCompoundAssignment();
@@ -383,6 +397,7 @@ public:
 
     virtual Expression* clone() const;
     virtual Type* typeCheck(Context& context);
+    virtual Traverse::Result traverse(Visitor& visitor);
 
     Operator::Kind getOperator() const {
         return op;
@@ -405,10 +420,12 @@ private:
 class LambdaExpression: public Expression {
 public:
     LambdaExpression(BlockStatement* b, const Location& l);
+    LambdaExpression(BlockStatement* b);
     LambdaExpression(const LambdaExpression& other);
 
     virtual LambdaExpression* clone() const;
     virtual Type* typeCheck(Context& context);
+    virtual Traverse::Result traverse(Visitor& visitor);
 
     void addArgument(VariableDeclarationStatement* argument);
 
@@ -420,18 +437,18 @@ public:
         return block;
     }
 
-    void setLambdaSignature(LambdaSignature* s) {
+    void setLambdaSignature(FunctionSignature* s) {
         signature = s;
     }
 
-    LambdaSignature* getLambdaSignature() const {
+    FunctionSignature* getLambdaSignature() const {
         return signature;
     }
 
 private:
     VariableDeclarationStatementList arguments;
     BlockStatement* block;
-    LambdaSignature* signature;
+    FunctionSignature* signature;
 };
 
 class YieldExpression: public Expression {
@@ -442,6 +459,7 @@ public:
     virtual Expression* clone() const;
     virtual Expression* transform(Context& context);
     virtual Type* typeCheck(Context& context);
+    virtual Traverse::Result traverse(Visitor& visitor);
 
     ExpressionList& getArguments() {
         return arguments;
@@ -456,6 +474,31 @@ private:
         Context& context);
 
     ExpressionList arguments;
+};
+
+class AnonymousFunctionExpression: public Expression {
+public:
+    AnonymousFunctionExpression(BlockStatement* b, const Location& l);
+    AnonymousFunctionExpression(const AnonymousFunctionExpression& other);
+
+    virtual Expression* clone() const;
+    virtual Type* typeCheck(Context& context);
+    virtual Expression* transform(Context& context);
+    virtual Traverse::Result traverse(Visitor& visitor);
+
+    void addArgument(VariableDeclaration* argument);
+
+    BlockStatement* getBody() const {
+        return body;
+    }
+
+    const ArgumentList& getArgumentList() const {
+        return argumentList;
+    }
+
+private:
+    ArgumentList argumentList;
+    BlockStatement* body;
 };
 
 class ClassMemberDefinition;
@@ -484,6 +527,7 @@ protected:
 private:
     Kind kind;
     bool hasTransformedIntoMemberSelector;
+    bool hasCheckedAccess;
 };
 
 class DataMemberExpression: public MemberExpression {
@@ -512,6 +556,7 @@ public:
     virtual MethodCallExpression* clone() const;
     virtual Expression* transform(Context& context);
     virtual Type* typeCheck(Context& context);
+    virtual Traverse::Result traverse(Visitor& visitor);
 
     void setIsConstructorCall();
     void setConstructorCallName(Type* allocatedObjectType);
@@ -581,17 +626,22 @@ private:
     void reportError(
         const TypeList& argumentTypes,
         const Binding::MethodList& candidates);
+    Expression* transformDueToLambda(
+        MethodDefinition* methodDefinition,
+        Context& context);
     Expression* inlineCalledMethod(Context& context);
     void addArgumentsToInlinedMethodBody(BlockStatement* clonedBody);
     TemporaryExpression* inlineMethodWithReturnValue(
         BlockStatement* clonedMethodBody,
         MethodDefinition* calledMethod,
         Context& context);
-    WrappedStatementExpression* transformIntoWhileStatement(Context& context);
+    WrappedStatementExpression* transformIntoForStatement(Context& context);
     BlockStatement* addLamdaArgumentsToLambdaBlock(
         BlockStatement* whileBlock,
         const Identifier& indexVariableName,
         const Identifier& arrayName);
+    bool resolvesToClosure(Context& context);
+    Expression* transformIntoClosureCallMethod(Context& context);
 
     Identifier name;
     ExpressionList arguments;
@@ -609,6 +659,9 @@ public:
     virtual Expression* clone() const;
     virtual Expression* transform(Context& context);
     virtual Type* typeCheck(Context& context);
+    virtual Traverse::Result traverse(Visitor& visitor);
+
+    void lookupType(const Context& context);
 
     MethodCallExpression* getConstructorCall() const {
         return constructorCall;
@@ -630,10 +683,14 @@ private:
 class ArrayAllocationExpression: public Expression {
 public:
     ArrayAllocationExpression(Type* t, Expression* c, const Location& l);
+    ArrayAllocationExpression(Type* t, Expression* c);
     ArrayAllocationExpression(const ArrayAllocationExpression& other);
 
     virtual Expression* clone() const;
     virtual Type* typeCheck(Context& context);
+    virtual Traverse::Result traverse(Visitor& visitor);
+
+    void lookupType(const Context& context);
 
     void setInitExpression(ArrayLiteralExpression* init) {
         initExpression = init;
@@ -660,6 +717,7 @@ public:
     virtual Expression* clone() const;
     virtual Expression* transform(Context& context);
     virtual Type* typeCheck(Context& context);
+    virtual Traverse::Result traverse(Visitor& visitor);
 
     Expression* getArrayNameExpression() const {
         return arrayNameExpression;
@@ -686,6 +744,9 @@ public:
 
     virtual Expression* clone() const;
     virtual Type* typeCheck(Context& context);
+    virtual Traverse::Result traverse(Visitor& visitor);
+
+    void lookupTargetType(const Context& context);
 
     void setGenerated(bool g) {
         isGenerated = g;
@@ -719,7 +780,9 @@ public:
     MatchCase();
     MatchCase(const MatchCase& other);
 
-    MatchCase* clone() const;
+    virtual Traverse::Result traverse(Visitor& visitor);
+
+    MatchCase* clone() const;    
     void addPatternExpression(Expression* e);
     void buildPatterns(Context& context);
     bool isMatchExhaustive(
@@ -761,7 +824,7 @@ private:
     BlockStatement* chooseCaseResultBlock(
         BlockStatement* outerBlock,
         Context& context);
-    void generateTemporariesCreatedByPatterns(BlockStatement* block);
+    bool generateTemporariesCreatedByPatterns(BlockStatement* block);
     void generateVariablesCreatedByPatterns(BlockStatement* block);
     void checkVariablesCreatedByPatterns();
 
@@ -781,6 +844,8 @@ public:
     virtual Expression* clone() const;
     virtual Expression* transform(Context& context);
     virtual Type* typeCheck(Context& context);
+    virtual bool mayFallThrough() const;
+    virtual Traverse::Result traverse(Visitor& visitor);
 
     void addCase(MatchCase* c) {
         cases.push_back(c);
@@ -824,8 +889,10 @@ public:
 
     virtual ClassDecompositionExpression* clone() const;
     virtual Type* typeCheck(Context&);
+    virtual Traverse::Result traverse(Visitor& visitor);
 
     void addMember(Expression* nameExpr, Expression* patternExpr);
+    void lookupType(const Context& context);
 
     const MemberList& getMembers() const {
         return members;
@@ -851,6 +918,9 @@ public:
 
     virtual TypedExpression* clone() const;
     virtual Type* typeCheck(Context& context);
+    virtual Traverse::Result traverse(Visitor& visitor);
+
+    void lookupType(const Context& context);
 
     Expression* getResultName() const {
         return resultName;

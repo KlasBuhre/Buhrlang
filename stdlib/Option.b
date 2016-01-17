@@ -1,4 +1,4 @@
-enum Option<T> {
+message enum Option<T> {
     Some(T),
     None
 }

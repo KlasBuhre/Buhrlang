@@ -6,10 +6,77 @@
 namespace {
     const Identifier retvalVariableName("retval");
     const Identifier otherVariableName("other");
+    const Identifier otherTagVariableName("otherTag");
+
+    void checkNonPrimitiveVariantDataMember(
+        VariableDeclaration* variantDataMember) {
+
+        if (!variantDataMember->getType()->isMessageOrPrimitive()) {
+            Trace::error("Non-primitive members in a message enum must be of "
+                         "type message.",
+                         variantDataMember);
+        }
+    }
+
+    // Generate the following expression:
+    //
+    // // If $0 is of primitive type:
+    // other.$[Variant0Name].$0
+    //
+    // // If $0 is of reference type:
+    // ([$0Type]) other.$[Variant0Name].$0._clone
+    //
+    // // If $0 is of enum type:
+    // [$0Type]._deepCopy(other.$[Variant0Name].$0)
+    //
+    Expression* generateVariantDataMemberInitRhs(
+        VariableDeclaration* variantDataMember,
+        const Identifier& enumVariantDataName) {
+
+        MemberSelectorExpression* variantDataMemberSelector =
+            new MemberSelectorExpression(
+                new NamedEntityExpression(otherVariableName),
+                new MemberSelectorExpression(
+                    enumVariantDataName,
+                    variantDataMember->getIdentifier()));
+        Type* variantDataType = variantDataMember->getType();
+        if (variantDataType->isPrimitive()) {
+            return variantDataMemberSelector;
+        } else {
+            checkNonPrimitiveVariantDataMember(variantDataMember);
+            if (variantDataType->isReference()) {
+                return new TypeCastExpression(
+                    variantDataType->clone(),
+                    new MemberSelectorExpression(variantDataMemberSelector,
+                        new NamedEntityExpression(
+                            CommonNames::cloneMethodName)));
+            } else {
+                MethodCallExpression* deepCopyCall =
+                    new MethodCallExpression(CommonNames::deepCopyMethodName);
+                deepCopyCall->addArgument(variantDataMemberSelector);
+                return new MemberSelectorExpression(
+                    variantDataType->getFullConstructedName(),
+                    deepCopyCall);
+            }
+        }
+    }
+
+    MethodDefinition* getDeepCopyMethod(const ClassDefinition* enumClass) {
+        const MemberMethodList& methods = enumClass->getMethods();
+        for (auto i = methods.cbegin(); i != methods.cend(); i++) {
+            MethodDefinition* method = *i;
+            if (method->getName().compare(
+                    CommonNames::deepCopyMethodName) == 0) {
+                return method;
+            }
+        }
+        return nullptr;
+    }
 }
 
 EnumGenerator::EnumGenerator(
     const Identifier& name,
+    bool isMessage,
     const GenericTypeParameterList& genericTypeParameters,
     const Location& location,
     Tree& t) :
@@ -19,19 +86,29 @@ EnumGenerator::EnumGenerator(
     genericNoDataVariantList(),
     enumClass(nullptr) {
 
-    for (GenericTypeParameterList::const_iterator i =
-             genericTypeParameters.begin();
-         i != genericTypeParameters.end();
+    for (auto i = genericTypeParameters.cbegin();
+         i != genericTypeParameters.cend();
          i++) {
         GenericTypeParameterDefinition* genericTypeDef = *i;
         fullEnumType->addGenericTypeParameter(
             Type::create(genericTypeDef->getName()));
     }
 
-    startClassGeneration(name, genericTypeParameters, location);
+    startClassGeneration(name, isMessage, genericTypeParameters, location);
 }
 
-EnumGenerator::EnumGenerator(Type* type, const Location& location, Tree& t) :
+EnumGenerator::EnumGenerator(ClassDefinition* e, Tree& t) :
+    fullEnumType(Type::create(e->getName())),
+    tree(t),
+    numberOfVariants(0),
+    genericNoDataVariantList(),
+    enumClass(e) {}
+
+EnumGenerator::EnumGenerator(
+    Type* type,
+    bool isMessage,
+    const Location& location,
+    Tree& t) :
     fullEnumType(type),
     tree(t),
     numberOfVariants(0),
@@ -39,12 +116,14 @@ EnumGenerator::EnumGenerator(Type* type, const Location& location, Tree& t) :
     enumClass(nullptr) {
 
     startClassGeneration(fullEnumType->getFullConstructedName(),
+                         isMessage,
                          GenericTypeParameterList(),
                          location);
 }
 
 void EnumGenerator::startClassGeneration(
     const Identifier& name,
+    bool isMessage,
     const GenericTypeParameterList& genericTypeParameters,
     const Location& location) {
 
@@ -52,6 +131,7 @@ void EnumGenerator::startClassGeneration(
     ClassDefinition::Properties properties;
     properties.isEnumeration = true;
     properties.isGenerated = true;
+    properties.isMessage = isMessage;
     tree.startClass(name,
                     genericTypeParameters,
                     parents,
@@ -243,9 +323,7 @@ void EnumGenerator::generateInitializations(
     const ArgumentList& variantData,
     const Location& location) {
 
-    for (ArgumentList::const_iterator i = variantData.begin();
-         i != variantData.end();
-         i++) {
+    for (auto i = variantData.cbegin(); i != variantData.cend(); i++) {
         VariableDeclaration* variantDataMember = *i;
         MemberSelectorExpression* lhs =
             new MemberSelectorExpression(
@@ -289,6 +367,166 @@ MethodDefinition* EnumGenerator::generateVariantConstructorSignature(
     return constructorSignature;
 }
 
+// Generate the following method:
+//
+// static [EnumName] _deepCopy([EnumName] other) {
+//     [EnumName] retval
+// }
+//
+void EnumGenerator::generateEmptyDeepCopyMethod() {
+    const Location& location = tree.getCurrentClass()->getLocation();
+
+    MethodDefinition* deepCopyMethod =
+        generateDeepCopyMethodSignature(tree.startBlock(), location);
+    tree.addStatement(new VariableDeclarationStatement(fullEnumType->clone(),
+                                                       retvalVariableName,
+                                                       nullptr,
+                                                       location));
+    tree.finishBlock();
+    tree.addClassMember(deepCopyMethod);
+}
+
+// Generate the following method:
+//
+// static [EnumName] _deepCopy([EnumName] other) {
+//     [EnumName] retval
+//     int otherTag = other.$tag
+//     retval.$tag = otherTag
+//     match otherTag {
+//          $[Variant0Name]Tag -> {
+//              // If $0 is of primitive type:
+//              retval.$[Variant0Name].$0 = other.$[Variant0Name].$0
+//
+//              // If $0 is of reference type:
+//              retval.$[Variant0Name].$0 =
+//                  ([$0Type]) other.$[Variant0Name].$0._clone
+//
+//              // If $0 is of enum type:
+//              retval.$[Variant0Name].$0 =
+//                  [$0Type]._deepCopy(other.$[Variant0Name].$0)
+//              ...
+//          }
+//          $[Variant1Name]Tag ->
+//              ...
+//          _ -> {}
+//     }
+//     return retval
+// }
+//
+void EnumGenerator::generateDeepCopyMethod() {
+    // An empty deepCopy method was created for the message enum when it was
+    // created. We will now generate the method body.
+    MethodDefinition* deepCopyMethod = getDeepCopyMethod(enumClass);
+    if (deepCopyMethod == nullptr) {
+        // No deepCopy method means that this is a convertable enum. Convertable
+        // enums don't have a deepCopy method.
+        return;
+    }
+
+    tree.reopenClass(enumClass);
+    tree.setCurrentBlock(deepCopyMethod->getBody());
+
+    const Location& location = tree.getCurrentClass()->getLocation();
+    MemberSelectorExpression* otherTagSelector =
+        new MemberSelectorExpression(otherVariableName,
+                                     CommonNames::enumTagVariableName);
+    tree.addStatement(new VariableDeclarationStatement(new Type(Type::Integer),
+                                                       otherTagVariableName,
+                                                       otherTagSelector,
+                                                       location));
+    tree.addStatement(
+        new BinaryExpression(Operator::Assignment,
+                             new MemberSelectorExpression(
+                                 retvalVariableName,
+                                 CommonNames::enumTagVariableName),
+                             new NamedEntityExpression(otherTagVariableName)));
+
+    MatchExpression* match =
+        new MatchExpression(new NamedEntityExpression(otherTagVariableName));
+    const DefinitionList& members = tree.getCurrentClass()->getMembers();
+    for (auto i = members.cbegin(); i != members.cend(); i++) {
+        Definition* member = *i;
+        if (MethodDefinition* method = member->dynCast<MethodDefinition>()) {
+            if (method->isEnumConstructor()) {
+                match->addCase(generateVariantMatchCase(method));
+            }
+        }
+    }
+    MatchCase* unknownCase = new MatchCase();
+    unknownCase->addPatternExpression(new PlaceholderExpression());
+    match->addCase(unknownCase);
+    tree.addStatement(match);
+
+    tree.addStatement(new ReturnStatement(new NamedEntityExpression(
+                                              retvalVariableName)));
+    tree.finishBlock();
+    tree.finishClass();
+}
+
+// Generate the following method signature:
+//
+// static [EnumName] _deepCopy([EnumName] other)
+//
+MethodDefinition* EnumGenerator::generateDeepCopyMethodSignature(
+    BlockStatement* body,
+    const Location& location) {
+
+    MethodDefinition* signature =
+        new MethodDefinition(CommonNames::deepCopyMethodName,
+                             fullEnumType->clone(),
+                             AccessLevel::Public,
+                             true,
+                             tree.getCurrentClass(),
+                             location);
+    signature->setBody(body);
+    signature->addArgument(fullEnumType->clone(), otherVariableName);
+    signature->setIsEnumCopyConstructor(true);
+    return signature;
+}
+
+// Generate the following match case:
+//
+// $[Variant0Name]Tag -> {
+//     // If $0 is of primitive type:
+//     retval.$[Variant0Name].$0 = other.$[Variant0Name].$0
+//
+//     // If $0 is of reference type:
+//     retval.$[Variant0Name].$0 = ([$0Type]) other.$[Variant0Name].$0._clone
+//
+//     // If $0 is of enum type:
+//     retval.$[Variant0Name].$0 = [$0Type]._deepCopy(other.$[Variant0Name].$0)
+//     ...
+//  }
+//
+MatchCase* EnumGenerator::generateVariantMatchCase(
+    MethodDefinition* variantConstructor) {
+
+    MatchCase* matchCase = new MatchCase();
+    const Identifier& variantName = variantConstructor->getName();
+    matchCase->addPatternExpression(
+        new NamedEntityExpression(Symbol::makeEnumVariantTagName(variantName)));
+    matchCase->setResultBlock(tree.startBlock());
+
+    Identifier enumVariantDataName(
+        Symbol::makeEnumVariantDataName(variantName));
+    const ArgumentList& variantData = variantConstructor->getArgumentList();
+    for (auto i = variantData.cbegin(); i != variantData.cend(); i++) {
+        VariableDeclaration* variantDataMember = *i;
+        MemberSelectorExpression* lhs =
+            new MemberSelectorExpression(
+                new NamedEntityExpression(retvalVariableName),
+                new MemberSelectorExpression(
+                    enumVariantDataName,
+                    variantDataMember->getIdentifier()));
+        Expression* rhs = generateVariantDataMemberInitRhs(variantDataMember,
+                                                           enumVariantDataName);
+        tree.addStatement(new BinaryExpression(Operator::Assignment, lhs, rhs));
+    }
+
+    tree.finishBlock();
+    return matchCase;
+}
+
 // Generate the following class:
 //
 // class [EnumName]<_> {
@@ -311,12 +549,13 @@ ClassDefinition* EnumGenerator::generateConvertableEnum() {
     Type* convertableEnumType = Type::create(fullEnumType->getName());
     convertableEnumType->addGenericTypeParameter(new Type(Type::Placeholder));
 
-    EnumGenerator
-        enumGenerator(convertableEnumType, enumClass->getLocation(), tree);
+    EnumGenerator enumGenerator(convertableEnumType,
+                                enumClass->isMessage(),
+                                enumClass->getLocation(),
+                                tree);
 
-    for (GenericNoDataVariantList::const_iterator i =
-             genericNoDataVariantList.begin();
-         i != genericNoDataVariantList.end();
+    for (auto i = genericNoDataVariantList.cbegin();
+         i != genericNoDataVariantList.cend();
          i++) {
         const GenericNoDataVariant& variant = *i;
         const Identifier& variantName = variant.name;

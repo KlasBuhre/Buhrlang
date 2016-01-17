@@ -15,9 +15,11 @@ public:
         ExpressionStatement,
         If,
         While,
+        For,
         Break,
         Continue,
         Return,
+        Defer,
         ConstructorCall,
         Label,
         Jump
@@ -27,6 +29,8 @@ public:
 
     virtual Statement* clone() const = 0;
     virtual Type* typeCheck(Context& context) = 0;
+    virtual bool mayFallThrough() const;
+    virtual Traverse::Result traverse(Visitor& visitor);
 
     Kind getKind() const {
         return kind;
@@ -57,6 +61,9 @@ public:
 
     virtual VariableDeclarationStatement* clone() const;
     virtual Type* typeCheck(Context& context);
+    virtual Traverse::Result traverse(Visitor& visitor);
+
+    void changeTypeIfGeneric(const Context& context);
 
     static Identifier generateTemporaryName(const Identifier& name);
     static VariableDeclarationStatement* generateTemporary(
@@ -102,10 +109,9 @@ public:
     }
 
 private:
-    void processInitExpression(Context& context);
+    void typeCheckAndTransformInitExpression(Context& context);
     void generateDeclarationsFromPattern(Context& context);
     Expression* generateInitTemporary(Context& context);
-    void changeTypeIfGeneric(Context& context);
     void makeIdentifierUniqueIfTakingLambda(Context& context);
 
     VariableDeclaration declaration;
@@ -131,6 +137,8 @@ public:
 
     virtual BlockStatement* clone() const;
     virtual Type* typeCheck(Context& context);
+    virtual bool mayFallThrough() const;
+    virtual Traverse::Result traverse(Visitor& visitor);
 
     void addStatement(Statement* statement);
     void insertStatementAtFront(Statement* statement);
@@ -145,6 +153,7 @@ public:
     void replaceLastStatement(Statement* statement);
     void replaceCurrentStatement(Statement* s);
     Expression* getLastStatementAsExpression() const;
+    bool containsDeferDeclaration() const;
 
     typedef std::list<Statement*> StatementList;
 
@@ -168,6 +177,8 @@ private:
     void initialStatementCheck(Statement* statement);
     void addLabel(const LabelStatement* label);
 
+    static BlockStatement* cloningBlock;
+
     NameBindings nameBindings;
     StatementList statements;
     StatementList::iterator iterator;
@@ -184,6 +195,8 @@ public:
 
     virtual Statement* clone() const;
     virtual Type* typeCheck(Context& context);
+    virtual bool mayFallThrough() const;
+    virtual Traverse::Result traverse(Visitor& visitor);
 
     Expression* getExpression() const {
         return expression;
@@ -209,6 +222,8 @@ public:
 
     virtual Statement* clone() const;
     virtual Type* typeCheck(Context& context);
+    virtual bool mayFallThrough() const;
+    virtual Traverse::Result traverse(Visitor& visitor);
 
     Expression* getExpression() const {
         return expression;
@@ -223,12 +238,44 @@ private:
     BlockStatement* block;
 };
 
+class ForStatement: public Statement {
+public:
+    ForStatement(
+        Expression* cond,
+        Expression* iter,
+        BlockStatement* b,
+        const Location& l);
+
+    virtual Statement* clone() const;
+    virtual Type* typeCheck(Context& context);
+    virtual bool mayFallThrough() const;
+    virtual Traverse::Result traverse(Visitor& visitor);
+
+    Expression* getConditionExpression() const {
+        return conditionExpression;
+    }
+
+    Expression* getIterExpression() const {
+        return iterExpression;
+    }
+
+    BlockStatement* getBlock() const {
+        return block;
+    }
+
+private:
+    Expression* conditionExpression;
+    Expression* iterExpression;
+    BlockStatement* block;
+};
+
 class BreakStatement: public Statement {
 public:
     explicit BreakStatement(const Location& l);
 
     virtual Statement* clone() const;
     virtual Type* typeCheck(Context& context);
+    virtual bool mayFallThrough() const;
 };
 
 class ContinueStatement: public Statement {
@@ -237,6 +284,7 @@ public:
 
     virtual Statement* clone() const;
     virtual Type* typeCheck(Context& context);
+    virtual bool mayFallThrough() const;
 };
 
 class ReturnStatement: public Statement {
@@ -247,6 +295,8 @@ public:
 
     virtual Statement* clone() const;
     virtual Type* typeCheck(Context& context);
+    virtual bool mayFallThrough() const;
+    virtual Traverse::Result traverse(Visitor& visitor);
 
     Expression* getExpression() const {
         return expression;
@@ -257,6 +307,19 @@ private:
     MethodDefinition* originalMethod;
 };
 
+class DeferStatement: public Statement {
+public:
+    DeferStatement(BlockStatement* b, const Location& l);
+    DeferStatement(const DeferStatement& other);
+
+    virtual Statement* clone() const;
+    virtual Type* typeCheck(Context& context);
+    virtual Traverse::Result traverse(Visitor& visitor);
+
+private:
+    BlockStatement* block;
+};
+
 class MethodCallExpression;
 
 class ConstructorCallStatement: public Statement {
@@ -265,6 +328,7 @@ public:
 
     virtual Statement* clone() const;
     virtual Type* typeCheck(Context& context);
+    virtual Traverse::Result traverse(Visitor& visitor);
 
     MethodCallExpression* getMethodCallExpression() const {
         return constructorCall;
@@ -277,6 +341,7 @@ public:
 private:
     MethodCallExpression* constructorCall;
     bool isBaseClassCtorCall;
+    bool isTypeChecked;
 };
 
 class LabelStatement: public Statement {
@@ -300,6 +365,7 @@ public:
 
     virtual Statement* clone() const;
     virtual Type* typeCheck(Context& context);
+    virtual bool mayFallThrough() const;
 
     const Identifier& getLabelName() const {
         return labelName;

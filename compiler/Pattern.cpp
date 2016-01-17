@@ -85,8 +85,8 @@ namespace {
                          constructorCall);
         }
 
-        DataMemberList::const_iterator j = primaryCtorArgDataMembers.begin();
-        ExpressionList::const_iterator i = constructorPatternArgs.begin();
+        auto j = primaryCtorArgDataMembers.cbegin();
+        auto i = constructorPatternArgs.cbegin();
         while (i != constructorPatternArgs.end()) {
             Expression* patternExpr = *i;
             DataMemberDefinition* dataMember = *j;
@@ -141,8 +141,8 @@ namespace {
             enumVariantDef->getPrimaryCtorArgDataMembers();
         assert(variantDataMembers.size() == constructorPatternArgs.size());
 
-        DataMemberList::const_iterator j = variantDataMembers.begin();
-        ExpressionList::const_iterator i = constructorPatternArgs.begin();
+        auto j = variantDataMembers.cbegin();
+        auto i = constructorPatternArgs.cbegin();
         while (i != constructorPatternArgs.end()) {
             Expression* patternExpr = *i;
             DataMemberDefinition* dataMember = *j;
@@ -192,9 +192,7 @@ MatchCoverage::MatchCoverage(Type* subjectType) : notCoveredCases() {
         assert(subjectClass->isEnumeration());
 
         const DefinitionList& members = subjectClass->getMembers();
-        for (DefinitionList::const_iterator i = members.begin();
-             i != members.end();
-             i++) {
+        for (auto i = members.cbegin(); i != members.cend(); i++) {
             Definition* member = *i;
             if (MethodDefinition* method =
                     member->dynCast<MethodDefinition>()) {
@@ -367,9 +365,7 @@ BinaryExpression* ArrayPattern::generateComparisonExpression(
     bool toTheRightOfWildcard = false;
 
     const ExpressionList& elements = array->getElements();
-    for (ExpressionList::const_iterator i = elements.begin();
-         i != elements.end();
-         i++) {
+    for (auto i = elements.cbegin(); i != elements.cend(); i++) {
         Expression* element = *i;
         BinaryExpression* elementComparison =
             generateElementComparisonExpression(subject,
@@ -486,9 +482,7 @@ BinaryExpression* ArrayPattern::generateLengthComparisonExpression() {
     bool wildcardPresent = false;
 
     const ExpressionList& elements = array->getElements();
-    for (ExpressionList::const_iterator i = elements.begin();
-         i != elements.end();
-         i++) {
+    for (auto i = elements.cbegin(); i != elements.cend(); i++) {
         Expression* element = *i;
         if (element->isWildcard()) {
             if (wildcardPresent) {
@@ -611,10 +605,7 @@ bool ClassDecompositionPattern::areAllMemberPatternsIrrefutable(
 
     const ClassDecompositionExpression::MemberList& members =
         classDecomposition->getMembers();
-    for (ClassDecompositionExpression::MemberList::const_iterator i =
-             members.begin();
-         i != members.end();
-         i++) {
+    for (auto i = members.cbegin(); i != members.cend(); i++) {
         const ClassDecompositionExpression::Member& member = *i;
         if (!memberPatternIsIrrefutable(member.patternExpr, context)) {
             return false;
@@ -631,10 +622,7 @@ BinaryExpression* ClassDecompositionPattern::generateComparisonExpression(
 
     const ClassDecompositionExpression::MemberList& members =
         classDecomposition->getMembers();
-    for (ClassDecompositionExpression::MemberList::const_iterator i =
-             members.begin();
-         i != members.end();
-         i++) {
+    for (auto i = members.cbegin(); i != members.cend(); i++) {
         const ClassDecompositionExpression::Member& member = *i;
         if (memberPatternIsIrrefutable(member.patternExpr, context)) {
             generateVariableCreatedByMemberPattern(member, subject, context);

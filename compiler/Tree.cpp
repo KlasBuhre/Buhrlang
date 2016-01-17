@@ -1,13 +1,15 @@
 #include <assert.h>
+#include <stdio.h>
 
 #include "Tree.h"
 #include "Statement.h"
+#include "CloneGenerator.h"
+#include "Context.h"
+#include "Closure.h"
 
 namespace {
     const Type* findRecursiveType(const TypeList& types) {
-        for (TypeList::const_iterator i = types.begin();
-             i != types.end();
-             i++) {
+        for (auto i = types.cbegin(); i != types.cend(); i++) {
             const Type* type = *i;
             if (type->getClass()->isRecursive()) {
                 return type;
@@ -17,9 +19,7 @@ namespace {
     }
 
     ClassDefinition* findInnerClass(const TypeList& types) {
-        for (TypeList::const_iterator i = types.begin();
-             i != types.end();
-             i++) {
+        for (auto i = types.cbegin(); i != types.cend(); i++) {
             const Type* type = *i;
             ClassDefinition* classDef = type->getClass();
             if (classDef->getEnclosingDefinition() != nullptr) {
@@ -28,31 +28,240 @@ namespace {
         }
         return nullptr;
     }
+
+    class GenericTypeVisitor: public Visitor {
+    public:
+        GenericTypeVisitor();
+
+        virtual Traverse::Result visitClass(ClassDefinition& classDefinition);
+        virtual Traverse::Result visitDataMember(
+            DataMemberDefinition& dataMember);
+        virtual Traverse::Result visitMethod(MethodDefinition& method);
+    };
+
+    GenericTypeVisitor::GenericTypeVisitor() :
+        Visitor(TraverseClasses | TraverseDataMembers | TraverseMethods) {}
+
+    Traverse::Result GenericTypeVisitor::visitClass(
+        ClassDefinition& classDefinition) {
+
+        if (classDefinition.isGeneric()) {
+            // Don't traverse generic classes. They only act as templates for
+            // concrete classes.
+            return Traverse::Skip;
+        }
+        return Traverse::Continue;
+    }
+
+    Traverse::Result GenericTypeVisitor::visitDataMember(
+        DataMemberDefinition& dataMember) {
+
+        dataMember.typeCheckAndTransform();
+        return Traverse::Continue;
+    }
+
+    Traverse::Result GenericTypeVisitor::visitMethod(MethodDefinition& method) {
+        method.updateGenericTypesInSignature();
+        return Traverse::Continue;
+    }
+
+    class ClosureTypeVisitor: public Visitor {
+    public:
+        ClosureTypeVisitor();
+
+        virtual Traverse::Result visitClass(ClassDefinition& classDefinition);
+        virtual Traverse::Result visitDataMember(
+            DataMemberDefinition& dataMember);
+        virtual Traverse::Result visitMethod(MethodDefinition& method);
+    };
+
+    ClosureTypeVisitor::ClosureTypeVisitor() :
+        Visitor(TraverseClasses | TraverseDataMembers | TraverseMethods) {}
+
+    Traverse::Result ClosureTypeVisitor::visitClass(
+        ClassDefinition& classDefinition) {
+
+        if (classDefinition.isGeneric()) {
+            // Don't traverse generic classes. They only act as templates for
+            // concrete classes.
+            return Traverse::Skip;
+        }
+        return Traverse::Continue;
+    }
+
+    Traverse::Result ClosureTypeVisitor::visitDataMember(
+        DataMemberDefinition& dataMember) {
+
+        dataMember.convertClosureType();
+        return Traverse::Continue;
+    }
+
+    Traverse::Result ClosureTypeVisitor::visitMethod(MethodDefinition& method) {
+        method.convertClosureTypesInSignature();
+        return Traverse::Continue;
+    }
+
+    class CheckReturnStatementsVisitor: public Visitor {
+    public:
+        CheckReturnStatementsVisitor();
+
+        virtual Traverse::Result visitMethod(MethodDefinition& method);
+    };
+
+    CheckReturnStatementsVisitor::CheckReturnStatementsVisitor() :
+        Visitor(TraverseClasses | TraverseMethods) {}
+
+    Traverse::Result CheckReturnStatementsVisitor::visitMethod(
+        MethodDefinition& method) {
+
+        if (!method.isGenerated()) {
+            method.checkReturnStatements();
+        }
+
+        return Traverse::Continue;
+    }
+
+    class GenerateCloneMethodsVisitor: public Visitor {
+    public:
+        GenerateCloneMethodsVisitor();
+
+        virtual Traverse::Result visitClass(ClassDefinition& classDefinition);
+    };
+
+    GenerateCloneMethodsVisitor::GenerateCloneMethodsVisitor() :
+        Visitor(TraverseClasses) {}
+
+    Traverse::Result GenerateCloneMethodsVisitor::visitClass(
+        ClassDefinition& classDefinition) {
+
+        if (classDefinition.isGeneric()) {
+            // Don't traverse generic classes. They only act as templates for
+            // concrete classes.
+            return Traverse::Skip;
+        }
+
+        if (classDefinition.isMessage()) {
+            classDefinition.generateCloneMethod();
+        }
+
+        return Traverse::Continue;
+    }
+
+    class TypeCheckAndTransformVisitor: public Visitor {
+    public:
+        TypeCheckAndTransformVisitor();
+
+        virtual Traverse::Result visitClass(ClassDefinition& classDefinition);
+        virtual Traverse::Result visitMethod(MethodDefinition& method);
+    };
+
+    TypeCheckAndTransformVisitor::TypeCheckAndTransformVisitor() :
+        Visitor(TraverseClasses | TraverseMethods) {}
+
+    Traverse::Result TypeCheckAndTransformVisitor::visitClass(
+        ClassDefinition& classDefinition) {
+
+        if (classDefinition.isGeneric()) {
+            // Don't traverse generic classes. They only act as templates for
+            // concrete classes.
+            return Traverse::Skip;
+        }
+        return Traverse::Continue;
+    }
+
+    Traverse::Result TypeCheckAndTransformVisitor::visitMethod(
+        MethodDefinition& method) {
+
+        method.typeCheckAndTransform();
+        return Traverse::Continue;
+    }
 }
 
 Tree* Tree::currentTree = nullptr;
 
+Visitor::Visitor(unsigned int m) : mask(m) {}
+
+Traverse::Result Visitor::visitClass(ClassDefinition&) {
+    return Traverse::Continue;
+}
+
+Traverse::Result Visitor::visitDataMember(DataMemberDefinition&) {
+    return Traverse::Continue;
+}
+
+Traverse::Result Visitor::visitMethod(MethodDefinition&) {
+    return Traverse::Continue;
+}
+
+Traverse::Result Visitor::visitStatement(Statement&) {
+    return Traverse::Continue;
+}
+
+Traverse::Result Visitor::visitBlock(BlockStatement&) {
+    return Traverse::Continue;
+}
+
+Traverse::Result Visitor::visitVariableDeclaration(
+    VariableDeclarationStatement&) {
+
+    return Traverse::Continue;
+}
+
+Traverse::Result Visitor::visitHeapAllocation(HeapAllocationExpression&) {
+    return Traverse::Continue;
+}
+
+Traverse::Result Visitor::visitArrayAllocation(ArrayAllocationExpression&) {
+    return Traverse::Continue;
+}
+
+Traverse::Result Visitor::visitTypeCast(TypeCastExpression&) {
+    return Traverse::Continue;
+}
+
+Traverse::Result Visitor::visitClassDecomposition(
+    ClassDecompositionExpression&) {
+
+    return Traverse::Continue;
+}
+
+Traverse::Result Visitor::visitTypedExpression(TypedExpression&) {
+    return Traverse::Continue;
+}
+
+Traverse::Result Visitor::visitNamedEntity(NamedEntityExpression&) {
+    return Traverse::Continue;
+}
+
+Traverse::Result Visitor::visitMemberSelector(MemberSelectorExpression&) {
+    return Traverse::Continue;
+}
+
 Tree::Tree() : 
     globalDefinitions(),
-    definitionBeingProcessed(globalDefinitions.end()),
+    definitionIter(globalDefinitions.end()),
     globalNameBindings(nullptr),
     globalFunctionsClass(nullptr),
     openBlocks(), 
     openClasses(),
-    importedModules() {
+    importedModules(),
+    currentPass(Parse) {
 
     setCurrentTree();
     insertObjectClassAndVoidInGlobalNameBindings();
     insertBuiltInType("_");
     insertBuiltInType("lambda");
+    insertBuiltInType(Keyword::funString);
+    insertBuiltInType("implicit");
     insertBuiltInType(Keyword::byteString);
     insertBuiltInType(Keyword::charString);
-    insertBuiltInType(Keyword::varString);
     insertBuiltInType(Keyword::intString);
     insertBuiltInType(Keyword::floatString);
     insertBuiltInType(Keyword::boolString);
     globalFunctionsClass = insertBuiltInType("_Global_Functions_");
     generateArrayClass();
+    generateNoArgsClosureInterface();
+    generateDeferClass();
 }
 
 void Tree::insertObjectClassAndVoidInGlobalNameBindings() {
@@ -77,15 +286,12 @@ void Tree::insertObjectClassAndVoidInGlobalNameBindings() {
     // exist when the constructor was generated.
     objectClass->getDefaultConstructor()->getReturnType()->setDefinition(
         voidClass);
-    objectClass->setProcessed(true);
 }
 
 ClassDefinition* Tree::insertBuiltInType(const Identifier& name) {
     ClassDefinition::Properties properties;
     startGeneratedClass(name, properties);
-    ClassDefinition* classDef = finishClass();
-    classDef->setProcessed(true);
-    return classDef;
+    return finishClass();
 }
 
 void Tree::generateArrayClass() {
@@ -190,14 +396,43 @@ void Tree::generateArrayClass() {
                                  new Type(Type::Void),
                                  false,
                                  arrayClass);
-    LambdaSignature* eachLambdaSignature =
-        new LambdaSignature(new Type(Type::Void));
+    FunctionSignature* eachLambdaSignature =
+        new FunctionSignature(new Type(Type::Void));
     eachLambdaSignature->addArgument(new Type(Type::Integer));
     eachMethod->setLambdaSignature(eachLambdaSignature,
                                    arrayClass->getLocation());
     addClassMember(eachMethod);
 
-    arrayClass->setProcessed(true);
+    finishClass();
+}
+
+void Tree::generateNoArgsClosureInterface() {
+    Type* closureInterfaceType = new Type(Type::Function);
+    closureInterfaceType->setFunctionSignature(new FunctionSignature(nullptr));
+
+    Closure closure(*this);
+    closure.generateInterface(closureInterfaceType);
+}
+
+void Tree::generateDeferClass() {
+    ClassDefinition::Properties properties;
+    startGeneratedClass(CommonNames::deferTypeName, properties);
+    ClassDefinition* deferClass = getCurrentClass();
+
+    // addClosure(fun () closure)
+    MethodDefinition* addClosureMethod =
+        MethodDefinition::create(CommonNames::addClosureMethodName,
+                                 nullptr,
+                                 false,
+                                 deferClass);
+    Type* closureType = new Type(Type::Function);
+    closureType->setFunctionSignature(new FunctionSignature(nullptr));
+    Type* closureInterfaceType =
+        Type::create(closureType->getClosureInterfaceName());
+    addClosureMethod->addArgument(closureInterfaceType, "closure");
+    addClassMember(addClosureMethod);
+
+    deferClass->generateDefaultConstructor();
     finishClass();
 }
 
@@ -220,8 +455,17 @@ BlockStatement* Tree::finishBlock() {
     return block;
 }
 
+void Tree::setCurrentBlock(BlockStatement* block) {
+    openBlocks.push_back(block);
+}
+
 BlockStatement* Tree::getCurrentBlock() const {
     return openBlocks.size() ? openBlocks.back() : nullptr;
+}
+
+Tree& Tree::getCurrentTree() {
+    assert(currentTree != nullptr);
+    return *currentTree;
 }
 
 void Tree::addStatement(Statement* statement) {
@@ -245,11 +489,11 @@ void Tree::startGeneratedClass(
 
 void Tree::startGeneratedClass(
     const Identifier& name,
+    ClassDefinition::Properties& properties,
     const IdentifierList& parents) {
 
     Location location;
     GenericTypeParameterList typeParameters;
-    ClassDefinition::Properties properties;
     properties.isGenerated = true;
     startClass(name, typeParameters, parents, properties, location);
 }
@@ -258,14 +502,15 @@ ClassDefinition* Tree::startClass(
     const Identifier& name,
     const GenericTypeParameterList& genericTypeParameters,
     const IdentifierList& parents,
-    const ClassDefinition::Properties& properties,
+    ClassDefinition::Properties& properties,
     const Location& location) {
 
     NameBindings* containingNameBindings = &globalNameBindings;
     ClassDefinition* containingClass = getCurrentClass();
     if (containingClass != nullptr) {
         containingNameBindings = &(containingClass->getNameBindings());
-    }                                                                                                       
+    }
+
     ClassDefinition* newClass = ClassDefinition::create(name,
                                                         genericTypeParameters,
                                                         parents,
@@ -275,10 +520,29 @@ ClassDefinition* Tree::startClass(
     if (containingClass != nullptr) {
         newClass->setIsImported(containingClass->isImported());
     }
+
     if (!containingNameBindings->insertClass(name, newClass)) {
         Trace::error("Class already declared at the same scope: " + name,
                      location);
     }
+
+    if (!newClass->isGeneric()) {
+        // For generic message classes, the empty copy constructor will be
+        // generated when the concrete class is created from the generic one.
+        if (newClass->needsCloneMethod()) {
+            // The body of the copy constructor will be generated later by the
+            // CloneGenerator, here we just generate an empty copy constructor.
+            // The reason for generating an empty copy constructor at this stage
+            // is that the copy constructor needs to be in the name bindings of
+            // the new class before any other class can inherit from it.
+            // Otherwise, the copy constructor will not be in the name bindings
+            // of the derived class since name bindings are copied from the base
+            // class to the derived class.
+            newClass->generateEmptyCopyConstructor();
+            CloneGenerator::generateEmptyCloneMethod(newClass);
+        }
+    }
+
     openClasses.push_back(newClass);
     return newClass;
 }
@@ -330,12 +594,61 @@ void Tree::addGlobalDefinition(Definition* definition) {
     }
 }
 
-void Tree::process() {
-    for (definitionBeingProcessed = globalDefinitions.begin();
-         definitionBeingProcessed != globalDefinitions.end();
-         definitionBeingProcessed++) {
-        Definition* definition = *definitionBeingProcessed;
-        definition->process();
+void Tree::checkReturnStatements() {
+    currentPass = CheckReturnStatements;
+
+    CheckReturnStatementsVisitor visitor;
+    traverse(visitor);
+}
+
+void Tree::makeGenericTypesConcreteInSignatures() {
+    currentPass = MakeGenericTypesConcrete;
+
+    GenericTypeVisitor visitor;
+    traverse(visitor);
+}
+
+void Tree::convertClosureTypesInSigntures() {
+    currentPass = ConvertClosureTypes;
+
+    ClosureTypeVisitor visitor;
+    traverse(visitor);
+}
+
+void Tree::generateCloneMethods() {
+    currentPass = GenerateCloneMethods;
+
+    GenerateCloneMethodsVisitor visitor;
+    traverse(visitor);
+}
+
+void Tree::typeCheckAndTransform() {
+    currentPass = TypeCheckAndTransform;
+
+    TypeCheckAndTransformVisitor visitor;
+    traverse(visitor);
+}
+
+void Tree::traverse(Visitor& visitor) {
+    for (definitionIter = globalDefinitions.begin();
+         definitionIter != globalDefinitions.end();
+         definitionIter++) {
+        Definition* definition = *definitionIter;
+        unsigned int traverseMask = visitor.getTraverseMask();
+        switch (definition->getKind()) {
+            case Definition::Class:
+                if (traverseMask & Visitor::TraverseClasses) {
+                    definition->traverse(visitor);
+                }
+                break;
+            case Definition::Member:
+                if (traverseMask & Visitor::TraverseMethods) {
+                    definition->traverse(visitor);
+                }
+                break;
+            default:
+                break;
+        }
     }
 }
 
@@ -372,8 +685,8 @@ NameBindings& Tree::getCurrentNameBindings() {
 MethodDefinition* Tree::getMainMethod() const {
     MethodDefinition* main = globalFunctionsClass->getMainMethod();
     if (main == nullptr) {
-        for (DefinitionList::const_iterator i = globalDefinitions.begin();
-             i != globalDefinitions.end();
+        for (auto i = globalDefinitions.cbegin();
+             i != globalDefinitions.cend();
              i++) {
             Definition* definition = *i;
             if (definition->isClass()) {
@@ -429,6 +742,20 @@ void Tree::lookupAndSetTypeDefinitionInCurrentTree(
         classDefinition->setRecursive(true);
     }
 
+    if (type->isFunction()) {
+        FunctionSignature* signature = type->getFunctionSignature();
+        lookupAndSetTypeDefinitionInCurrentTree(signature->getReturnType(),
+                                                scope,
+                                                location);
+        const TypeList& arguments = signature->getArguments();
+        for (auto i = arguments.cbegin(); i != arguments.cend(); i++) {
+            Type* argumentType = *i;
+            lookupAndSetTypeDefinitionInCurrentTree(argumentType,
+                                                    scope,
+                                                    location);
+        }
+    }
+
     if (type->hasGenericTypeParameters()) {
         // The type has generic type parameters. This means the type must refer
         // to a generic class.
@@ -445,8 +772,8 @@ void Tree::lookupAndSetTypeDefinitionInCurrentTree(
         }
 
         const TypeList& typeParameters = type->getGenericTypeParameters();
-        for (TypeList::const_iterator i = typeParameters.begin();
-             i != typeParameters.end();
+        for (auto i = typeParameters.cbegin();
+             i != typeParameters.cend();
              i++) {
             Type* typeParameter = *i;
             lookupAndSetTypeDefinitionInCurrentTree(typeParameter,
@@ -463,9 +790,7 @@ Definition* Tree::getConcreteClassFromTypeParameterList(
     const Location& location) {
 
     TypeList& typeParameters = type->getGenericTypeParameters();
-    for (TypeList::iterator i = typeParameters.begin();
-         i != typeParameters.end();
-         i++) {
+    for (auto i = typeParameters.begin(); i != typeParameters.end(); i++) {
         Type* typeParameter = *i;
         Type* concreteType = makeGenericTypeConcreteInCurrentTree(typeParameter,
                                                                   scope,
@@ -506,6 +831,12 @@ Type* Tree::makeGenericTypeConcreteInCurrentTree(
     const NameBindings& scope,
     const Location& location) {
 
+    if (type->isFunction()) {
+        makeSignatureTypesConcrete(type->getFunctionSignature(),
+                                   scope,
+                                   location);
+    }
+
     Definition* typeDefinition = type->getDefinition();
     assert(typeDefinition != nullptr);
     if (typeDefinition->isGenericTypeParameter()) {
@@ -543,6 +874,34 @@ Type* Tree::makeGenericTypeConcreteInCurrentTree(
     return nullptr;
 }
 
+void Tree::makeSignatureTypesConcrete(
+    FunctionSignature* signature,
+    const NameBindings& scope,
+    const Location& location) {
+
+    Type* concreteReturnType =
+        makeGenericTypeConcreteInCurrentTree(signature->getReturnType(),
+                                             scope,
+                                             location);
+    if (concreteReturnType != nullptr) {
+        signature->setReturnType(concreteReturnType);
+    }
+
+    TypeList& arguments = signature->getArguments();
+    for (auto i = arguments.begin(); i != arguments.end(); i++) {
+        Type* argumentType = *i;
+        Type* concreteType = makeGenericTypeConcreteInCurrentTree(argumentType,
+                                                                  scope,
+                                                                  location);
+        if (concreteType != nullptr) {
+            // The argument type was a generic type parameter which has been
+            // assigned a concrete type. Change the argument type to the
+            // concrete type.
+            *i = concreteType;
+        }
+    }
+}
+
 ClassDefinition* Tree::generateConcreteClassFromGeneric(
     ClassDefinition* genericClass,
     const TypeList& concreteTypeParameters,
@@ -550,12 +909,13 @@ ClassDefinition* Tree::generateConcreteClassFromGeneric(
 
     ClassDefinition* generatedClass = genericClass->clone();
 
-    // Set the concrete type parameters on the cloned class. When the process
-    // stage is executed for the cloned class, each occurence of a generic type
-    // will be changed into the respective concrete type.
+    // Set the concrete type parameters on the cloned class. When the
+    // makeGenericTypesConcrete pass is executed for the cloned class, each
+    // occurence of a generic type will be changed into the respective concrete
+    // type.
     generatedClass->setConcreteTypeParameters(concreteTypeParameters, location);
 
-    if (!(*definitionBeingProcessed)->isImported()) {
+    if (!(*definitionIter)->isImported()) {
         // Even though the original generic class could have been imported, the
         // generated concrete class is not imported if the using class is not
         // imported.
@@ -582,9 +942,10 @@ ClassDefinition* Tree::generateConcreteClassFromGeneric(
     } else {
         // No type parameters are recurseive so no need to forward declare
         // anything. Insert the generated class in the global definitions before
-        // the class that uses it. Also, We must trigger the process stage for
-        // the generated class since we are inserting it in front of the current
-        // class and it would have not been processed otherwise.
+        // the class that uses it. Also, We must trigger the
+        // makeGenericTypesConcrete pass for the generated class since we are
+        // inserting it in front of the current class and it would have not been
+        // triggered otherwise.
         insertGeneratedConcreteType(generatedClass, concreteTypeParameters);
     }
 
@@ -599,16 +960,16 @@ void Tree::insertGeneratedConcreteType(
         ClassDefinition* outerClass = innerClass->getEnclosingClass();
         // Insert the generated class after the inner class.
         outerClass->insertMember(innerClass, generatedClass, true);
-        generatedClass->process();
+        runPassesOnGeneratedClass(generatedClass);
     } else {
         // Insert the generated class in the global name bindings.
         globalNameBindings.insertClass(generatedClass->getName(),
                                        generatedClass);
-        generatedClass->process();
+        runPassesOnGeneratedClass(generatedClass);
 
         // Insert the definition in front of the definition currently being
-        // processed.
-        globalDefinitions.insert(definitionBeingProcessed, generatedClass);
+        // traversed.
+        globalDefinitions.insert(definitionIter, generatedClass);
     }
 }
 
@@ -627,24 +988,23 @@ void Tree::insertGeneratedConcreteReferenceTypeWithFwdDecl(
 
         // Insert the generated class after the recursive class.
         outerClass->insertMember(recursiveClass, generatedClass, true);
-        generatedClass->process();
+        runPassesOnGeneratedClass(generatedClass);
     } else {
         // Insert the generated class in the global name bindings.
         globalNameBindings.insertClass(generatedClass->getName(),
                                        generatedClass);
 
         // Insert the forward declaration in front of the current class.
-        globalDefinitions.insert(definitionBeingProcessed,
-                                 forwardDeclaration);
+        globalDefinitions.insert(definitionIter, forwardDeclaration);
 
-        // We must trigger the process stage for the generated class since it
-        // will be used by the current class. This is because all generic types
-        // in the generated class must be changed into their respective concrete
-        // types before we can use it.
-        generatedClass->process();
+        // We must trigger the makeGenericTypesConcrete pass for the generated
+        // class since it will be used by the current class. This is because all
+        // generic types in the generated class must be changed into their
+        // respective concrete types before we can use it.
+        runPassesOnGeneratedClass(generatedClass);
 
         // Insert the generated class after the current class.
-        auto it = definitionBeingProcessed;
+        auto it = definitionIter;
         globalDefinitions.insert(++it, generatedClass);
     }
 }
@@ -664,7 +1024,7 @@ void Tree::insertGeneratedConcreteValueTypeWithFwdDecl(
         // before the recursive class.
         outerClass->insertMember(recursiveClass, forwardDeclaration);
         outerClass->insertMember(recursiveClass, generatedClass);
-        generatedClass->process();
+        runPassesOnGeneratedClass(generatedClass);
     } else {
         // Insert the generated class in the global name bindings.
         globalNameBindings.insertClass(generatedClass->getName(),
@@ -672,10 +1032,104 @@ void Tree::insertGeneratedConcreteValueTypeWithFwdDecl(
 
         // Insert the generated class and its forward declaration before the
         // current class.
-        globalDefinitions.insert(definitionBeingProcessed,
-                                 forwardDeclaration);
-        generatedClass->process();
-        globalDefinitions.insert(definitionBeingProcessed,
-                                 generatedClass);
+        globalDefinitions.insert(definitionIter, forwardDeclaration);
+        runPassesOnGeneratedClass(generatedClass);
+        globalDefinitions.insert(definitionIter, generatedClass);
+    }
+}
+
+void Tree::makeGenericTypesConcreteInSignatures(
+    ClassDefinition* generatedClass) {
+
+    GenericTypeVisitor visitor;
+    generatedClass->traverse(visitor);
+}
+
+void Tree::convertClosureTypesInSigntures(ClassDefinition* generatedClass) {
+    ClosureTypeVisitor visitor;
+    generatedClass->traverse(visitor);
+}
+
+void Tree::generateCloneMethods(ClassDefinition* generatedClass) {
+    GenerateCloneMethodsVisitor visitor;
+    generatedClass->traverse(visitor);
+}
+
+void Tree::typeCheckAndTransform(ClassDefinition* generatedClass) {
+    TypeCheckAndTransformVisitor visitor;
+    generatedClass->traverse(visitor);
+}
+
+void Tree::runPassesOnGeneratedClass(
+    ClassDefinition* generatedClass,
+    bool mayAddCloneMethod) {
+
+    if (generatedClass->needsCloneMethod() && mayAddCloneMethod) {
+        // The body of the copy constructor and clone method will be
+        // generated later by the CloneGenerator. See comment in
+        // Tree::startClass().
+        generatedClass->generateEmptyCopyConstructor();
+        CloneGenerator::generateEmptyCloneMethod(generatedClass);
+    }
+
+    switch (currentPass) {
+        case MakeGenericTypesConcrete:
+            makeGenericTypesConcreteInSignatures(generatedClass);
+            break;
+        case TypeCheckAndTransform:
+            makeGenericTypesConcreteInSignatures(generatedClass);
+            convertClosureTypesInSigntures(generatedClass);
+            generateCloneMethods(generatedClass);
+            typeCheckAndTransform(generatedClass);
+            break;
+        default:
+            break;
+    }
+}
+
+Type* Tree::convertToClosureInterface(Type* type) {
+    assert(currentTree != nullptr);
+    return currentTree->convertToClosureInterfaceInCurrentTree(type);
+}
+
+Type* Tree::convertToClosureInterfaceInCurrentTree(Type* type) {
+    if (!type->isFunction()) {
+        return nullptr;
+    }
+
+    Definition* closureInterfaceDef =
+        globalNameBindings.lookupType(type->getClosureInterfaceName());
+    if (closureInterfaceDef == nullptr) {
+        Closure closure(*this);
+        ClassDefinition* closureInterfaceClass =
+            closure.generateInterface(type);
+        insertClassPostParse(closureInterfaceClass);
+        closureInterfaceDef = closureInterfaceClass;
+    }
+
+    Type* closureInterfaceType =
+        Type::create(closureInterfaceDef->cast<ClassDefinition>()->getName());
+    closureInterfaceType->setDefinition(closureInterfaceDef);
+    return closureInterfaceType;
+}
+
+void Tree::insertClassPostParse(
+    ClassDefinition* classDefinition,
+    bool insertBefore) {
+
+    // If the class that uses the inserted class is imported, then set the
+    // inserted class as imported as well.
+    classDefinition->setIsImported((*definitionIter)->isImported());
+
+    runPassesOnGeneratedClass(classDefinition, false);
+
+    if (insertBefore) {
+        // Insert the definition in front of the definition currently being
+        // traversed.
+        globalDefinitions.insert(definitionIter, classDefinition);
+    } else {
+        // Insert the definition after the current class.
+        auto it = definitionIter;
+        globalDefinitions.insert(++it, classDefinition);
     }
 }

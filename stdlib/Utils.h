@@ -5,9 +5,6 @@
 #include <System.h>
 #include <string.h>
 
-#define ENUM_IS(e, name, variant) (e._tag == name::_##variant##Tag)
-#define ENUM_EQUALS(l, r) (l._tag == r._tag)
-
 namespace Utils {
     inline Pointer<string> makeString(const char* buf, size_t length) {
         char* chars = new char[length];

@@ -1,15 +1,16 @@
+import "System"
 
-enum MessageType {
-    MethodCall,
-    MethodResult,
-    Terminate,
-    ChildTerminated
+class MessageType {
+    static int MethodCall      = 0
+    static int MethodResult    = 1
+    static int Terminate       = 2
+    static int ChildTerminated = 3
 }
 
-class Message {
+message class Message {
 
     // Type of message.
-    MessageType type
+    int type
 
     // Unique message ID. Or child PID in case of a ChildTerminated message.
     var int id
@@ -21,21 +22,21 @@ class Message {
     int interfaceId
 
     // Data carried by the message.
-    var object data
+    var _Cloneable data
 
     // Create a message.
-    init(MessageType msgType) {
+    init(int msgType) {
         type = msgType
     }
 
-    // Create a method call message.
-    init(object methodCallData) {
-        type = MessageType.MethodCall
-        data = methodCallData
+    // Create a message with data.
+    init(int msgType, _Cloneable msgData) {
+        type = msgType
+        data = msgData
     }
 
     // Create a method call message.
-    init(int handlerId, int ifId, object methodCallData) {
+    init(int handlerId, int ifId, _Cloneable methodCallData) {
         type = MessageType.MethodCall
         messageHandlerId = handlerId
         interfaceId = ifId
@@ -43,7 +44,7 @@ class Message {
     }
 
     // Create a method result message from this message.
-    Message createMethodResult(object result) {
+    Message createMethodResult(_Cloneable result) {
         let methodResult = new Message(MessageType.MethodResult)
         methodResult.id = id
         methodResult.data = result
@@ -54,10 +55,10 @@ class Message {
 interface MessageHandler {
 
     // Handle a message.
-    handleMessage(Message message)
+    handleMessage(Message msg)
 }
 
-interface MessageHandlerFactory {
+message interface MessageHandlerFactory {
 
     // Create a message handler.
     MessageHandler createMessageHandler()

@@ -25,6 +25,7 @@ public:
         Boolean,
         String,
         Lambda,
+        Function,
         Enumeration
     };
 
@@ -74,6 +75,8 @@ public:
     Type* getConcreteTypeAssignedToGenericTypeParameter();
     Identifier getFullConstructedName() const;
     bool areTypeParametersMatching(const Type* other) const;
+    Identifier getClosureInterfaceName() const;
+    bool isMessageOrPrimitive() const;
 
     static Type& voidType() {
         return voidTypeInstance;
@@ -93,6 +96,10 @@ public:
 
     bool isBuiltIn() const {
         return builtInType != NotBuiltIn;
+    }
+
+    void setFunctionSignature(FunctionSignature* s) {
+        functionSignature = s;
     }
 
     const Identifier& getName() const {
@@ -117,6 +124,10 @@ public:
 
     const Definition* getDefinition() const {
         return definition;
+    }
+
+    FunctionSignature* getFunctionSignature() const {
+        return functionSignature;
     }
 
     bool isVoid() const {
@@ -155,6 +166,10 @@ public:
         return builtInType == Lambda;
     }
 
+    bool isFunction() const {
+        return builtInType == Function;
+    }
+
     bool isArray() const {
         return array;
     }
@@ -173,15 +188,17 @@ private:
         BuiltInType from,
         BuiltInType to);
 
+    static Type voidTypeInstance;
+    static Type nullTypeInstance;
+
     BuiltInType builtInType;
     Identifier name;
     TypeList genericTypeParameters;
     Definition* definition;
+    FunctionSignature* functionSignature;
     bool constant;
     bool reference;
     bool array;
-    static Type voidTypeInstance;
-    static Type nullTypeInstance;
 };
 
 #endif

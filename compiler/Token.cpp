@@ -224,7 +224,7 @@ void Token::print(FILE* file) const {
                 case Operator::Question:
                     fprintf(file, "?");
                     break;
-                case Operator::VerticalBar:
+                case Operator::BitwiseOr:
                     fprintf(file, "|");
                     break;
                 case Operator::Increment:

@@ -15,7 +15,7 @@ public:
     static void send(int destinationPid, Pointer<Message> message);
     static Pointer<Message> receive();
     static Pointer<Message> receiveMethodResult(int messageId);
-    static Pointer<Message> receive(MessageType messageType, int messageId);
+    static Pointer<Message> receive(int messageType, int messageId);
     static int getPid();
     static void terminate();
     static void wait(int pid);

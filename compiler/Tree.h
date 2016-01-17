@@ -9,6 +9,51 @@
 
 class Statement;
 class BlockStatement;
+class VariableDeclarationStatement;
+class HeapAllocationExpression;
+class ArrayAllocationExpression;
+class TypeCastExpression;
+class ClassDecompositionExpression;
+class TypedExpression;
+class NamedEntityExpression;
+class MemberSelectorExpression;
+
+class Visitor {
+public:
+    enum TraverseMask {
+        TraverseClasses     = 0x1,
+        TraverseDataMembers = 0x2,
+        TraverseMethods     = 0x4,
+        TraverseStatemets   = 0x8
+    };
+
+    explicit Visitor(unsigned int m);
+    virtual ~Visitor() {}
+
+    virtual Traverse::Result visitClass(ClassDefinition&);
+    virtual Traverse::Result visitDataMember(DataMemberDefinition&);
+    virtual Traverse::Result visitMethod(MethodDefinition&);
+    virtual Traverse::Result visitStatement(Statement&);
+    virtual Traverse::Result visitBlock(BlockStatement&);
+    virtual Traverse::Result visitVariableDeclaration(
+        VariableDeclarationStatement&);
+    virtual Traverse::Result visitHeapAllocation(HeapAllocationExpression&);
+    virtual Traverse::Result visitArrayAllocation(ArrayAllocationExpression&);
+    virtual Traverse::Result visitTypeCast(TypeCastExpression&);
+    virtual Traverse::Result visitClassDecomposition(
+        ClassDecompositionExpression&);
+    virtual Traverse::Result visitTypedExpression(TypedExpression&);
+    virtual Traverse::Result visitNamedEntity(NamedEntityExpression&);
+    virtual Traverse::Result visitMemberSelector(MemberSelectorExpression&);
+    virtual void exitBlock() {}
+
+    unsigned int getTraverseMask() const {
+        return mask;
+    }
+
+private:
+    unsigned int mask;
+};
 
 class Tree {
 public:
@@ -16,6 +61,7 @@ public:
 
     BlockStatement* startBlock();
     BlockStatement* startBlock(const Location& location);
+    void setCurrentBlock(BlockStatement* block);
     BlockStatement* finishBlock();
     void addStatement(Statement* statement);
     void startGeneratedClass(
@@ -23,18 +69,24 @@ public:
         ClassDefinition::Properties& properties);
     void startGeneratedClass(
         const Identifier& name,
+        ClassDefinition::Properties& properties,
         const IdentifierList& parents);
     ClassDefinition* startClass(
         const Identifier& name, 
         const GenericTypeParameterList& genericTypeParameters,
         const IdentifierList& parents,
-        const ClassDefinition::Properties& properties,
+        ClassDefinition::Properties& properties,
         const Location& location);
     void reopenClass(ClassDefinition* classDefinition);
     ClassDefinition* finishClass();
     void startFunction();
     void finishFunction(MethodDefinition* function);
-    void process();
+    void checkReturnStatements();
+    void makeGenericTypesConcreteInSignatures();
+    void convertClosureTypesInSigntures();
+    void generateCloneMethods();
+    void typeCheckAndTransform();
+    void traverse(Visitor& visitor);
     void addClassMember(Definition* definition);
     void addClassDataMember(Type::BuiltInType type, const Identifier& name);
     void addClassDataMember(Type* type, const Identifier& name);
@@ -47,7 +99,12 @@ public:
     bool isModuleAlreadyImported(const std::string& moduleName) const;
     ClassDefinition* getCurrentClass() const;
     BlockStatement* getCurrentBlock() const;
+    void insertClassPostParse(
+        ClassDefinition* closureClass,
+        bool insertBefore = true);
+    Type* convertToClosureInterfaceInCurrentTree(Type* type);
 
+    static Tree& getCurrentTree();
     static void lookupAndSetTypeDefinition(
         Type* type,
         const Location& location);
@@ -59,9 +116,14 @@ public:
         Type* type,
         const NameBindings& scope,
         const Location& location);
+    static Type* convertToClosureInterface(Type* type);
 
     const DefinitionList& getGlobalDefinitions() const {
         return globalDefinitions;
+    }
+
+    NameBindings& getGlobalNameBindings() {
+        return globalNameBindings;
     }
 
     void setCurrentTree() {
@@ -69,8 +131,20 @@ public:
     }
 
 private:
+
+    enum Pass {
+        Parse,
+        CheckReturnStatements,
+        MakeGenericTypesConcrete,
+        ConvertClosureTypes,
+        GenerateCloneMethods,
+        TypeCheckAndTransform
+    };
+
     ClassDefinition* insertBuiltInType(const Identifier& name);
     void insertObjectClassAndVoidInGlobalNameBindings();
+    void generateNoArgsClosureInterface();
+    void generateDeferClass();
     void generateArrayClass();
     NameBindings& getCurrentNameBindings();
     void lookupAndSetTypeDefinitionInCurrentTree(
@@ -86,6 +160,10 @@ private:
         Type* typeParameter,
         const NameBindings& scope,
         const Location& location);
+    void makeSignatureTypesConcrete(
+        FunctionSignature* signature,
+        const NameBindings& scope,
+        const Location& location);
     ClassDefinition* generateConcreteClassFromGeneric(
         ClassDefinition* genericClass,
         const TypeList& concreteTypeParameters,
@@ -99,14 +177,22 @@ private:
     void insertGeneratedConcreteValueTypeWithFwdDecl(
         ClassDefinition* generatedClass,
         const Type* recursiveType);
+    void makeGenericTypesConcreteInSignatures(ClassDefinition* generatedClass);
+    void convertClosureTypesInSigntures(ClassDefinition* generatedClass);
+    void generateCloneMethods(ClassDefinition* generatedClass);
+    void typeCheckAndTransform(ClassDefinition* generatedClass);
+    void runPassesOnGeneratedClass(
+        ClassDefinition* generatedClass,
+        bool mayAddCloneMethod = true);
 
     DefinitionList globalDefinitions;
-    DefinitionList::iterator definitionBeingProcessed;
+    DefinitionList::iterator definitionIter;
     NameBindings globalNameBindings;
     ClassDefinition* globalFunctionsClass;
     std::vector<BlockStatement*> openBlocks;
     std::vector<ClassDefinition*> openClasses;
     std::set<std::string> importedModules;
+    Pass currentPass;
 
     static Tree* currentTree;
 };

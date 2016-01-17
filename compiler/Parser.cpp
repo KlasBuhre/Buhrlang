@@ -65,6 +65,20 @@ namespace  {
         Operator::Kind endDelimiter;
         bool commaExpected;
     };
+
+    class LookaheadGuard {
+    public:
+        LookaheadGuard(Parser& p) : parser(p) {
+            parser.setLookaheadMode();
+        }
+
+        ~LookaheadGuard() {
+            parser.setNormalMode();
+        }
+
+    private:
+        Parser& parser;
+    };
 }
 
 Parser::Parser(const std::string& filename, Tree& ast, Module* mod) :
@@ -99,6 +113,9 @@ void Parser::parse() {
                         break;
                     case Keyword::Process:
                         parseProcessOrProcessInterface();
+                        break;
+                    case Keyword::Message:
+                        parseMessage();
                         break;
                     case Keyword::Import:
                         parseImport();
@@ -142,7 +159,7 @@ void Parser::addDefinition(Definition* definition) {
     }
 }
 
-ClassDefinition* Parser::parseClass() {
+ClassDefinition* Parser::parseClass(bool isMessage) {
     bool native = false;
     const Token& nativeToken = lexer.getCurrentToken();
     if (nativeToken.isKeyword(Keyword::Native)) {
@@ -172,6 +189,7 @@ ClassDefinition* Parser::parseClass() {
 
     if (lexer.getCurrentToken().isOperator(Operator::OpenParentheses)) {
         parseClassWithPrimaryConstructor(className,
+                                         isMessage,
                                          genericTypeParameters,
                                          classToken.getLocation());
     } else {
@@ -179,6 +197,7 @@ ClassDefinition* Parser::parseClass() {
         parseParentClassNameList(parents);
 
         ClassDefinition::Properties properties;
+        properties.isMessage = isMessage;
         tree.startClass(className,
                         genericTypeParameters,
                         parents,
@@ -192,6 +211,7 @@ ClassDefinition* Parser::parseClass() {
 
 void Parser::parseClassWithPrimaryConstructor(
     const Identifier& className,
+    bool isMessage,
     const GenericTypeParameterList& genericTypeParameters,
     const Location& location) {
 
@@ -219,6 +239,7 @@ void Parser::parseClassWithPrimaryConstructor(
     }
 
     ClassDefinition::Properties properties;
+    properties.isMessage = isMessage;
     tree.startClass(className,
                     genericTypeParameters,
                     parents,
@@ -257,23 +278,40 @@ void Parser::parseGenericTypeParametersDeclaration(
 void Parser::parseClassMembers(bool classIsNative) {
     if (lexer.getCurrentToken().isOperator(Operator::OpenBrace)) {
         lexer.consumeToken();
+        AccessLevel::Kind access = AccessLevel::Public;
         while (!lexer.getCurrentToken().isOperator(Operator::CloseBrace)) {
-            parseClassMember(classIsNative);
+            if (lexer.getCurrentToken().isKeyword(Keyword::Private) &&
+                lexer.peekToken().isOperator(Operator::Colon)) {
+                lexer.consumeToken();
+                lexer.consumeToken();
+                access = AccessLevel::Private;
+            }
+            parseClassMember(access, classIsNative);
             expectCloseBraceOrNewline();
         }
         lexer.consumeToken();
     }
 }
 
-void Parser::parseClassMember(bool isClassNative) {
-    const Token* token = lexer.getCurrentTokenPtr(); 
-    if (token->isKeyword(Keyword::Class)) {
-        // Parse a nested class.
-        tree.addClassMember(parseClass());
-        return;
+void Parser::parseClassMember(AccessLevel::Kind access, bool isClassNative) {
+    const Token* token = lexer.getCurrentTokenPtr();
+    bool nestedClassIsMessage = false;
+    if (token->isKeyword(Keyword::Message)) {
+        nestedClassIsMessage = true;
+        lexer.consumeToken();
+        token = lexer.getCurrentTokenPtr();
     }
 
-    AccessLevel::Kind access = AccessLevel::Public;
+    if (token->isKeyword(Keyword::Class)) {
+        // Parse a nested class.
+        tree.addClassMember(parseClass(nestedClassIsMessage));
+        return;
+    } else {
+        if (nestedClassIsMessage) {
+            error("Expected class.", *token);
+        }
+    }
+
     if (token->isKeyword(Keyword::Private)) {
         access = AccessLevel::Private;
         lexer.consumeToken();
@@ -287,7 +325,8 @@ void Parser::parseClassMember(bool isClassNative) {
     }
 
     Type* type = nullptr;
-    if (!lexer.peekToken().isOperator(Operator::OpenParentheses)) {
+    if (!lexer.peekToken().isOperator(Operator::OpenParentheses)||
+        lexer.getCurrentToken().isKeyword(Keyword::Fun)) {
         type = parseType();
     }
 
@@ -329,6 +368,7 @@ MethodDefinition* Parser::parseMethod(
                                                     isStatic,
                                                     tree.getCurrentClass(),
                                                     name.getLocation());
+    method->setIsGenerated(false);
     if (parseBody) {
         BlockStatement* body = tree.startBlock(location());
         method->setBody(body);
@@ -339,7 +379,8 @@ MethodDefinition* Parser::parseMethod(
             tree.addStatement(parseConstructorCall());
         } else {
             if (!lexer.getCurrentToken().isOperator(Operator::OpenBrace)) {
-                parseLambdaSignature(method);
+                method->setLambdaSignature(parseFunctionSignature(),
+                                           location());
             }
         }
         parseBlock(false);
@@ -402,7 +443,7 @@ void Parser::parseArgumentList(ArgumentList& argumentList) {
     }
 }
 
-void Parser::parseLambdaSignature(MethodDefinition* method) {
+FunctionSignature* Parser::parseFunctionSignature() {
     Type* returnType = nullptr;
     if (!lexer.getCurrentToken().isOperator(Operator::OpenParentheses)) {
         returnType = parseType();
@@ -413,16 +454,19 @@ void Parser::parseLambdaSignature(MethodDefinition* method) {
         error("Expected '('.", openParentheses);
     }
 
-    LambdaSignature* lambdaSignature = new LambdaSignature(returnType); 
+    FunctionSignature* functionSignature = new FunctionSignature(returnType);
     CommaSeparatedListParser listParser(this, Operator::CloseParentheses);
     while (listParser.parseComma()) {
-        lambdaSignature->addArgument(parseType());
+        functionSignature->addArgument(parseType());
     }
 
-    method->setLambdaSignature(lambdaSignature, location());
+    return functionSignature;
 }
 
-ClassDefinition* Parser::parseInterface(bool isProcessInterface) {
+ClassDefinition* Parser::parseInterface(
+    bool isProcessInterface,
+    bool isMessage) {
+
     const Token& interfaceToken = lexer.consumeToken();
     assert(interfaceToken.isKeyword(Keyword::Interface));
 
@@ -438,6 +482,7 @@ ClassDefinition* Parser::parseInterface(bool isProcessInterface) {
     ClassDefinition::Properties properties;
     properties.isInterface = true;
     properties.isProcess = isProcessInterface;
+    properties.isMessage = isMessage;
     tree.startClass(name.getValue(),
                     genericTypeParameters,
                     parents,
@@ -458,7 +503,8 @@ ClassDefinition* Parser::parseInterface(bool isProcessInterface) {
 
 void Parser::parseInterfaceMember() {
     Type* type = nullptr;
-    if (!lexer.peekToken().isOperator(Operator::OpenParentheses)) {
+    if (!lexer.peekToken().isOperator(Operator::OpenParentheses)||
+        lexer.getCurrentToken().isKeyword(Keyword::Fun)) {
         type = parseType();
     }
 
@@ -526,7 +572,7 @@ void Parser::parseProcessOrProcessInterface() {
     }
 }
 
-void Parser::parseEnumeration() {
+void Parser::parseEnumeration(bool isMessage) {
     const Token& enumToken = lexer.consumeToken();
     assert(enumToken.isKeyword(Keyword::Enum));
 
@@ -545,6 +591,7 @@ void Parser::parseEnumeration() {
     }
 
     EnumGenerator enumGenerator(name.getValue(),
+                                isMessage,
                                 genericTypeParameters,
                                 name.getLocation(),
                                 tree);
@@ -552,6 +599,10 @@ void Parser::parseEnumeration() {
     CommaSeparatedListParser listParser(this, Operator::CloseBrace);
     while (listParser.parseComma()) {
         parseEnumerationVariant(enumGenerator);
+    }
+
+    if (isMessage) {
+        enumGenerator.generateEmptyDeepCopyMethod();
     }
 
     ClassDefinition* convertableEnum = enumGenerator.getConvertableEnum();
@@ -587,6 +638,28 @@ void Parser::parseEnumerationVariant(EnumGenerator& enumGenerator) {
     enumGenerator.generateVariant(variantName.getValue(),
                                   variantData,
                                   variantName.getLocation());
+}
+
+void Parser::parseMessage() {
+    const Token& messageToken = lexer.consumeToken();
+    assert(messageToken.isKeyword(Keyword::Message));
+
+    const Token& token = lexer.getCurrentToken();
+    switch (token.getKeyword()) {
+        case Keyword::Native:
+        case Keyword::Class:
+            addDefinition(parseClass(true));
+            break;
+        case Keyword::Interface:
+            addDefinition(parseInterface(false, true));
+            break;
+        case Keyword::Enum:
+            parseEnumeration(true);
+            break;
+         default:
+            error("Expected class or enum.", token);
+            break;
+    }
 }
 
 MethodDefinition* Parser::parseFunction() {
@@ -667,6 +740,9 @@ void Parser::parseStatement() {
                     break;
                 case Keyword::Return:
                     parseReturnStatement();
+                    break;
+                case Keyword::Defer:
+                    parseDeferStatement();
                     break;
                 case Keyword::Jump:
                     parseJumpStatement();
@@ -779,12 +855,23 @@ Type* Parser::parseType() {
         Keyword::Kind keyword = token.getKeyword();
         switch (keyword) {
             case Keyword::Let:
-            case Keyword::Var: 
-                type = parseTypeName();
+            case Keyword::Var:
+                if (lexer.getCurrentToken().isKeyword(Keyword::Fun)) {
+                    lexer.consumeToken();
+                    type = new Type(Type::Function);
+                    type->setFunctionSignature(parseFunctionSignature());
+                } else {
+                    type = parseTypeName();
+                }
+
                 if (keyword == Keyword::Var)
                 {
                     type->setConstant(false);
                 }
+                break;
+            case Keyword::Fun:
+                type = new Type(Type::Function);
+                type->setFunctionSignature(parseFunctionSignature());
                 break;
             default:
                 type = Keyword::toType(keyword);
@@ -918,8 +1005,25 @@ Expression* Parser::parseExpression(
 }
 
 Expression* Parser::parseSubexpression(bool patternAllowed) {
+    Expression* left = parseSimpleExpression(patternAllowed);
+
+    while (lexer.getCurrentToken().isOperator(Operator::Dot)) {
+        const Token& token = lexer.consumeToken();
+
+        Expression* right = parseSimpleExpression(patternAllowed);
+        left = new MemberSelectorExpression(left, right, token.getLocation());
+    }
+
+    return left;
+}
+
+Expression* Parser::parseSimpleExpression(bool patternAllowed) {
     if (patternAllowed && typedExpressionStartsHere()) {
         return parseTypedExpression();
+    }
+
+    if (lambdaExpressionStartsHere()) {
+        return parseAnonymousFunctionExpression();
     }
 
     Expression* expression = nullptr;
@@ -989,6 +1093,7 @@ Expression* Parser::parseSubexpression(bool patternAllowed) {
                 case Operator::Addition:
                 case Operator::Subtraction:
                 case Operator::LogicalNegation:
+                case Operator::BitwiseNot:
                     expression = parseUnaryExpression(token, nullptr);
                     break;
                 case Operator::OpenBracket:
@@ -1015,9 +1120,6 @@ Expression* Parser::parseSubexpression(bool patternAllowed) {
 
     const Token& currentToken = lexer.getCurrentToken();
     switch (currentToken.getOperator()) {
-        case Operator::Dot:
-            expression = parseMemberSelectorExpression(expression);
-            break;
         case Operator::Increment:
         case Operator::Decrement:
         case Operator::LogicalNegation:
@@ -1049,17 +1151,6 @@ Expression* Parser::parseUnaryExpression(
                                operand,
                                prefix,
                                operatorToken.getLocation());
-}
-
-Expression* Parser::parseMemberSelectorExpression(Expression* left) {
-    const Token& currentToken = lexer.getCurrentToken();
-    assert(currentToken.isOperator(Operator::Dot));
-
-    lexer.consumeToken();
-    Expression* right = parseSubexpression();
-    return new MemberSelectorExpression(left,
-                                        right,
-                                        currentToken.getLocation());
 }
 
 Expression* Parser::parseBooleanLiteralExpression(const Token& consumedToken) {
@@ -1104,14 +1195,12 @@ Expression* Parser::parseParenthesesOrTypeCastExpression() {
 }
 
 bool Parser::typeCastExpressionStartsHere() {
-    setLookaheadMode();
+    LookaheadGuard guard(*this);
 
     std::unique_ptr<Type> type(parseType());
     const Token& currentToken = lexer.getCurrentToken();
     bool retval = (type.get() != nullptr &&
                    currentToken.isOperator(Operator::CloseParentheses));
-
-    setNormalMode();
     return retval;
 }
 
@@ -1144,26 +1233,50 @@ Expression* Parser::parseMethodCall(const Token& name) {
 }
 
 bool Parser::lambdaExpressionStartsHere() {
-    if (lexer.getCurrentToken().isOperator(Operator::OpenBrace)) {
-        const Token& nextToken = lexer.peekToken();
-        if (nextToken.isOperator(Operator::VerticalBar) ||
-            nextToken.isOperator(Operator::LogicalOr)) {
+    const Token& currentToken = lexer.getCurrentToken();
+    if (currentToken.isOperator(Operator::LogicalOr)) {
+        if (lexer.peekToken().isOperator(Operator::OpenBrace)) {
             return true;
         }
+    } else if (currentToken.isOperator(Operator::BitwiseOr)) {
+        LookaheadGuard guard(*this);
+
+        lexer.consumeToken();
+        CommaSeparatedListParser listParser(this, Operator::BitwiseOr);
+        while (listParser.parseComma()) {
+            std::unique_ptr<Type> type;
+            const Token& nextToken = lexer.peekToken();
+            if (lexer.getCurrentToken().isIdentifier() &&
+                (nextToken.isOperator(Operator::Comma) ||
+                 nextToken.isOperator(Operator::BitwiseOr))) {
+                type = std::unique_ptr<Type>(new Type(Type::Implicit));
+            } else {
+                type = std::unique_ptr<Type>(parseType());
+            }
+
+            const Token& identifier = lexer.consumeToken();
+            if (!identifier.isIdentifier() || type.get() == nullptr) {
+                return false;
+            }
+        }
+
+        if (anyErrors ||
+            !lexer.getCurrentToken().isOperator(Operator::OpenBrace)) {
+            return false;
+        }
+
+        return true;
     }
     return false;
 }
 
 void Parser::parseLambdaExpression(MethodCallExpression* methodCall) {
-    assert(lexer.getCurrentToken().isOperator(Operator::OpenBrace));
-
     BlockStatement* body = tree.startBlock(location());
     LambdaExpression* lambda = new LambdaExpression(body, location());
-    lexer.consumeToken();
 
     switch (lexer.getCurrentToken().getOperator()) {
-        case Operator::VerticalBar:
-            parseLambdaArguments(lambda);
+        case Operator::BitwiseOr:
+            parseLambdaArguments(lambda, nullptr);
             break;
         case Operator::LogicalOr:
             lexer.consumeToken();
@@ -1173,26 +1286,23 @@ void Parser::parseLambdaExpression(MethodCallExpression* methodCall) {
             break;
     }
 
-    while (!lexer.getCurrentToken().isOperator(Operator::CloseBrace)) {
-        parseStatement();
-        expectCloseBraceOrNewline();
-    }
-    lexer.consumeToken();
-
-    tree.finishBlock();
+    parseBlock(false);
     methodCall->setLambda(lambda);
 }
 
-void Parser::parseLambdaArguments(LambdaExpression* lambda) {
-    assert(lexer.consumeToken().isOperator(Operator::VerticalBar));
+void Parser::parseLambdaArguments(
+    LambdaExpression* lambda,
+    AnonymousFunctionExpression* anonymousFunction) {
 
-    CommaSeparatedListParser listParser(this, Operator::VerticalBar);
+    assert(lexer.consumeToken().isOperator(Operator::BitwiseOr));
+
+    CommaSeparatedListParser listParser(this, Operator::BitwiseOr);
     while (listParser.parseComma()) {
         Type* type = nullptr;
         const Token& nextToken = lexer.peekToken();
         if (lexer.getCurrentToken().isIdentifier() && 
             (nextToken.isOperator(Operator::Comma) ||
-             nextToken.isOperator(Operator::VerticalBar))) {
+             nextToken.isOperator(Operator::BitwiseOr))) {
             type = new Type(Type::Implicit);            
         } else {
             type = parseType();
@@ -1203,14 +1313,43 @@ void Parser::parseLambdaArguments(LambdaExpression* lambda) {
             error("Expected identifier.", identifier);
         }
 
-        VariableDeclarationStatement* argument =
-            new VariableDeclarationStatement(
-                type,
-                identifier.getValue(),
-                nullptr,
-                identifier.getLocation());
-        lambda->addArgument(argument);
+        if (lambda != nullptr) {
+            VariableDeclarationStatement* argument =
+                new VariableDeclarationStatement(
+                    type,
+                    identifier.getValue(),
+                    nullptr,
+                    identifier.getLocation());
+            lambda->addArgument(argument);
+        } else {
+            VariableDeclaration* argument =
+                new VariableDeclaration(type,
+                                        identifier.getValue(),
+                                        identifier.getLocation());
+            anonymousFunction->addArgument(argument);
+        }
     }
+}
+
+AnonymousFunctionExpression* Parser::parseAnonymousFunctionExpression() {
+    BlockStatement* body = tree.startBlock(location());
+    AnonymousFunctionExpression* anonymousFunction =
+        new AnonymousFunctionExpression(body, location());
+
+    switch (lexer.getCurrentToken().getOperator()) {
+        case Operator::BitwiseOr:
+            parseLambdaArguments(nullptr, anonymousFunction);
+            break;
+        case Operator::LogicalOr:
+            lexer.consumeToken();
+            break;
+        default:
+            error("Expected '|'.", lexer.getCurrentToken());
+            break;
+    }
+
+    parseBlock(false);
+    return anonymousFunction;
 }
 
 Expression* Parser::parseUnknownExpression(
@@ -1398,7 +1537,7 @@ void Parser::parseMatchCasePatterns(MatchCase* matchCase) {
             lexer.consumeToken();
             matchCase->setPatternGuard(parseExpression());
             break;
-        } else if (token.isOperator(Operator::VerticalBar)) {
+        } else if (token.isOperator(Operator::BitwiseOr)) {
             lexer.consumeToken();
         } else {
             error("Expected '|'.", token);
@@ -1431,15 +1570,13 @@ Expression* Parser::parseClassDecompositionExpression(
 }
 
 bool Parser::typedExpressionStartsHere() {
-    setLookaheadMode();
+    LookaheadGuard guard(*this);
 
     std::unique_ptr<Type> type(parseType());
     const Token& currentToken = lexer.getCurrentToken();
     bool retval = (type.get() != nullptr &&
                    (currentToken.isIdentifier() ||
                     currentToken.isOperator(Operator::Placeholder)));
-
-    setNormalMode();
     return retval;
 }
 
@@ -1515,34 +1652,30 @@ void Parser::parseForStatement() {
     const Token& forToken = lexer.consumeToken();
     assert(forToken.isKeyword(Keyword::For));
 
-    tree.startBlock(location());
     Expression* conditionExpression = nullptr;
-    Expression* loopExpression = nullptr;
+    Expression* iterExpression = nullptr;
+
+    tree.startBlock(location());
 
     if (!lexer.getCurrentToken().isOperator(Operator::OpenBrace)) {
         if (variableDeclarationStartsHere()) {
             parseVariableDeclarationStatement();
         } else {
-            Expression* initExpression = parseExpression();
-            tree.addStatement(initExpression);
+            tree.addStatement(parseExpression());
         }
         consumeSingleSemicolon();
         conditionExpression = parseExpression();
         consumeSingleSemicolon();
-        loopExpression = parseExpression();
+        iterExpression = parseExpression();
     }
 
     BlockStatement* loopBlock = parseBlock();
-    if (loopExpression != nullptr) {
-        loopBlock->addStatement(loopExpression);
-    }
 
-    WhileStatement* whileStatement = 
-        new WhileStatement(conditionExpression,
-                           loopBlock,
-                           forToken.getLocation());
-    tree.addStatement(whileStatement);
-
+    ForStatement* forStatement = new ForStatement(conditionExpression,
+                                                  iterExpression,
+                                                  loopBlock,
+                                                  forToken.getLocation());
+    tree.addStatement(forStatement);
     tree.addStatement(tree.finishBlock());
 }
 
@@ -1584,6 +1717,16 @@ void Parser::parseReturnStatement() {
     ReturnStatement* returnStatement = 
         new ReturnStatement(expression, returnToken.getLocation()); 
     tree.addStatement(returnStatement);
+}
+
+void Parser::parseDeferStatement() {
+    const Token& deferToken = lexer.consumeToken();
+    assert(deferToken.isKeyword(Keyword::Defer));
+
+    BlockStatement* block = parseBlock();
+    DeferStatement* deferStatement =
+        new DeferStatement(block, deferToken.getLocation());
+    tree.addStatement(deferStatement);
 }
 
 void Parser::parseJumpStatement() {

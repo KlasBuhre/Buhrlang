@@ -10,6 +10,7 @@
 
 namespace {
     int tempCounter = 0;
+    const Identifier deferVariableName("$defer");
 
     BinaryExpression* makeReturnValueAssignment(
         Expression* returnExpression,
@@ -31,6 +32,15 @@ namespace {
 Statement::Statement(Kind k, const Location& l) :
     Node(l),
     kind(k) {}
+
+bool Statement::mayFallThrough() const {
+    return true;
+}
+
+Traverse::Result Statement::traverse(Visitor& visitor) {
+    visitor.visitStatement(*this);
+    return Traverse::Continue;
+}
 
 VariableDeclarationStatement::VariableDeclarationStatement(
     Type* t,
@@ -76,6 +86,22 @@ VariableDeclarationStatement* VariableDeclarationStatement::clone() const {
     return new VariableDeclarationStatement(*this);
 }
 
+Traverse::Result VariableDeclarationStatement::traverse(Visitor& visitor) {
+    if (visitor.visitVariableDeclaration(*this) == Traverse::Skip) {
+        return Traverse::Continue;
+    }
+
+    if (patternExpression != nullptr) {
+        patternExpression->traverse(visitor);
+    }
+
+    if (initExpression != nullptr) {
+        initExpression->traverse(visitor);
+    }
+
+    return Traverse::Continue;
+}
+
 Type* VariableDeclarationStatement::typeCheck(Context& context) {
     if (patternExpression != nullptr) {
         generateDeclarationsFromPattern(context);
@@ -88,12 +114,14 @@ Type* VariableDeclarationStatement::typeCheck(Context& context) {
     Type* declaredType = declaration.getType();
     const Identifier& name = declaration.getIdentifier();
     if (initExpression == nullptr) {
+        MethodDefinition* method = context.getMethodDefinition();
         if (declaredType->isImplicit()) {
             Trace::error(
                 "Implicitly typed variables must be initialized: " + name,
                 this);
         } else if (declaredType->isEnumeration() &&
-                   !context.getMethodDefinition()->isEnumConstructor()) {
+                   !method->isEnumConstructor() &&
+                   !method->isEnumCopyConstructor()) {
             Trace::error(
                 "Variables of enumeration type must be initialized: " + name,
                 this);
@@ -104,7 +132,7 @@ Type* VariableDeclarationStatement::typeCheck(Context& context) {
         }
     }
 
-    processInitExpression(context);
+    typeCheckAndTransformInitExpression(context);
 
     if (addToNameBindingsWhenTypeChecked) {
         if (!context.getNameBindings()->insertLocalObject(&declaration)) {
@@ -116,7 +144,9 @@ Type* VariableDeclarationStatement::typeCheck(Context& context) {
     return &Type::voidType();
 }
 
-void VariableDeclarationStatement::processInitExpression(Context& context) {
+void VariableDeclarationStatement::typeCheckAndTransformInitExpression(
+    Context& context) {
+
     if (initExpression == nullptr) {
         return;
     }
@@ -179,9 +209,8 @@ void VariableDeclarationStatement::generateDeclarationsFromPattern(
         Trace::error("No variables found in pattern.", patternExpression);
     }
 
-    for (VariableDeclarationStatementList::const_iterator i =
-             variablesCreatedByPattern.begin();
-         i != variablesCreatedByPattern.end(); ) {
+    for (auto i = variablesCreatedByPattern.cbegin();
+         i != variablesCreatedByPattern.cend(); ) {
         VariableDeclarationStatement* varDeclaration = *i++;
         if (i == variablesCreatedByPattern.end()) {
             currentBlock->replaceCurrentStatement(varDeclaration);
@@ -221,7 +250,7 @@ Expression* VariableDeclarationStatement::generateInitTemporary(
     return initRefExpr;
 }
 
-void VariableDeclarationStatement::changeTypeIfGeneric(Context& context) {
+void VariableDeclarationStatement::changeTypeIfGeneric(const Context& context) {
     Type* concreteType = context.makeGenericTypeConcrete(declaration.getType(),
                                                          getLocation());
     if (concreteType != nullptr) {
@@ -278,6 +307,8 @@ VariableDeclarationStatement* VariableDeclarationStatement::generateTemporary(
                                             loc);
 }
 
+BlockStatement* BlockStatement::cloningBlock = nullptr;
+
 BlockStatement::BlockStatement(
     ClassDefinition* classDef, 
     BlockStatement* enclosing, 
@@ -300,53 +331,19 @@ BlockStatement::BlockStatement(const BlockStatement& other) :
 }
 
 void BlockStatement::copyStatements(const BlockStatement& from) {
-    for (StatementList::const_iterator i = from.statements.begin();
-         i != from.statements.end();
-         i++) {
-        Statement* statement = (*i)->clone();
-        switch (statement->getKind()) {
-            case Statement::Block: {
-                BlockStatement* block = statement->cast<BlockStatement>();
-                block->setEnclosingBlock(this);
-                break;
-            }
-            case Statement::If: {
-                IfStatement* ifStatement = statement->cast<IfStatement>();
-                BlockStatement* ifBlock = ifStatement->getBlock();
-                if (ifBlock != nullptr) {
-                    ifBlock->setEnclosingBlock(this);
-                }
-                BlockStatement* elseBlock = ifStatement->getElseBlock();
-                if (elseBlock != nullptr) {
-                    elseBlock->setEnclosingBlock(this);
-                }
-                break;
-            }
-            case Statement::While: {
-                BlockStatement* whileBlock =
-                    statement->cast<WhileStatement>()->getBlock();
-                if (whileBlock != nullptr) {
-                    whileBlock->setEnclosingBlock(this);
-                }
-                break;
-            }
-            case Statement::ExpressionStatement: {
-                if (WrappedStatementExpression* wrappedStatementExpr =
-                        statement->dynCast<WrappedStatementExpression>()) {
-                    Statement* wrappedStatement =
-                        wrappedStatementExpr->getStatement();
-                    if (BlockStatement* block =
-                            wrappedStatement->dynCast<BlockStatement>()) {
-                        block->setEnclosingBlock(this);
-                    }
-                }
-                break;
-            }
-            default:
-                break;
-        }
-        addStatement(statement);
+    if (cloningBlock != nullptr) {
+        setEnclosingBlock(cloningBlock);
     }
+
+    BlockStatement* tmp = cloningBlock;
+    cloningBlock = this;
+
+    for (auto i = from.statements.cbegin(); i != from.statements.cend(); i++) {
+        Statement* statement = *i;
+        addStatement(statement->clone());
+    }
+
+    cloningBlock = tmp;
 }
 
 BlockStatement* BlockStatement::clone() const {
@@ -370,7 +367,7 @@ void BlockStatement::insertStatementAtFront(Statement* statement) {
 void BlockStatement::insertStatementAfterFront(Statement* statement) {
     if (statement != nullptr) {
         initialStatementCheck(statement);
-        StatementList::iterator i = statements.begin();
+        auto i = statements.begin();
         if (i != statements.end()) {
             i++;
         }
@@ -441,6 +438,7 @@ void BlockStatement::setEnclosingBlock(BlockStatement* b) {
 
 Type* BlockStatement::typeCheck(Context& context) {
     context.enterBlock(this);
+
     for (iterator = statements.begin();
          iterator != statements.end();
          iterator++) {
@@ -451,8 +449,32 @@ Type* BlockStatement::typeCheck(Context& context) {
         }
         statement->typeCheck(context);
     }
+
     context.exitBlock();
     return &Type::voidType();
+}
+
+bool BlockStatement::mayFallThrough() const {
+    if (statements.empty()) {
+        return true;
+    }
+
+    return statements.back()->mayFallThrough();
+}
+
+Traverse::Result BlockStatement::traverse(Visitor& visitor) {
+    if (visitor.visitBlock(*this) == Traverse::Skip) {
+        visitor.exitBlock();
+        return Traverse::Continue;
+    }
+
+    for (auto i = statements.cbegin(); i != statements.cend(); i++) {
+        Statement* statement = *i;
+        statement->traverse(visitor);
+    }
+
+    visitor.exitBlock();
+    return Traverse::Continue;
 }
 
 void BlockStatement::returnLastExpression(
@@ -462,7 +484,7 @@ void BlockStatement::returnLastExpression(
         Trace::error("Must return a value.", getLocation());
     }
 
-    StatementList::iterator i = statements.end();
+    auto i = statements.end();
     i--;
     Statement* lastStatement = *i;
     if (lastStatement->getKind() != Statement::ExpressionStatement) {
@@ -500,7 +522,7 @@ BlockStatement::getFirstStatementAsConstructorCall() const {
 void BlockStatement::replaceLastStatement(Statement* statement) {
     if (statement != nullptr) {
         initialStatementCheck(statement);
-        StatementList::iterator i = statements.end();
+        auto i = statements.end();
         i--;
         *i = statement;
     }
@@ -515,7 +537,7 @@ void BlockStatement::replaceCurrentStatement(Statement* statement) {
 
 Expression* BlockStatement::getLastStatementAsExpression() const {
     if (statements.size() > 0) {
-        StatementList::const_iterator i = statements.end();
+        auto i = statements.cend();
         i--;
         Statement* lastStatement = *i;
         if (lastStatement->isExpression()) {
@@ -523,6 +545,16 @@ Expression* BlockStatement::getLastStatementAsExpression() const {
         }
     }
     return nullptr;
+}
+
+bool BlockStatement::containsDeferDeclaration() const {
+    if (VariableDeclarationStatement* varDeclaration =
+            statements.front()->dynCast<VariableDeclarationStatement>()) {
+        if (varDeclaration->getIdentifier().compare(deferVariableName) == 0) {
+            return true;
+        }
+    }
+    return false;
 }
 
 IfStatement::IfStatement(
@@ -545,7 +577,8 @@ Statement* IfStatement::clone() const {
 Type* IfStatement::typeCheck(Context& context) {
     expression = expression->transform(context);
     Type* type = expression->typeCheck(context);
-    if (type->isBoolean()) {
+
+    if (type->isBoolean() || type->isNumber()) {
         block->typeCheck(context);
         if (elseBlock) {
             elseBlock->typeCheck(context);
@@ -556,7 +589,30 @@ Type* IfStatement::typeCheck(Context& context) {
             "type.",
             getLocation());
     }
+
     return &Type::voidType();
+}
+
+bool IfStatement::mayFallThrough() const {
+    if (elseBlock == nullptr) {
+        return true;
+    }
+
+    return block->mayFallThrough() || elseBlock->mayFallThrough();
+}
+
+Traverse::Result IfStatement::traverse(Visitor& visitor) {
+    if (visitor.visitStatement(*this) == Traverse::Skip) {
+        return Traverse::Continue;
+    }
+
+    expression->traverse(visitor);
+    block->traverse(visitor);
+    if (elseBlock != nullptr) {
+        elseBlock->traverse(visitor);
+    }
+
+    return Traverse::Continue;
 }
 
 WhileStatement::WhileStatement(
@@ -576,16 +632,110 @@ Statement* WhileStatement::clone() const {
 Type* WhileStatement::typeCheck(Context& context) {
     expression = expression->transform(context);
     Type* type = expression->typeCheck(context);
-    if (!type->isBoolean()) {
+
+    if (!type->isBoolean() && !type->isNumber()) {
         Trace::error(
             "Resulting type from expression should be a boolean type.",
             getLocation());
     }
-    bool wasAlreadyInWhileStatement = context.isInsideWhileStatement();
-    context.setIsInsideWhileStatement(true);
+
+    bool wasAlreadyInLoop = context.isInsideLoop();
+    context.setIsInsideLoop(true);
     block->typeCheck(context);
-    context.setIsInsideWhileStatement(wasAlreadyInWhileStatement);
+    context.setIsInsideLoop(wasAlreadyInLoop);
     return &Type::voidType();
+}
+
+bool WhileStatement::mayFallThrough() const {
+    if (LiteralExpression* literal = expression->dynCast<LiteralExpression>()) {
+        if (BooleanLiteralExpression* boolLiteral =
+                literal->dynCast<BooleanLiteralExpression>()) {
+            if (boolLiteral->getValue() == true) {
+                // TODO: check if the block contains a break. If not, we cannot
+                // fall through to the next statement.
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+Traverse::Result WhileStatement::traverse(Visitor& visitor) {
+    if (visitor.visitStatement(*this) == Traverse::Skip) {
+        return Traverse::Continue;
+    }
+
+    expression->traverse(visitor);
+    block->traverse(visitor);
+    return Traverse::Continue;
+}
+
+ForStatement::ForStatement(
+    Expression* cond,
+    Expression* iter,
+    BlockStatement* b,
+    const Location& l) :
+    Statement(Statement::For, l),
+    conditionExpression(cond),
+    iterExpression(iter),
+    block(b) {}
+
+Statement* ForStatement::clone() const {
+    return new ForStatement(conditionExpression ? conditionExpression->clone() :
+                                                  nullptr,
+                            iterExpression ? iterExpression->clone() : nullptr,
+                            block->clone(),
+                            getLocation());
+}
+
+Type* ForStatement::typeCheck(Context& context) {
+    if (conditionExpression != nullptr) {
+        conditionExpression = conditionExpression->transform(context);
+        Type* type = conditionExpression->typeCheck(context);
+        if (!type->isBoolean() && !type->isNumber()) {
+            Trace::error(
+                "Resulting type from expression should be a boolean type.",
+                getLocation());
+        }
+    }
+
+    if (iterExpression != nullptr) {
+        iterExpression = iterExpression->transform(context);
+        iterExpression->typeCheck(context);
+    }
+
+    bool wasAlreadyInLoop = context.isInsideLoop();
+    context.setIsInsideLoop(true);
+    block->typeCheck(context);
+    context.setIsInsideLoop(wasAlreadyInLoop);
+    return &Type::voidType();
+}
+
+bool ForStatement::mayFallThrough() const {
+    if (conditionExpression != nullptr) {
+        return true;
+    }
+
+    // TODO: check if the block contains a break. If not, we cannot fall through
+    // to the next statement.
+    return false;
+}
+
+Traverse::Result ForStatement::traverse(Visitor& visitor) {
+    if (visitor.visitStatement(*this) == Traverse::Skip) {
+        return Traverse::Continue;
+    }
+
+    if (conditionExpression != nullptr) {
+        conditionExpression->traverse(visitor);
+    }
+
+    if (iterExpression != nullptr) {
+        iterExpression->traverse(visitor);
+    }
+
+    block->traverse(visitor);
+    return Traverse::Continue;
 }
 
 BreakStatement::BreakStatement(const Location& l) : 
@@ -596,10 +746,14 @@ Statement* BreakStatement::clone() const {
 }
 
 Type* BreakStatement::typeCheck(Context& context) {
-    if (!context.isInsideWhileStatement()) {
+    if (!context.isInsideLoop()) {
         Trace::error("Break statement must be inside a loop.", getLocation());
     }
     return &Type::voidType();
+}
+
+bool BreakStatement::mayFallThrough() const {
+    return false;
 }
 
 ContinueStatement::ContinueStatement(const Location& l) :
@@ -610,11 +764,15 @@ Statement* ContinueStatement::clone() const {
 }
 
 Type* ContinueStatement::typeCheck(Context& context) {
-    if (!context.isInsideWhileStatement()) {
+    if (!context.isInsideLoop()) {
         Trace::error("Continue statement must be inside a loop.",
                      getLocation());
     }
     return &Type::voidType();
+}
+
+bool ContinueStatement::mayFallThrough() const {
+    return false;
 }
 
 ReturnStatement::ReturnStatement(Expression* e, const Location& l) : 
@@ -635,10 +793,10 @@ Statement* ReturnStatement::clone() const {
 }
 
 Type* ReturnStatement::typeCheck(Context& context) {
+    MethodDefinition* method = context.getMethodDefinition();
     VariableDeclaration* temporaryRetvalDeclaration = 
         context.getTemporaryRetvalDeclaration();
-    if (originalMethod != nullptr &&
-        originalMethod != context.getMethodDefinition() && 
+    if (originalMethod != nullptr && originalMethod != method &&
         temporaryRetvalDeclaration != nullptr) {
         // The method in which the return statement was located in has been
         // inlined in another method. Transform the return statement into an
@@ -654,10 +812,9 @@ Type* ReturnStatement::typeCheck(Context& context) {
         return &Type::voidType();
     }
 
-    originalMethod = context.getMethodDefinition();
+    originalMethod = method;
     Type* returnType = nullptr;
-    Type* returnTypeInSignature =
-        context.getMethodDefinition()->getReturnType();
+    Type* returnTypeInSignature = method->getReturnType();
     if (expression != nullptr) {
         if (returnTypeInSignature->isVoid()) {
             Trace::error(
@@ -669,7 +826,8 @@ Type* ReturnStatement::typeCheck(Context& context) {
     } else {
         returnType = new Type(Type::Void);
     }
-    if (!Type::areInitializable(returnTypeInSignature, returnType)) {
+    if (!Type::areInitializable(returnTypeInSignature, returnType) &&
+        !context.getClassDefinition()->isClosure()) {
         Trace::error(
             "Returned type is incompatible with declared return type in method "
             "definition. Returned type in return statement: " +
@@ -681,17 +839,90 @@ Type* ReturnStatement::typeCheck(Context& context) {
     return &Type::voidType();
 }
 
+bool ReturnStatement::mayFallThrough() const {
+    return false;
+}
+
+Traverse::Result ReturnStatement::traverse(Visitor& visitor) {
+    if (visitor.visitStatement(*this) == Traverse::Skip) {
+        return Traverse::Continue;
+    }
+
+    if (expression != nullptr) {
+        expression->traverse(visitor);
+    }
+
+    return Traverse::Continue;
+}
+
+DeferStatement::DeferStatement(BlockStatement* b, const Location& l) :
+    Statement(Statement::Defer, l),
+    block(b) {}
+
+Statement* DeferStatement::clone() const {
+    return new DeferStatement(block->clone(), getLocation());
+}
+
+Type* DeferStatement::typeCheck(Context& context) {
+    BlockStatement* outerBlock = context.getBlock();
+    if (!outerBlock->containsDeferDeclaration()) {
+        Type* deferType = Type::create(CommonNames::deferTypeName);
+
+        // A defer object is stored on the stack, not the heap.
+        deferType->setReference(false);
+        VariableDeclarationStatement* deferDeclaration =
+            new VariableDeclarationStatement(deferType,
+                                             deferVariableName,
+                                             nullptr,
+                                             outerBlock->getLocation());
+        outerBlock->insertStatementAtFront(deferDeclaration);
+        deferDeclaration->typeCheck(context);
+    }
+
+    const Location& loc = getLocation();
+    MethodCallExpression* addClosureCall =
+        new MethodCallExpression(CommonNames::addClosureMethodName, loc);
+    addClosureCall->addArgument(new AnonymousFunctionExpression(block, loc));
+    MemberSelectorExpression* memberSelector =
+        new MemberSelectorExpression(new NamedEntityExpression(
+                                         deferVariableName),
+                                     addClosureCall,
+                                     loc);
+
+    memberSelector =
+        MemberSelectorExpression::transformMemberSelector(memberSelector,
+                                                          context);
+    outerBlock->replaceCurrentStatement(memberSelector);
+    memberSelector->typeCheck(context);
+
+    return &Type::voidType();
+}
+
+Traverse::Result DeferStatement::traverse(Visitor& visitor) {
+    if (visitor.visitStatement(*this) == Traverse::Skip) {
+        return Traverse::Continue;
+    }
+
+    block->traverse(visitor);
+    return Traverse::Continue;
+}
+
 ConstructorCallStatement::ConstructorCallStatement(
     MethodCallExpression* c) :
     Statement(Statement::ConstructorCall, c->getLocation()),
     constructorCall(c),
-    isBaseClassCtorCall(constructorCall->getName() != Keyword::initString) {}
+    isBaseClassCtorCall(constructorCall->getName() != Keyword::initString),
+    isTypeChecked(false) {}
 
 Statement* ConstructorCallStatement::clone() const {
     return new ConstructorCallStatement(constructorCall->clone());
 }
 
 Type* ConstructorCallStatement::typeCheck(Context& context) {
+    if (isTypeChecked) {
+        return &Type::voidType();
+    }
+
     context.setIsConstructorCallStatement(true);
     ClassDefinition* thisClass = context.getClassDefinition();
     if (isBaseClassCtorCall) {
@@ -714,7 +945,17 @@ Type* ConstructorCallStatement::typeCheck(Context& context) {
                                                                 context);
     constructorCall->typeCheck(context);
     context.setIsConstructorCallStatement(false);
+    isTypeChecked = true;
     return &Type::voidType();
+}
+
+Traverse::Result ConstructorCallStatement::traverse(Visitor& visitor) {
+    if (visitor.visitStatement(*this) == Traverse::Skip) {
+        return Traverse::Continue;
+    }
+
+    constructorCall->traverse(visitor);
+    return Traverse::Continue;
 }
 
 LabelStatement::LabelStatement(
@@ -750,4 +991,8 @@ Type* JumpStatement::typeCheck(Context& context) {
         Trace::error("Not a label: " + labelName, this);
     }
     return &Type::voidType();
+}
+
+bool JumpStatement::mayFallThrough() const {
+    return false;
 }

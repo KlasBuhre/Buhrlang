@@ -10,6 +10,10 @@ namespace {
     Pointer<FileHandle> stdIn = NULL;
 }
 
+Pointer<object> FileHandle::_clone() {
+    return new FileHandle(*this);
+}
+
 Pointer<FileHandle> CStandardIo::fopen(
     Pointer<string> filename,
     Pointer<string> mode) {

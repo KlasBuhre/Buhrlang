@@ -10,8 +10,14 @@ Pointer<string> CStandardLib::toString(int i) {
 }
 
 Pointer<string> CStandardLib::toString(float f) {
-    char buf[32];
+    char buf[64];
     snprintf(buf, 64, "%f", f);
+    return Utils::makeString(buf, strlen(buf));
+}
+
+Pointer<string> CStandardLib::toString(unsigned char b) {
+    char buf[64];
+    snprintf(buf, 64, "%u", b);
     return Utils::makeString(buf, strlen(buf));
 }
 

@@ -7,10 +7,15 @@
 #include "Type.h"
 #include "File.h"
 
+namespace {
+    const Identifier closureTypeName("$Closure");
+}
+
 const std::string Keyword::classString("class");
 const std::string Keyword::interfaceString("interface");
 const std::string Keyword::processString("process");
 const std::string Keyword::namedString("named");
+const std::string Keyword::messageString("message");
 const std::string Keyword::initString("init");
 const std::string Keyword::objectString("object");
 const std::string Keyword::privateString("private");
@@ -22,6 +27,7 @@ const std::string Keyword::intString("int");
 const std::string Keyword::floatString("float");
 const std::string Keyword::stringString("string");
 const std::string Keyword::enumString("enum");
+const std::string Keyword::funString("fun");
 const std::string Keyword::ifString("if");
 const std::string Keyword::elseString("else");
 const std::string Keyword::boolString("bool");
@@ -41,6 +47,7 @@ const std::string Keyword::useString("use");
 const std::string Keyword::nativeString("native");
 const std::string Keyword::yieldString("yield");
 const std::string Keyword::matchString("match");
+const std::string Keyword::deferString("defer");
 const std::string Keyword::jumpString("__jump");
 
 const std::string BuiltInTypes::arrayTypeName("array");
@@ -55,9 +62,16 @@ const std::string BuiltInTypes::arraySliceMethodName("slice");
 const std::string BuiltInTypes::processWaitMethodName("wait");
 const std::string BuiltInTypes::boxTypeName("Box");
 
+const Identifier CommonNames::cloneableTypeName("_Cloneable");
+const Identifier CommonNames::cloneMethodName("_clone");
+const Identifier CommonNames::deepCopyMethodName("_deepCopy");
 const Identifier CommonNames::messageHandlerTypeName("MessageHandler");
 const Identifier CommonNames::matchSubjectName("__match_subject");
 const Identifier CommonNames::enumTagVariableName("$tag");
+const Identifier CommonNames::otherVariableName("other");
+const Identifier CommonNames::callMethodName("call");
+const Identifier CommonNames::deferTypeName("Defer");
+const Identifier CommonNames::addClosureMethodName("addClosure");
 
 bool Keyword::isType(Kind keyword) {
     switch (keyword) {
@@ -141,6 +155,9 @@ Operator::Precedence Operator::precedence(Kind operatorType) {
             return AddSubtract;
         case Range:
             return OpenClosedRange;
+        case LeftShift:
+        case RightShift:
+            return LeftRightShift;
         case Greater:
         case Less:
         case GreaterOrEqual:
@@ -149,6 +166,12 @@ Operator::Precedence Operator::precedence(Kind operatorType) {
         case Equal:
         case NotEqual:
             return EqualNotEqual;
+        case BitwiseAnd:
+            return BitwiseAndP;
+        case BitwiseXor:
+            return BitwiseXorP;
+        case BitwiseOr:
+            return BitwiseOrP;
         case LogicalAnd:
             return AndAnd;
         case LogicalOr:
@@ -184,21 +207,42 @@ void Location::stepLine() {
     column = 1;
 }
 
-LambdaSignature::LambdaSignature(Type* rt) : 
+FunctionSignature::FunctionSignature(Type* rt) :
     arguments(),
     returnType(rt ? rt : new Type(Type::Void)) {}
 
-LambdaSignature::LambdaSignature(const LambdaSignature& other) :
+FunctionSignature::FunctionSignature(const FunctionSignature& other) :
     arguments(),
     returnType(other.returnType->clone()) {
 
-    const TypeList& otherArguments = other.arguments;
-    for (TypeList::const_iterator i = otherArguments.begin();
-         i != otherArguments.end();
-         i++) {
-        Type* argumentType = *i;
-        arguments.push_back(argumentType->clone());
+    Utils::cloneList(arguments, other.arguments);
+}
+
+FunctionSignature* FunctionSignature::clone() const {
+    return new FunctionSignature(*this);
+}
+
+bool FunctionSignature::equals(const FunctionSignature& other) const {
+    if (!Type::areEqualNoConstCheck(returnType, other.returnType)) {
+        return false;
     }
+
+    const TypeList& otherArguments = other.arguments;
+    if (arguments.size() != other.arguments.size()) {
+        return false;
+    }
+
+    auto i = arguments.cbegin();
+    auto j = otherArguments.cbegin();
+    while (i != arguments.cend()) {
+        const Type* type = *i;
+        const Type* otherType = *j;
+        if (!Type::areEqualNoConstCheck(type, otherType)) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 VariableDeclaration::VariableDeclaration(
@@ -218,6 +262,10 @@ VariableDeclaration::VariableDeclaration(const VariableDeclaration& other) :
     type(other.type ? other.type->clone() : nullptr),
     identifier(other.identifier),
     isMember(other.isMember) {}
+
+VariableDeclaration* VariableDeclaration::clone() const {
+    return new VariableDeclaration(*this);
+}
 
 bool VariableDeclaration::operator==(const VariableDeclaration& other) const
 {
@@ -257,6 +305,18 @@ Identifier Symbol::makeEnumVariantClassName(const Identifier& variantName) {
 
 Identifier Symbol::makeConvertableEnumName(const Identifier& enumName) {
     return enumName + "<$>";
+}
+
+Identifier Symbol::makeClosureClassName(
+    const Identifier& userClassName,
+    const Identifier& userMethodName,
+    const Location& location) {
+
+    std::stringstream out;
+    out << location.line;
+    out << location.column;
+    return closureTypeName + "$" + userClassName + "$" + userMethodName + "$" +
+           out.str();
 }
 
 void Trace::error(const std::string& message, const Location& location) {

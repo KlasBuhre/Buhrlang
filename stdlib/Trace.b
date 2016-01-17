@@ -12,6 +12,11 @@ print(char c) {
     CStandardIo.fputc(c, CStandardIo.getStdOut)
 }
 
+// Print a byte to stdout.
+print(byte b) {
+    CStandardIo.fputs(Convert.toStr(b), CStandardIo.getStdOut)
+}
+
 // Print an integer to stdout.
 print(int i) {
     CStandardIo.fputs(Convert.toStr(i), CStandardIo.getStdOut)
@@ -38,6 +43,13 @@ println(string s) {
 println(char c) {
     let stdOut = CStandardIo.getStdOut
     CStandardIo.fputc(c, stdOut)
+    CStandardIo.fputc('\n', stdOut)
+}
+
+// Print a byte followed by newline to stdout.
+println(byte b) {
+    let stdOut = CStandardIo.getStdOut
+    CStandardIo.fputs(Convert.toStr(b), stdOut)
     CStandardIo.fputc('\n', stdOut)
 }
 

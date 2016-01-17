@@ -21,7 +21,6 @@ public:
     Definition(const Definition& other);
 
     virtual Definition* clone() const = 0;
-    virtual void process() = 0;
 
     ClassDefinition* getEnclosingClass() const;
 
@@ -92,12 +91,16 @@ public:
         Properties() :
             isInterface(false),
             isProcess(false),
+            isMessage(false),
+            isClosure(false),
             isGenerated(false),
             isEnumeration(false),
             isEnumerationVariant(false) {}
 
         bool isInterface;
         bool isProcess;
+        bool isMessage;
+        bool isClosure;
         bool isGenerated;
         bool isEnumeration;
         bool isEnumerationVariant;
@@ -118,11 +121,11 @@ public:
         const GenericTypeParameterList& genericTypeParameters,
         const IdentifierList& parents,
         NameBindings* enclosingBindings,
-        const Properties& properties,
+        Properties& properties,
         const Location& location);
 
     virtual ClassDefinition* clone() const;
-    virtual void process();
+    virtual Traverse::Result traverse(Visitor& visitor);
 
     void appendMember(Definition* member);
     void insertMember(
@@ -130,6 +133,7 @@ public:
         Definition* newMember,
         bool insertAfterExistingMember = false);
     void addGenericTypeParameter(GenericTypeParameterDefinition* typeParameter);
+    void addParent(ClassDefinition* parent);
     Context& getMemberInitializationContext();
     Context& getStaticMemberInitializationContext();
     void addPrimaryCtorArgsAsDataMembers(
@@ -140,6 +144,7 @@ public:
     void generateConstructor();
     void generateDefaultConstructor();
     void generateDefaultConstructorIfNeeded();
+    void generateEmptyCopyConstructor();
     MethodDefinition* getDefaultConstructor() const;
     bool isSubclassOf(const ClassDefinition* otherClass) const;
     bool isInheritingFromProcessInterface() const;
@@ -149,18 +154,17 @@ public:
     bool implements(const MethodDefinition* abstractMethod) const;
     bool isReferenceType();
     MethodDefinition* getMainMethod() const;
+    MethodDefinition* getCopyConstructor() const;
     ClassDefinition* getNestedClass(const Identifier& className) const;
     bool isGeneric() const;
     void setConcreteTypeParameters(
         const TypeList& typeParameters,
         const Location& loc);
+    bool needsCloneMethod();
+    void generateCloneMethod();
     void transformIntoInterface();
     void copyMembers(const DefinitionList& from);
     Identifier getFullName() const;
-
-    void setProcessed(bool p) {
-        hasBeenProcessed = p;
-    }
 
     void setRecursive(bool r) {
         isRec = r;
@@ -206,6 +210,14 @@ public:
         return properties.isProcess;
     }
 
+    bool isMessage() const {
+        return properties.isMessage;
+    }
+
+    bool isClosure() const {
+        return properties.isClosure;
+    }
+
     bool isGenerated() const {
         return properties.isGenerated;
     }
@@ -219,8 +231,6 @@ public:
     }
 
 private:
-    void processDataMembers();
-    void processMethodSignatures();
     void addMember(Definition* member);
     void addNestedClass(ClassDefinition* classDefinition);
     void addClassMemberDefinition(ClassMemberDefinition* member);
@@ -228,9 +238,12 @@ private:
     void addMethod(MethodDefinition* newMethod);
     void copyParentClassesNameBindings();
     void copyGenericTypeParameters(const GenericTypeParameterList& from);
+    bool allTypeParametersAreMessagesOrPrimitives() const;
+    void removeCloneableParent();
+    void removeMethod(const Identifier& methodName);
+    void removeCopyConstructor();
     void updateConstructorName();
     MethodDefinition* generateEmptyConstructor();
-    void finishGeneratedConstructor(MethodDefinition* constructor);
     bool isMethodImplementingParentInterfaceMethod(
         MethodDefinition* method) const;
     Context* createInitializationContext(
@@ -249,7 +262,6 @@ private:
     Context* staticMemberInitializationContext;
     Properties properties;
     bool hasConstructor;
-    bool hasBeenProcessed;
     bool isRec;
 };
 
@@ -318,9 +330,11 @@ public:
         ClassDefinition* classDefinition);
 
     virtual Definition* clone() const;
-    virtual void process();
+    virtual Traverse::Result traverse(Visitor& visitor);
 
-    void processSignature();
+    void typeCheckAndTransform();
+    void updateGenericTypesInSignature();
+    void convertClosureTypesInSignature();
     std::string toString() const;
     void addArgument(VariableDeclaration* argument);
     void addArgument(Type::BuiltInType type, const Identifier& argumentName);
@@ -329,16 +343,17 @@ public:
         const Identifier& typeName,
         const Identifier& argumentName);
     void addArguments(const ArgumentList& arguments);
-    void setLambdaSignature(LambdaSignature* s, const Location& loc);
+    void setLambdaSignature(FunctionSignature* s, const Location& loc);
     void generateBaseClassConstructorCall(const Identifier& baseClassName);
     void generateMemberInitializationsFromConstructorArgumets(
         const ArgumentList& constructorArguments);
     void generateMemberInitializations(const DataMemberList& dataMembers);
     void generateMemberDefaultInitializations(
         const DataMemberList& dataMembers);
-    bool isCompatible(const ArgumentList& arguments) const;
     bool isCompatible(const TypeList& arguments) const;
+    bool argumentsAreEqual(const ArgumentList& arguments) const;
     bool implements(const MethodDefinition* abstractMethod) const;
+    void checkReturnStatements();
     const ClassDefinition* getClass() const;
 
     void transformIntoAbstract() {
@@ -353,6 +368,10 @@ public:
         return returnType;
     }
 
+    void setReturnType(Type* t) {
+        returnType = t;
+    }
+
     const ArgumentList& getArgumentList() const {
         return argumentList;
     }
@@ -361,7 +380,7 @@ public:
         return body;
     }
 
-    LambdaSignature* getLambdaSignature() const {
+    FunctionSignature* getLambdaSignature() const {
         return lambdaSignature;
     }
 
@@ -373,24 +392,48 @@ public:
         return isEnumCtor;
     }
 
+    bool isEnumCopyConstructor() const {
+        return isEnumCopyCtor;
+    }
+
     bool isFunction() const {
         return isFunc;
+    }
+
+    bool isGenerated() const {
+        return generated;
     }
 
     bool isAbstract() const {
         return body == nullptr;
     }
 
-    bool hasBeenProcessedBefore() const {
-        return hasBeenProcessed;
+    bool hasBeenTypeCheckedAndTransformedBefore() const {
+        return hasBeenTypeCheckedAndTransformed;
+    }
+
+    void setIsPrimaryConstructor(bool p) {
+        isPrimaryCtor = p;
     }
 
     void setIsEnumConstructor(bool e) {
         isEnumCtor = e;
     }
 
+    void setIsEnumCopyConstructor(bool e) {
+        isEnumCopyCtor = e;
+    }
+
     void setIsFunction(bool f) {
         isFunc = f;
+    }
+
+    void setIsClosure(bool c) {
+        isClosure = c;
+    }
+
+    void setIsGenerated(bool g) {
+        generated = g;
     }
 
     void setName(const Identifier& n) {
@@ -401,20 +444,24 @@ private:
     void updateGenericReturnType(const NameBindings& nameBindings);
     void updateGenericTypesInArgumentList(const NameBindings& nameBindings);
     void updateGenericTypesInLambdaSignature(const NameBindings& nameBindings);
+    void convertClosureTypesInArgumentList();
+    void convertClosureTypesInLambdaSignature();
     void makeArgumentNamesUnique();
-    void processConstructor();
-    void checkForReturnStatement();
+    void finishConstructor();
     void copyArgumentList(const ArgumentList& from);
 
     Type* returnType;
     ArgumentList argumentList;
     BlockStatement* body;
-    LambdaSignature* lambdaSignature;
+    FunctionSignature* lambdaSignature;
     bool isCtor;
+    bool isPrimaryCtor;
     bool isEnumCtor;
+    bool isEnumCopyCtor;
     bool isFunc;
-    bool hasBeenProcessed;
-    bool hasSignatureBeenProcessed;
+    bool isClosure;
+    bool generated;
+    bool hasBeenTypeCheckedAndTransformed;
 };
 
 class DataMemberDefinition: public ClassMemberDefinition {
@@ -431,7 +478,10 @@ public:
     DataMemberDefinition(const DataMemberDefinition& other);
 
     virtual Definition* clone() const;
-    virtual void process();
+    virtual Traverse::Result traverse(Visitor& visitor);
+
+    void typeCheckAndTransform();
+    void convertClosureType();
 
     static bool isDataMember(Definition* definition);
 
@@ -458,6 +508,7 @@ private:
     Type* type;
     Expression* expression;
     bool isPrimaryCtorArgument;
+    bool hasBeenTypeCheckedAndTransformed;
 };
 
 class GenericTypeParameterDefinition: public Definition {
@@ -466,7 +517,6 @@ public:
     GenericTypeParameterDefinition(const GenericTypeParameterDefinition& other);
 
     virtual GenericTypeParameterDefinition* clone() const;
-    virtual void process() {}
 
     void setConcreteType(Type* type) {
         concreteType = type;
@@ -486,7 +536,6 @@ public:
     ForwardDeclarationDefinition(const ForwardDeclarationDefinition& other);
 
     virtual ForwardDeclarationDefinition* clone() const;
-    virtual void process() {}
 };
 
 #endif

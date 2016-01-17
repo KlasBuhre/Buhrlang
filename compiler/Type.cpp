@@ -12,6 +12,7 @@ Type::Type(const Identifier& n) :
     name(n),
     genericTypeParameters(),
     definition(nullptr),
+    functionSignature(nullptr),
     constant(true),
     reference(true), 
     array(false) {
@@ -28,6 +29,7 @@ Type::Type(BuiltInType t) :
     name(),
     genericTypeParameters(),
     definition(nullptr),
+    functionSignature(nullptr),
     constant(true),
     reference(false), 
     array(false) {
@@ -40,7 +42,7 @@ Type::Type(BuiltInType t) :
             name = "_";
             break;
         case Implicit:
-            name = Keyword::varString;
+            name = "implicit";
             break;
         case Byte:
             name = Keyword::byteString;
@@ -65,6 +67,10 @@ Type::Type(BuiltInType t) :
             name = "lambda";
             reference = true;
             break;
+        case Function:
+            name = Keyword::funString;
+            reference = true;
+            break;
         case Object:
             name = Keyword::objectString;
             reference = true;
@@ -79,6 +85,8 @@ Type::Type(const Type& other) :
     name(other.name),
     genericTypeParameters(),
     definition(other.definition),
+    functionSignature(other.functionSignature ?
+                      other.functionSignature->clone() : nullptr),
     constant(other.constant),
     reference(other.reference),
     array(other.array) {
@@ -140,6 +148,8 @@ std::string Type::toString() const {
         }
         if (hasGenericTypeParameters()) {
             str += getFullConstructedName();
+        } else if (isFunction()) {
+            str += getClosureInterfaceName();
         } else {
             str += name;
         }
@@ -222,18 +232,18 @@ bool Type::operator==(const Type& other) const {
     return false;
 }
 
-bool Type::operator != (const Type& other) const  {
+bool Type::operator != (const Type& other) const {
     return !(*this == other);
 }
 
-bool Type::areTypeParametersMatching(const Type* other) const  {
+bool Type::areTypeParametersMatching(const Type* other) const {
     if (genericTypeParameters.size() != other->genericTypeParameters.size()) {
         return false;
     }
 
-    TypeList::const_iterator i = genericTypeParameters.begin();
-    TypeList::const_iterator j = other->genericTypeParameters.begin();
-    while (i != genericTypeParameters.end()) {
+    auto i = genericTypeParameters.cbegin();
+    auto j = other->genericTypeParameters.cbegin();
+    while (i != genericTypeParameters.cend()) {
         Type* typeParameter = *i;
         Type* otherTypeParameter = *j;
         if (*typeParameter != *otherTypeParameter) {
@@ -243,6 +253,25 @@ bool Type::areTypeParametersMatching(const Type* other) const  {
         j++;
     }
     return true;
+}
+
+bool Type::isMessageOrPrimitive() const {
+    if (ClassDefinition* classDef = definition->cast<ClassDefinition>()) {
+        if (!isPrimitive() && !classDef->isMessage()) {
+            return false;
+        }
+
+        for (auto i = genericTypeParameters.cbegin();
+             i != genericTypeParameters.cend();
+             i++) {
+            Type* typeParameter = *i;
+            if (!typeParameter->isMessageOrPrimitive()) {
+                return false;
+            }
+        }
+        return true;
+    }
+    return false;
 }
 
 void Type::setDefinition(Definition* d) {
@@ -301,12 +330,13 @@ Identifier Type::getFullConstructedName() const {
     if (genericTypeParameters.empty()) {
         return name;
     }
+
     bool insertComma = false;
     Identifier fullName = name + '<';
-    for (TypeList::const_iterator i = genericTypeParameters.begin();
-         i != genericTypeParameters.end();
+    for (auto i = genericTypeParameters.cbegin();
+         i != genericTypeParameters.cend();
          i++) {
-        Type* typeParameter = *i;
+        const Type* typeParameter = *i;
         if (insertComma) {
             fullName += ',';
         }
@@ -314,7 +344,33 @@ Identifier Type::getFullConstructedName() const {
         insertComma = true;
     }
     fullName += '>';
+
     return fullName;
+}
+
+Identifier Type::getClosureInterfaceName() const {
+    assert(functionSignature != nullptr);
+
+    Identifier interfaceName = Keyword::funString + ' ';
+    const Type* returnType = functionSignature->getReturnType();
+    if (returnType != nullptr) {
+        interfaceName += returnType->toString();
+    }
+
+    bool insertComma = false;
+    interfaceName += '(';
+    const TypeList& arguments = functionSignature->getArguments();
+    for (auto i = arguments.cbegin(); i != arguments.cend(); i++) {
+        const Type* argumentType = *i;
+        if (insertComma) {
+            interfaceName += ',';
+        }
+        interfaceName += argumentType->toString();
+        insertComma = true;
+    }
+    interfaceName += ')';
+
+    return interfaceName;
 }
 
 bool Type::areEqualNoConstCheck(
@@ -333,6 +389,12 @@ bool Type::areEqualNoConstCheck(
         left->name.compare(right->name) == 0 &&
         left->reference == right->reference &&
         left->array == right->array) {
+
+        if (left->isFunction() && !left->getFunctionSignature()->equals(
+                *(right->getFunctionSignature()))) {
+            return false;
+        }
+
         if (checkTypeParameters) {
             return left->areTypeParametersMatching(right);
         }
@@ -358,6 +420,11 @@ bool Type::areInitializable(const Type* left, const Type* right) {
             !left->areTypeParametersMatching(right)) {
             return false;
         }
+    } else if (left->isFunction() && right->isFunction()) {
+        if (!left->getFunctionSignature()->equals(
+                *(right->getFunctionSignature()))) {
+            return false;
+        }
     } else if (left->isBuiltIn() && right->isBuiltIn()) {
         if (left->builtInType != right->builtInType &&
             !areBuiltInsImplicitlyConvertable(right->builtInType,
@@ -370,6 +437,7 @@ bool Type::areInitializable(const Type* left, const Type* right) {
             return false;
         }
     }
+
     if (left->array != right->array) {
         return false;
     }
@@ -572,9 +640,9 @@ const Type* Type::calculateCommonType(
             assert(previousTypeParameters.size() ==
                    currentTypeParameters.size());
 
-            TypeList::const_iterator i = previousTypeParameters.begin();
-            TypeList::const_iterator j = currentTypeParameters.begin();
-            while (i != previousTypeParameters.end()) {
+            auto i = previousTypeParameters.cbegin();
+            auto j = currentTypeParameters.cbegin();
+            while (i != previousTypeParameters.cend()) {
                 const Type* previous = *i;
                 const Type* current = *j;
                 if (previous->isPlaceholder() && !current->isPlaceholder()) {

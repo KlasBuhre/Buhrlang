@@ -15,7 +15,7 @@ native class Process {
     static int registerMessageHandler(MessageHandler messageHandler)
 
     // Send a message to a process.
-    static send(int destinationPid, Message message)
+    static send(int destinationPid, Message msg)
 
     // Receive a message.
     static Message receive()
@@ -24,7 +24,7 @@ native class Process {
     static Message receiveMethodResult(int messageId)
 
     // Receive a message that matches the given type and ID.
-    static Message receive(MessageType messageType, int messageId)
+    static Message receive(int messageType, int messageId)
 
     // Return the PID of the current process.
     static int getPid()

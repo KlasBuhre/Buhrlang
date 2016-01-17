@@ -7,6 +7,11 @@ class Convert {
         return CStandardLib.toString(i)
     }
 
+    // Convert byte to string.
+    static string toStr(byte b) {
+        return CStandardLib.toString(b)
+    }
+
     // Convert float to string.
     static string toStr(float f) {
         return CStandardLib.toString(f)
