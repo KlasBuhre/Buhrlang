@@ -142,7 +142,10 @@ private:
     };
 
     ClassDefinition* insertBuiltInType(const Identifier& name);
-    void insertObjectClassAndVoidInGlobalNameBindings();
+    void insertBuiltInTypesInGlobalNameBindings();
+    void addEqualsMethod(
+        ClassDefinition* classDef,
+        Type::BuiltInType builtInType);
     void generateNoArgsClosureInterface();
     void generateDeferClass();
     void generateArrayClass();

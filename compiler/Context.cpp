@@ -18,29 +18,21 @@ Context::Context(MethodDefinition* m) :
     constructorCallStatement(false) {}
 
 Binding* Context::lookup(const Identifier& name) const {
-    Binding* binding = nullptr;
     if (classLocalNameBindings) {
-        binding = classLocalNameBindings->lookupLocal(name);
-    } else {
-        binding = bindings->lookup(name);
+        return classLocalNameBindings->lookupLocal(name);
     }
-    return binding;
+    return bindings->lookup(name);
 }
 
 Definition* Context::lookupType(const Identifier& name) const {
     return bindings->lookupType(name);
 }
 
-Type* Context::makeGenericTypeConcrete(
-    Type* type,
-    const Location& location) const {
-
-    return Tree::makeGenericTypeConcrete(type, *bindings, location);
-}
-
 Type* Context::lookupConcreteType(Type* type, const Location& location) const {
     Tree::lookupAndSetTypeDefinition(type, *bindings, location);
-    Type* concreteType = makeGenericTypeConcrete(type, location);
+    Type* concreteType = Tree::makeGenericTypeConcrete(type,
+                                                       *bindings,
+                                                       location);
     if (concreteType != nullptr) {
         // The type is a generic type parameter that has been assigned a
         // concrete type. Change the type to the concrete type.

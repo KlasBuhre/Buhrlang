@@ -344,6 +344,10 @@ void ClassDefinition::addMethod(MethodDefinition* newMethod) {
         hasConstructor = true;
     }
 
+    if (isInterface()) {
+        newMethod->setIsVirtual(true);
+    }
+
     Binding* methodBinding = nameBindings.lookupLocal(newMethod->getName());
     if (methodBinding != nullptr) {
         if (methodBinding->getReferencedEntity() != Binding::Method) {
@@ -354,13 +358,16 @@ void ClassDefinition::addMethod(MethodDefinition* newMethod) {
         Binding::MethodList& methodList = methodBinding->getMethodList();
         for (auto i = methodList.cbegin(); i != methodList.cend(); i++) {
             const MethodDefinition* method = *i;
-            if (!method->isAbstract() &&
-                method->argumentsAreEqual(newMethod->getArgumentList()) &&
-                method->getClass() == this) {
-                Trace::error("Method with same arguments already defined in "
-                             "this class. Cannot overload: " +
-                             newMethod->getName(),
-                             newMethod->getLocation());
+            if (method->argumentsAreEqual(newMethod->getArgumentList())) {
+                if (method->getClass() == this) {
+                    Trace::error("Method with same arguments already defined in"
+                                 " this class. Cannot overload: " +
+                                 newMethod->getName(),
+                                 newMethod->getLocation());
+                }
+                if (method->isVirtual()) {
+                    newMethod->setIsVirtual(true);
+                }
             }
         }
         methodList.push_back(newMethod);
@@ -441,7 +448,8 @@ void ClassDefinition::generateDefaultConstructor() {
 }
 
 void ClassDefinition::generateDefaultConstructorIfNeeded() {
-    if (!hasConstructor && !isEnumeration() && !isEnumerationVariant()) {
+    if (!hasConstructor && !isEnumeration() && !isEnumerationVariant() &&
+        !isInterface()) {
         generateDefaultConstructor();
     }
 }
@@ -930,6 +938,7 @@ MethodDefinition::MethodDefinition(
     isEnumCopyCtor(false),
     isFunc(false),
     isClosure(false),
+    isVirt(false),
     generated(true),
     hasBeenTypeCheckedAndTransformed(false) {
 
@@ -949,6 +958,7 @@ MethodDefinition::MethodDefinition(const MethodDefinition& other) :
     isEnumCopyCtor(other.isEnumCopyCtor),
     isFunc(other.isFunc),
     isClosure(other.isClosure),
+    isVirt(other.isVirt),
     generated(other.generated),
     hasBeenTypeCheckedAndTransformed(other.hasBeenTypeCheckedAndTransformed) {
 
@@ -1471,6 +1481,11 @@ bool MethodDefinition::implements(
 
 const ClassDefinition* MethodDefinition::getClass() const {
     return getEnclosingDefinition()->dynCast<ClassDefinition>();
+}
+
+void MethodDefinition::transformIntoAbstract() {
+    body = nullptr;
+    setIsVirtual(true);
 }
 
 void MethodDefinition::setLambdaSignature(

@@ -8,6 +8,9 @@ native class CStandardLib {
     // Convert int to string.
     static string toString(int i)
 
+    // Convert long to string.
+    static string toString(long l)
+
     // Convert float to string.
     static string toString(float f)
 
@@ -16,4 +19,7 @@ native class CStandardLib {
 
     // Convert string to float.
     static float toFloat(string s)
+
+    // Generate a random number.
+    static int rand()
 }

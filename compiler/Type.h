@@ -21,6 +21,7 @@ public:
         Byte,
         Char,
         Integer,
+        Long,
         Float,
         Boolean,
         String,

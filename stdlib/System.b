@@ -5,6 +5,33 @@ message interface _Cloneable {
     object _clone()
 }
 
+int _hash(char self) {
+    return self
+}
+
+int _hash(byte self) {
+    return self
+}
+
+int _hash(int self) {
+    return self
+}
+
+int _hash(long self) {
+    return (int) self
+}
+
+int _hash(float self) {
+    return (int) self
+}
+
+int _hash(bool self) {
+    if self {
+        return 1
+    }
+    return 0
+}
+
 message class __string {
     private var char[] buf
 

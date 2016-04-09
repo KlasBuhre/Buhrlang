@@ -22,6 +22,11 @@ print(int i) {
     CStandardIo.fputs(Convert.toStr(i), CStandardIo.getStdOut)
 }
 
+// Print a long integer to stdout.
+print(long l) {
+    CStandardIo.fputs(Convert.toStr(l), CStandardIo.getStdOut)
+}
+
 // Print a float to stdout.
 print(float f) {
     CStandardIo.fputs(Convert.toStr(f), CStandardIo.getStdOut)
@@ -57,6 +62,13 @@ println(byte b) {
 println(int i) {
     let stdOut = CStandardIo.getStdOut
     CStandardIo.fputs(Convert.toStr(i), stdOut)
+    CStandardIo.fputc('\n', stdOut)
+}
+
+// Print a long integer followed by newline to stdout.
+println(long l) {
+    let stdOut = CStandardIo.getStdOut
+    CStandardIo.fputs(Convert.toStr(l), stdOut)
     CStandardIo.fputc('\n', stdOut)
 }
 

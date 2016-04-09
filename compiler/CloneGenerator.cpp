@@ -93,7 +93,7 @@ void CloneGenerator::generateCloneMethod() {
 //     memberArray.appendAll(other.memberArray)
 //
 //     // Or, if array elements are of reference type or enum type:
-//     other.memberArray.each { |element|
+//     other.memberArray.each |element| {
 //
 //         // If array elements are of reference type.
 //         memberArray.append((ArrayType) element._clone)
@@ -210,7 +210,7 @@ void CloneGenerator::generateEnumMemberInit(
 // memberArray.appendAll(other.memberArray)
 //
 // // Or, if array elements are of reference type or enum type:
-// other.memberArray.each { |element|
+// other.memberArray.each |element| {
 //
 //     // If array elements are of reference type.
 //     memberArray.append((ArrayType) element._clone)
@@ -248,7 +248,7 @@ void CloneGenerator::generateArrayMemberInit(
         generateArrayAppendAllCall(memberName);
     } else {
         // Generate:
-        // other.memberArray.each { |element|
+        // other.memberArray.each |element| {
         //     memberArray.append((ArrayType) element._clone)
         // }
         checkNonPrimitiveMember(dataMember);
@@ -271,7 +271,7 @@ void CloneGenerator::generateArrayAppendAllCall(const Identifier& memberName) {
 
 // Generate the following code:
 //
-// other.memberArray.each { |element|
+// other.memberArray.each |element| {
 //
 //     // If array elements are of reference type.
 //     memberArray.append((ArrayType) element._clone)
@@ -285,7 +285,7 @@ void CloneGenerator::generateArrayForEachLoop(
     Type* arrayElementType) {
 
     // Generate:
-    // other.memberArray.each { |element|
+    // other.memberArray.each |element| {
     MethodCallExpression* eachCall =
         new MethodCallExpression(BuiltInTypes::arrayEachMethodName);
     BlockStatement* lambdaBody = tree.startBlock();

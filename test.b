@@ -4,6 +4,7 @@ import "TcpSocket"
 import "Convert"
 import "List"
 import "Vector"
+import "Map"
 import "Console"
 
 // ----------------------------------------------------------------------------
@@ -327,10 +328,15 @@ class ExpressionTest {
         let circumference = pi * diameter
         println("circumference = " + Convert.toStr(circumference))
 
+        let long longInt = 4000000
+        println(longInt * longInt)
+
         let neg = -20
         println(20 * neg)
         let f = -1.3 * -2.77
         println(f)
+
+        println(10 % 4)
 
         let a1 = 1
         let a2 = 2
@@ -1005,6 +1011,18 @@ class Computer(arg int price, Screen screen) : Device(price) {
 }
 */
 
+class Baze {
+    virtual virtualMethod(int i) {
+        println("Baze.virtualMethod() " + Convert.toStr(i))
+    }
+}
+
+class Der: Baze {
+    virtualMethod(int i) {
+        println("Der.virtualMethod() " + Convert.toStr(i))
+    }
+}
+
 class InheritanceTest: CallbackInterface {
     run() {
         println("----------[Inheritance Test]----------")
@@ -1036,7 +1054,17 @@ class InheritanceTest: CallbackInterface {
         }
 
         let copy = clone(computer)
-        copy.printInfo        
+        copy.printInfo
+
+        let Baze o = new Der
+        o.virtualMethod(2)
+
+        println(o.hash)
+        println(o.equals(o))
+
+        let i = 3
+        println(i.hash)
+        println(i.equals(3))
     }
 
     callback() {
@@ -1073,6 +1101,37 @@ class GenericsTest {
     run() {    
         println("----------[Generics Test]----------")
 
+        let map = new Map<int, string>
+        map.insert(2, "2")
+        if let Some(val) = map.find(2) {
+            println(val)
+        }
+        if let Some(val) = map.find(3) {
+            println(val)
+        }
+        for var i = 0; i < 100; i++ {
+            map.insert(i, Convert.toStr(i))
+        }
+        for var i = 0; i < 100; i++ {
+            if let Some(val) = map.find(i) {
+                if Convert.toInt(val) != i {
+                    println("ERROR!")
+                }
+            } else {
+                println("ERROR!")
+            }
+        }
+        for var i = 0; i < 100; i += 2 {
+            map.remove(i)
+            if let Some(_) = map.find(i) {
+                println("ERROR!")
+            }
+        }
+        map.each |k, v| {
+            print("(" + Convert.toStr(k) + "," + v + ")")
+        }
+        println
+
         let list = new List<int>
         list.add(1)
         list.add(2)
@@ -1084,7 +1143,12 @@ class GenericsTest {
         if let Some(b) = list.getBack {
             print(b)
         }
+        var c = 0
         list.each |e| {
+            c++
+            if c == 2 {
+                continue
+            }
             print(e)
         }
         println

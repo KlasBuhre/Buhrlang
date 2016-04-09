@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <list>
 #include <vector>
 #include <map>
@@ -103,6 +104,9 @@ namespace {
 }
 
 int main() {
+    time_t t;
+    srand(time(&t));
+
     processEntryPoint(currentProcess, nullptr);
     return 0;
 }

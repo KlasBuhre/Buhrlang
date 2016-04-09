@@ -248,23 +248,16 @@ Tree::Tree() :
     currentPass(Parse) {
 
     setCurrentTree();
-    insertObjectClassAndVoidInGlobalNameBindings();
-    insertBuiltInType("_");
-    insertBuiltInType("lambda");
-    insertBuiltInType(Keyword::funString);
-    insertBuiltInType("implicit");
-    insertBuiltInType(Keyword::byteString);
-    insertBuiltInType(Keyword::charString);
-    insertBuiltInType(Keyword::intString);
-    insertBuiltInType(Keyword::floatString);
-    insertBuiltInType(Keyword::boolString);
+    insertBuiltInTypesInGlobalNameBindings();
     globalFunctionsClass = insertBuiltInType("_Global_Functions_");
     generateArrayClass();
     generateNoArgsClosureInterface();
     generateDeferClass();
 }
 
-void Tree::insertObjectClassAndVoidInGlobalNameBindings() {
+void Tree::insertBuiltInTypesInGlobalNameBindings() {
+
+    // Start generating the object class.
     GenericTypeParameterList typeParameters;
     ClassDefinition::Properties properties;
     ClassList parents;
@@ -276,16 +269,60 @@ void Tree::insertObjectClassAndVoidInGlobalNameBindings() {
                             &globalNameBindings,
                             properties,
                             Location());
-    objectClass->generateDefaultConstructor();
     globalNameBindings.insertClass(Keyword::objectString, objectClass);
 
-    ClassDefinition* voidClass = insertBuiltInType("void");
+    objectClass->generateDefaultConstructor();
 
-    // We have to set the return type definition of the object class constructor
-    // to void. That was not done automatically beacuse the void type did not
-    // exist when the constructor was generated.
+    // Add method:
+    // virtual bool equals(object obj)
+    MethodDefinition* equalsMethod =
+        MethodDefinition::create(BuiltInTypes::objectEqualsMethodName,
+                                 new Type(Type::Boolean),
+                                 false,
+                                 objectClass);
+    Type* objectType = new Type(Type::Object);
+    objectType->setDefinition(objectClass);
+    equalsMethod->addArgument(objectType, "obj");
+    equalsMethod->setIsVirtual(true);
+    objectClass->appendMember(equalsMethod);
+
+    // Add method:
+    // virtual int hash()
+    MethodDefinition* hashMethod =
+        MethodDefinition::create(BuiltInTypes::objectHashMethodName,
+                                 new Type(Type::Boolean),
+                                 false,
+                                 objectClass);
+    hashMethod->setIsVirtual(true);
+    objectClass->appendMember(hashMethod);
+
+    // Create the primitive types (and some other types).
+    ClassDefinition* viodClass = insertBuiltInType("void");
+    insertBuiltInType("_");
+    insertBuiltInType("lambda");
+    insertBuiltInType(Keyword::funString);
+    insertBuiltInType("implicit");
+    ClassDefinition* byteClass = insertBuiltInType(Keyword::byteString);
+    ClassDefinition* charClass = insertBuiltInType(Keyword::charString);
+    ClassDefinition* floatClass = insertBuiltInType(Keyword::floatString);
+    ClassDefinition* intClass = insertBuiltInType(Keyword::intString);
+    ClassDefinition* longClass = insertBuiltInType(Keyword::longString);
+    ClassDefinition* boolClass = insertBuiltInType(Keyword::boolString);
+
+    // Now that the primitive types exist we can set the definitions of the
+    // return types of the methods in the object class.
     objectClass->getDefaultConstructor()->getReturnType()->setDefinition(
-        voidClass);
+        viodClass);
+    equalsMethod->getReturnType()->setDefinition(boolClass);
+    hashMethod->getReturnType()->setDefinition(intClass);
+
+    // Add equals() methods to the primitive types.
+    addEqualsMethod(byteClass, Type::Byte);
+    addEqualsMethod(charClass, Type::Char);
+    addEqualsMethod(floatClass, Type::Float);
+    addEqualsMethod(intClass, Type::Integer);
+    addEqualsMethod(longClass, Type::Integer);
+    addEqualsMethod(boolClass, Type::Boolean);
 }
 
 ClassDefinition* Tree::insertBuiltInType(const Identifier& name) {
@@ -294,11 +331,27 @@ ClassDefinition* Tree::insertBuiltInType(const Identifier& name) {
     return finishClass();
 }
 
+void Tree::addEqualsMethod(
+    ClassDefinition* classDef,
+    Type::BuiltInType builtInType) {
+
+    // Add method:
+    // virtual bool equals([builtInType] obj)
+    MethodDefinition* equalsMethod =
+        MethodDefinition::create(BuiltInTypes::objectEqualsMethodName,
+                                 new Type(Type::Boolean),
+                                 false,
+                                 classDef);
+    equalsMethod->addArgument(new Type(builtInType), "obj");
+    classDef->appendMember(equalsMethod);
+}
+
 void Tree::generateArrayClass() {
     ClassDefinition::Properties properties;
     startGeneratedClass(BuiltInTypes::arrayTypeName, properties);
     ClassDefinition* arrayClass = getCurrentClass();
 
+    // Add method:
     // int length()
     MethodDefinition* lengthMethod =
         MethodDefinition::create(BuiltInTypes::arrayLengthMethodName,
@@ -307,6 +360,7 @@ void Tree::generateArrayClass() {
                                  arrayClass);
     addClassMember(lengthMethod);
 
+    // Add method:
     // int size()
     MethodDefinition* sizeMethod =
         MethodDefinition::create(BuiltInTypes::arraySizeMethodName,
@@ -315,6 +369,7 @@ void Tree::generateArrayClass() {
                                  arrayClass);
     addClassMember(sizeMethod);
 
+    // Add method:
     // int capacity()
     MethodDefinition* capacityMethod =
         MethodDefinition::create(BuiltInTypes::arrayCapacityMethodName,
@@ -345,6 +400,7 @@ void Tree::generateArrayClass() {
     // array4 = array[1...3]
     //
 
+    // Add method:
     // append(_ element)
     MethodDefinition* appendMethod =
         MethodDefinition::create(BuiltInTypes::arrayAppendMethodName,
@@ -354,6 +410,7 @@ void Tree::generateArrayClass() {
     appendMethod->addArgument(Type::Placeholder, "element");
     addClassMember(appendMethod);
 
+    // Add method:
     // appendAll(_[] array)
     MethodDefinition* appendAllMethod =
         MethodDefinition::create(BuiltInTypes::arrayAppendAllMethodName,
@@ -365,6 +422,7 @@ void Tree::generateArrayClass() {
     appendAllMethod->addArgument(arrayType, "array");
     addClassMember(appendAllMethod);
 
+    // Add method:
     // _[] concat(_[] array)
     Type* concatReturnType = new Type(Type::Placeholder);
     concatReturnType->setArray(true);
@@ -378,6 +436,7 @@ void Tree::generateArrayClass() {
     concatMethod->addArgument(concatArrayType, "array");
     addClassMember(concatMethod);
 
+    // Add method:
     // _[] slice(int begin, int end)
     Type* sliceReturnType = new Type(Type::Placeholder);
     sliceReturnType->setArray(true);
@@ -390,6 +449,7 @@ void Tree::generateArrayClass() {
     sliceMethod->addArgument(Type::Integer, "end");
     addClassMember(sliceMethod);
 
+    // Add method:
     // each() (_)
     MethodDefinition* eachMethod =
         MethodDefinition::create(BuiltInTypes::arrayEachMethodName,

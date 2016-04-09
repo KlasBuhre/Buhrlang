@@ -319,8 +319,12 @@ void Parser::parseClassMember(AccessLevel::Kind access, bool isClassNative) {
     }
 
     bool isStatic = false;
+    bool isVirtual = false;
     if (token->isKeyword(Keyword::Static)) {
         isStatic = true;
+        lexer.consumeToken();
+    } else if (token->isKeyword(Keyword::Virtual)) {
+        isVirtual = true;
         lexer.consumeToken();
     }
 
@@ -341,6 +345,7 @@ void Parser::parseClassMember(AccessLevel::Kind access, bool isClassNative) {
                                                type,
                                                access,
                                                isStatic,
+                                               isVirtual,
                                                !isClassNative);
         tree.addClassMember(method);
     } else {
@@ -355,20 +360,23 @@ void Parser::parseClassMember(AccessLevel::Kind access, bool isClassNative) {
 
 MethodDefinition* Parser::parseMethod(
     const Token& name,
-    Type* type,
+    Type* returnType,
     AccessLevel::Kind access,
     bool isStatic,
+    bool isVirtual,
     bool parseBody) {
 
     Identifier methodName(name.getValue());
     removeAliasPrefix(methodName);
     MethodDefinition* method = new MethodDefinition(methodName,
-                                                    type,
+                                                    returnType,
                                                     access,
                                                     isStatic,
                                                     tree.getCurrentClass(),
                                                     name.getLocation());
     method->setIsGenerated(false);
+    method->setIsVirtual(isVirtual);
+
     if (parseBody) {
         BlockStatement* body = tree.startBlock(location());
         method->setBody(body);
@@ -519,6 +527,7 @@ void Parser::parseInterfaceMember() {
                                                type,
                                                AccessLevel::Public,
                                                false,
+                                               true,
                                                false);
         tree.addClassMember(method);
     } else {
@@ -683,6 +692,7 @@ MethodDefinition* Parser::parseFunction() {
                                              type,
                                              AccessLevel::Public,
                                              true,
+                                             false,
                                              true);
     tree.finishFunction(function);
     return function;
@@ -1630,6 +1640,17 @@ void Parser::parseOptionalBinding(const Location& location) {
     matchCase->addPatternExpression(pattern);
     matchCase->setResultBlock(parseBlock());
     matchExpression->addCase(matchCase);
+
+    const Token& token = lexer.getCurrentToken();
+    if (token.isKeyword(Keyword::Else)) {
+        lexer.consumeToken();
+
+        MatchCase* elseCase = new MatchCase(location);
+        elseCase->addPatternExpression(new PlaceholderExpression(location));
+        elseCase->setResultBlock(parseBlock());
+        matchExpression->addCase(elseCase);
+    }
+
     tree.addStatement(matchExpression);
 }
 
@@ -1709,8 +1730,10 @@ void Parser::parseReturnStatement() {
     assert(returnToken.isKeyword(Keyword::Return));
 
     Expression* expression = nullptr;
+    const Token& currentToken = lexer.getCurrentToken();
     if (!lexer.previousTokenWasNewline() &&
-        !lexer.getCurrentToken().isOperator(Operator::CloseBrace)) {
+        !currentToken.isOperator(Operator::CloseBrace) &&
+        !currentToken.isOperator(Operator::Comma)) {
         expression = parseExpression();
     }
 

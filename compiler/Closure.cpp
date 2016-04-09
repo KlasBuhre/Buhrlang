@@ -167,7 +167,7 @@ namespace {
     Traverse::Result GenericTypeVisitor::visitVariableDeclaration(
         VariableDeclarationStatement& varDeclaration) {
 
-        varDeclaration.changeTypeIfGeneric(context);
+        varDeclaration.lookupType(context);
         return Traverse::Continue;
     }
 

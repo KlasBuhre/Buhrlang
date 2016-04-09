@@ -119,6 +119,7 @@ void Lexer::tokenize() {
             case '+':
             case '-':
             case '*':
+            case '%':
             case '.':
             case ',':
             case '>':
@@ -386,6 +387,9 @@ void Lexer::makeOperatorToken(const Location& startLocation) {
                 op = Operator::Dot;
             }
             break;
+        case '%':
+            op = Operator::Modulo;
+            break;
         case ',':
             op = Operator::Comma;
             break;
@@ -478,10 +482,12 @@ void Lexer::initKeywordMap() {
     keywordMap[Keyword::initString] = Keyword::Init;
     keywordMap[Keyword::privateString] = Keyword::Private;
     keywordMap[Keyword::staticString] = Keyword::Static;
+    keywordMap[Keyword::virtualString] = Keyword::Virtual;
     keywordMap[Keyword::argString] = Keyword::Arg;
     keywordMap[Keyword::byteString] = Keyword::Byte;
     keywordMap[Keyword::charString] = Keyword::Char;
     keywordMap[Keyword::intString] = Keyword::Int;
+    keywordMap[Keyword::longString] = Keyword::Long;
     keywordMap[Keyword::floatString] = Keyword::Float;
     keywordMap[Keyword::stringString] = Keyword::String;
     keywordMap[Keyword::enumString] = Keyword::Enum;

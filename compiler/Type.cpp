@@ -53,6 +53,9 @@ Type::Type(BuiltInType t) :
         case Integer:
             name = Keyword::intString;
             break;
+        case Long:
+            name = Keyword::longString;
+            break;
         case Float:
             name = Keyword::floatString;
             break;
@@ -113,6 +116,8 @@ Type* Type::create(const Identifier& name) {
         return new Type(Char);
     } else if (name.compare(Keyword::intString) == 0) {
         return new Type(Integer);
+    } else if (name.compare(Keyword::longString) == 0) {
+        return new Type(Long);
     } else if (name.compare(Keyword::floatString) == 0) {
         return new Type(Float);
     } else if (name.compare(Keyword::boolString) == 0) {
@@ -165,6 +170,7 @@ bool Type::isReferenceType(BuiltInType builtInType) {
         case Byte:
         case Char:
         case Integer:
+        case Long:
         case Float:
         case Boolean:
         case Enumeration:
@@ -178,6 +184,7 @@ bool Type::isNumber() const {
     switch (builtInType) {
         case Byte:
         case Integer:
+        case Long:
         case Float:
             return true;
         default:
@@ -189,6 +196,7 @@ bool Type::isIntegerNumber() const {
     switch (builtInType) {
         case Byte:
         case Integer:
+        case Long:
             return true;
         default:
             return false;
@@ -196,10 +204,15 @@ bool Type::isIntegerNumber() const {
 }
 
 bool Type::isPrimitive() const {
+    if (isArray()) {
+        return false;
+    }
+
     switch (builtInType) {
         case Byte:
         case Char:
         case Integer:
+        case Long:
         case Float:
         case Boolean:
             return true;
@@ -526,7 +539,16 @@ bool Type::areBuiltInsImplicitlyConvertable(BuiltInType from, BuiltInType to) {
             switch (to) {
                 case Char:
                 case Integer:
+                case Long:
                 case Float:
+                    return true;
+                default:
+                    return false;
+            }
+            break;
+        case Integer:
+            switch (to) {
+                case Long:
                     return true;
                 default:
                     return false;
@@ -536,6 +558,7 @@ bool Type::areBuiltInsImplicitlyConvertable(BuiltInType from, BuiltInType to) {
             switch (to) {
                 case Byte:
                 case Integer:
+                case Long:
                 case Float:
                     return true;
                 default:
@@ -565,6 +588,7 @@ bool Type::areBuiltInsConvertable(BuiltInType from, BuiltInType to) {
             switch (to) {
                 case Char:
                 case Integer:
+                case Long:
                 case Float:
                     return true;
                 default:
@@ -575,6 +599,7 @@ bool Type::areBuiltInsConvertable(BuiltInType from, BuiltInType to) {
             switch (to) {
                 case Byte:
                 case Integer:
+                case Long:
                 case Float:
                     return true;
                 default:
@@ -585,7 +610,30 @@ bool Type::areBuiltInsConvertable(BuiltInType from, BuiltInType to) {
             switch (to) {
                 case Byte:
                 case Char:
+                case Long:
                 case Float:
+                    return true;
+                default:
+                    return false;
+            }
+            break;
+        case Long:
+            switch (to) {
+                case Byte:
+                case Char:
+                case Integer:
+                case Float:
+                    return true;
+                default:
+                    return false;
+            }
+            break;
+        case Float:
+            switch (to) {
+                case Byte:
+                case Char:
+                case Integer:
+                case Long:
                     return true;
                 default:
                     return false;

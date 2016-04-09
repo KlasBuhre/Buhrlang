@@ -335,6 +335,7 @@ private:
     void generateThisPointerDeclaration(
         BlockStatement* block, 
         const Identifier& thisPointerIdentifier);
+    Expression* transformPrimitiveTypeMethodCall(Context& context);
 
     Expression* left;
     Expression* right;

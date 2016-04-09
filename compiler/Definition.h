@@ -355,10 +355,7 @@ public:
     bool implements(const MethodDefinition* abstractMethod) const;
     void checkReturnStatements();
     const ClassDefinition* getClass() const;
-
-    void transformIntoAbstract() {
-        body = nullptr;
-    }
+    void transformIntoAbstract();
 
     void setBody(BlockStatement* block) {
         body = block;
@@ -404,6 +401,10 @@ public:
         return generated;
     }
 
+    bool isVirtual() const {
+        return isVirt;
+    }
+
     bool isAbstract() const {
         return body == nullptr;
     }
@@ -430,6 +431,10 @@ public:
 
     void setIsClosure(bool c) {
         isClosure = c;
+    }
+
+    void setIsVirtual(bool v) {
+        isVirt = v;
     }
 
     void setIsGenerated(bool g) {
@@ -460,6 +465,7 @@ private:
     bool isEnumCopyCtor;
     bool isFunc;
     bool isClosure;
+    bool isVirt;
     bool generated;
     bool hasBeenTypeCheckedAndTransformed;
 };

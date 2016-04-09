@@ -20,10 +20,12 @@ namespace Keyword {
         Init,
         Private,
         Static,
+        Virtual,
         Arg,
         Byte,
         Char,
         Int,
+        Long,
         Float,
         String,
         Enum,
@@ -63,10 +65,12 @@ namespace Keyword {
     extern const std::string objectString;
     extern const std::string privateString;
     extern const std::string staticString;
+    extern const std::string virtualString;
     extern const std::string argString;
     extern const std::string byteString;
     extern const std::string charString;
     extern const std::string intString;
+    extern const std::string longString;
     extern const std::string floatString;
     extern const std::string stringString;
     extern const std::string enumString;
@@ -110,6 +114,7 @@ namespace Operator {
         Division,                 // /
         Increment,                // ++
         Decrement,                // --
+        Modulo,                   // %
         Assignment,               // =
         AssignmentExpression,     // :=
         AdditionAssignment,       // +=
@@ -319,6 +324,8 @@ private:
 };
 
 namespace BuiltInTypes {
+    extern const std::string objectEqualsMethodName;
+    extern const std::string objectHashMethodName;
     extern const std::string arrayTypeName;
     extern const std::string arrayEachMethodName;
     extern const std::string arrayLengthMethodName;

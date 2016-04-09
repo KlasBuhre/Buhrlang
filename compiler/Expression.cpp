@@ -577,6 +577,10 @@ Expression* MemberSelectorExpression::transform(Context& context) {
         context.setArrayType(oldArrayType);
     }
 
+    if (leftType->isPrimitive()) {
+        return transformPrimitiveTypeMethodCall(context);
+    }
+
     switch (right->getKind()) {
         case Expression::WrappedStatement:
             // Right-hand side has transformed itself into a block statement.
@@ -716,6 +720,29 @@ void MemberSelectorExpression::generateThisPointerDeclaration(
                                              location);
         block->insertStatementAtFront(thisPointerDeclaration);
     }
+}
+
+Expression* MemberSelectorExpression::transformPrimitiveTypeMethodCall(
+    Context& context) {
+
+    MethodCallExpression* call = right->dynCast<MethodCallExpression>();
+    assert(call != nullptr);
+
+    const Location& loc = getLocation();
+    const Identifier& methodName = call->getName();
+    if (methodName.compare(BuiltInTypes::objectEqualsMethodName) == 0) {
+        const ExpressionList& arguments = call->getArguments();
+        assert(arguments.size() == 1);
+        Expression* argument = arguments.front();
+        Expression* comparison =
+            new BinaryExpression(Operator::Equal, left, argument, loc);
+        return comparison->transform(context);
+    }
+
+    MethodCallExpression* selfCall =
+        new MethodCallExpression("_" + methodName, loc);
+    selfCall->addArgument(left);
+    return selfCall->transform(context);
 }
 
 Type* MemberSelectorExpression::typeCheck(Context&) {
@@ -2069,6 +2096,7 @@ Type* BinaryExpression::typeCheck(Context& context) {
         case Operator::LeftShift:
         case Operator::RightShift:
         case Operator::Range:
+        case Operator::Modulo:
             if (!leftType->isIntegerNumber() || !rightType->isIntegerNumber()) {
                 Trace::error("Range operator requires integer number types.",
                              leftType,

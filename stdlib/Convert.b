@@ -7,6 +7,11 @@ class Convert {
         return CStandardLib.toString(i)
     }
 
+    // Convert long to string.
+    static string toStr(long l) {
+        return CStandardLib.toString(l)
+    }
+
     // Convert byte to string.
     static string toStr(byte b) {
         return CStandardLib.toString(b)

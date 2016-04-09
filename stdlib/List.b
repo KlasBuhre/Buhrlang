@@ -48,8 +48,8 @@ class List<T> {
             match node {
                 None -> break,
                 Some(n) -> {
-                    yield(n.data)
                     node = n.next
+                    yield(n.data)
                 }
             }
         }

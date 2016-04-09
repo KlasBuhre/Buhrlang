@@ -63,7 +63,7 @@ public:
     virtual Type* typeCheck(Context& context);
     virtual Traverse::Result traverse(Visitor& visitor);
 
-    void changeTypeIfGeneric(const Context& context);
+    void lookupType(const Context& context);
 
     static Identifier generateTemporaryName(const Identifier& name);
     static VariableDeclarationStatement* generateTemporary(
@@ -119,6 +119,7 @@ private:
     Expression* initExpression;
     bool isNameUnique;
     bool addToNameBindingsWhenTypeChecked;
+    bool hasLookedUpType;
 };
 
 typedef std::vector<VariableDeclarationStatement*>

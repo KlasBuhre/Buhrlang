@@ -13,7 +13,7 @@ message class Vector<T> {
         data = new T[capacity]
     }
 
-    // Return the size of the vecotr.
+    // Return the size of the vector.
     int size() {
         return data.size
     }

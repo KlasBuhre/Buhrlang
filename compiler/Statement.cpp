@@ -52,7 +52,8 @@ VariableDeclarationStatement::VariableDeclarationStatement(
     patternExpression(nullptr),
     initExpression(e),
     isNameUnique(false),
-    addToNameBindingsWhenTypeChecked(false) {}
+    addToNameBindingsWhenTypeChecked(false),
+    hasLookedUpType(false) {}
 
 VariableDeclarationStatement::VariableDeclarationStatement(
     Type* t,
@@ -64,7 +65,8 @@ VariableDeclarationStatement::VariableDeclarationStatement(
     patternExpression(p),
     initExpression(e),
     isNameUnique(false),
-    addToNameBindingsWhenTypeChecked(false) {}
+    addToNameBindingsWhenTypeChecked(false),
+    hasLookedUpType(false) {}
 
 VariableDeclarationStatement::VariableDeclarationStatement(
     const Identifier& i,
@@ -80,7 +82,8 @@ VariableDeclarationStatement::VariableDeclarationStatement(
     initExpression(other.initExpression ? other.initExpression->clone() :
                                           nullptr),
     isNameUnique(other.isNameUnique),
-    addToNameBindingsWhenTypeChecked(other.addToNameBindingsWhenTypeChecked) {}
+    addToNameBindingsWhenTypeChecked(other.addToNameBindingsWhenTypeChecked),
+    hasLookedUpType(other.hasLookedUpType) {}
 
 VariableDeclarationStatement* VariableDeclarationStatement::clone() const {
     return new VariableDeclarationStatement(*this);
@@ -109,7 +112,7 @@ Type* VariableDeclarationStatement::typeCheck(Context& context) {
         return &Type::voidType();
     }
 
-    changeTypeIfGeneric(context);
+    lookupType(context);
 
     Type* declaredType = declaration.getType();
     const Identifier& name = declaration.getIdentifier();
@@ -250,13 +253,12 @@ Expression* VariableDeclarationStatement::generateInitTemporary(
     return initRefExpr;
 }
 
-void VariableDeclarationStatement::changeTypeIfGeneric(const Context& context) {
-    Type* concreteType = context.makeGenericTypeConcrete(declaration.getType(),
-                                                         getLocation());
-    if (concreteType != nullptr) {
-        // The variable type is a generic type parameter that has been assigned
-        // a concrete type. Change the variable type to the concrete type.
-        declaration.setType(concreteType);
+void VariableDeclarationStatement::lookupType(const Context& context) {
+    if (!hasLookedUpType) {
+        Type* type = context.lookupConcreteType(declaration.getType(),
+                                                getLocation());
+        declaration.setType(type);
+        hasLookedUpType = true;
     }
 }
 
@@ -389,12 +391,8 @@ void BlockStatement::initialStatementCheck(Statement* statement) {
                 statement->cast<VariableDeclarationStatement>();
             VariableDeclaration* varDeclaration =
                 varDeclarationStatement->getDeclaration();
-            if (varDeclarationStatement->getAddToNameBindingsWhenTypeChecked()
-                || varDeclarationStatement->hasPattern()) {
-                Tree::lookupAndSetTypeDefinition(varDeclaration->getType(),
-                                                 nameBindings,
-                                                 varDeclaration->getLocation());
-            } else {
+            if (!(varDeclarationStatement->getAddToNameBindingsWhenTypeChecked()
+                  || varDeclarationStatement->hasPattern())) {
                 addLocalBinding(varDeclaration);
             }
             break;

@@ -34,6 +34,7 @@ namespace {
     const char operatorMinus('-');
     const char operatorMultiplication('*');
     const char operatorDivision('/');
+    const char operatorModulo('%');
     const char operatorAssignment('=');
     const char operatorLogicalNegation('!');
     const char operatorGreater('>');
@@ -61,6 +62,7 @@ namespace {
     const std::string keywordChar("char");
     const std::string keywordUnsignedChar("unsigned char");
     const std::string keywordInt("int");
+    const std::string keywordLongLong("long long");
     const std::string keywordFloat("float");
     const std::string keywordIf("if");
     const std::string keywordElse("else");
@@ -396,7 +398,7 @@ void CppBackEnd::generateMethodSignature(const MethodDefinition* method) {
         generateCpp(space);
     }
 
-    if (method->isAbstract()) {
+    if (method->isVirtual() && !implementationMode) {
         generateCpp(keywordVirtual);
         generateCpp(space);    
     }
@@ -562,6 +564,7 @@ void CppBackEnd::generateStatement(const Statement* statement) {
             break;
         default:
             internalError("generateStatement");
+            break;
     }
 }
 
@@ -640,6 +643,9 @@ void CppBackEnd::generateTypeName(const Type* type) {
         case Type::Integer:
             generateCpp(keywordInt);
             break;
+        case Type::Long:
+            generateCpp(keywordLongLong);
+            break;
         case Type::Float:
             generateCpp(keywordFloat);
             break;
@@ -653,7 +659,8 @@ void CppBackEnd::generateTypeName(const Type* type) {
             generateCpp(objectName);
             break;
         default:
-            internalError("generateTypeName"); 
+            internalError("generateTypeName");
+            break;
     } 
 }
 
@@ -733,6 +740,7 @@ void CppBackEnd::generateExpression(
             break;
         default:
             internalError("generateExpression");
+            break;
     }
 }      
 
@@ -861,6 +869,9 @@ void CppBackEnd::generateExpressionOperator(Operator::Kind op) {
         case Operator::Division:
             generateCpp(operatorDivision);
             break;
+        case Operator::Modulo:
+            generateCpp(operatorModulo);
+            break;
         case Operator::Increment:
             generateCpp(operatorIncrement);
             break;
@@ -918,6 +929,7 @@ void CppBackEnd::generateExpressionOperator(Operator::Kind op) {
             break;
         default:
             internalError("generateExpressionOperator");
+            break;
     }
 }
 
@@ -1014,6 +1026,7 @@ void CppBackEnd::generateMemberExpression(
             break;
         default:
             internalError("generateMemberExpression");
+            break;
     }
 }
 

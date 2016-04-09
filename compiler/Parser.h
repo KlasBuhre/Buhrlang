@@ -54,6 +54,7 @@ private:
         Type* type,
         AccessLevel::Kind access,
         bool isStatic,
+        bool isVirtual,
         bool parseBody);
     void parseMethodArgumentList(MethodDefinition* method);
     DataMemberDefinition* parseDataMember(

@@ -20,10 +20,12 @@ const std::string Keyword::initString("init");
 const std::string Keyword::objectString("object");
 const std::string Keyword::privateString("private");
 const std::string Keyword::staticString("static");
+const std::string Keyword::virtualString("virtual");
 const std::string Keyword::argString("arg");
 const std::string Keyword::byteString("byte");
 const std::string Keyword::charString("char");
 const std::string Keyword::intString("int");
+const std::string Keyword::longString("long");
 const std::string Keyword::floatString("float");
 const std::string Keyword::stringString("string");
 const std::string Keyword::enumString("enum");
@@ -50,6 +52,8 @@ const std::string Keyword::matchString("match");
 const std::string Keyword::deferString("defer");
 const std::string Keyword::jumpString("__jump");
 
+const std::string BuiltInTypes::objectEqualsMethodName("equals");
+const std::string BuiltInTypes::objectHashMethodName("hash");
 const std::string BuiltInTypes::arrayTypeName("array");
 const std::string BuiltInTypes::arrayEachMethodName("each");
 const std::string BuiltInTypes::arrayLengthMethodName("length");
@@ -106,6 +110,9 @@ Type* Keyword::toType(Kind keyword) {
         case Keyword::Int:
             builtInType = Type::Integer;
             break;
+        case Keyword::Long:
+            builtInType = Type::Long;
+            break;
         case Keyword::Float:
             builtInType = Type::Float;
             break;
@@ -149,6 +156,7 @@ Operator::Precedence Operator::precedence(Kind operatorType) {
     switch (operatorType) {
         case Multiplication:
         case Division:
+        case Modulo:
             return MultiplyDivision;
         case Addition:
         case Subtraction:

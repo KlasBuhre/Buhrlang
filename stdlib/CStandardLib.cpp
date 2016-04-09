@@ -1,4 +1,6 @@
 #include <stdio.h>
+#include <stdlib.h>
+#include <string>
 
 #include "Utils.h"
 #include "CStandardLib.h"
@@ -6,6 +8,12 @@
 Pointer<string> CStandardLib::toString(int i) {
     char buf[64];
     snprintf(buf, 64, "%d", i);
+    return Utils::makeString(buf, strlen(buf));
+}
+
+Pointer<string> CStandardLib::toString(long long l) {
+    char buf[64];
+    snprintf(buf, 64, "%lld", l);
     return Utils::makeString(buf, strlen(buf));
 }
 
@@ -22,10 +30,10 @@ Pointer<string> CStandardLib::toString(unsigned char b) {
 }
 
 int CStandardLib::toInt(Pointer<string> s) {
-    const char* str = s->buf->data();
+    std::string str(s->buf->data(), s->buf->length());
     int i;
 
-    if (sscanf(str, "%d", &i) == EOF) {
+    if (sscanf(str.c_str(), "%d", &i) == EOF) {
         throw NumberFormatException("CStandardLib::toInt");
     }
 
@@ -33,12 +41,16 @@ int CStandardLib::toInt(Pointer<string> s) {
 }
 
 int CStandardLib::toFloat(Pointer<string> s) {
-    const char* str = s->buf->data();
+    std::string str(s->buf->data(), s->buf->length());
     float f;
 
-    if (sscanf(str, "%f", &f) == EOF) {
+    if (sscanf(str.c_str(), "%f", &f) == EOF) {
         throw NumberFormatException("CStandardLib::toFloat");
     }
 
     return f;
+}
+
+int CStandardLib::rand() {
+    return ::rand();
 }

@@ -15,7 +15,6 @@ public:
 
     Binding* lookup(const Identifier& name) const;
     Definition* lookupType(const Identifier& name) const;
-    Type* makeGenericTypeConcrete(Type* type, const Location& location) const;
     Type* lookupConcreteType(Type* type, const Location& location) const;
     void enterBlock(BlockStatement* b);
     void exitBlock();
