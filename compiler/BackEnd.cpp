@@ -728,7 +728,7 @@ void CppBackEnd::generateExpression(
             generateNullExpression();
             break;
         case Expression::This:
-            generateThisExpression();
+            generateThisExpression(expression->cast<ThisExpression>());
             break;
         case Expression::Temporary:
             generateTemporaryExpression(
@@ -1087,8 +1087,15 @@ void CppBackEnd::generateNullExpression() {
     generateCpp(null);
 }
 
-void CppBackEnd::generateThisExpression() {
-    generateCpp(keywordThis);
+void CppBackEnd::generateThisExpression(const ThisExpression* thisExpression) {
+    if (!thisExpression->getType()->isReference()) {
+        generateCpp(openParentheses);
+        generateCpp(operatorMultiplication);
+        generateCpp(keywordThis);
+        generateCpp(closeParentheses);
+    } else {
+        generateCpp(keywordThis);
+    }
 }
 
 void CppBackEnd::generateTemporaryExpression(

@@ -2184,6 +2184,24 @@ testRecursiveEnum() {
     println(ev(expr, 3))
 }
 
+enum Color {
+    Red,
+    Green,
+    Blue,
+    Rgb(int, int, int);
+
+    print() {
+        match this {
+            Red          -> println("red"),
+            Green        -> println("green"),
+            Blue         -> println("blue"),
+            Rgb(r, g, b) -> println("r: " + Convert.toStr(r) +
+                                    " g: " + Convert.toStr(g) +
+                                    " b: " + Convert.toStr(b))
+        }
+    }
+}
+
 class EnumTest {
     Animal member = Animal.Dog
 
@@ -2238,6 +2256,9 @@ class EnumTest {
         testExposedEnum
         testOption
         testRecursiveEnum
+
+        let color = Color.Rgb(10, 20, 30)
+        color.print
     }
 }
 

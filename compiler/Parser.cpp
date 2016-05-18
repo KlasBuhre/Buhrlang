@@ -22,24 +22,33 @@ namespace  {
 
     class CommaSeparatedListParser {
     public:
-        CommaSeparatedListParser(Parser* p, Operator::Kind end) :
+        CommaSeparatedListParser(
+            Parser& p,
+            Operator::Kind end,
+            Operator::Kind alternativeEnd) :
             parser(p),
             endDelimiter(end),
+            alternativeEndDelimiter(alternativeEnd),
             commaExpected(false) {}
 
-        CommaSeparatedListParser(Parser* p) :
-            CommaSeparatedListParser(p, Operator::None) {}
+        CommaSeparatedListParser(Parser& p, Operator::Kind end) :
+            CommaSeparatedListParser(p, end, Operator::None) {}
+
+        CommaSeparatedListParser(Parser& p) :
+            CommaSeparatedListParser(p, Operator::None, Operator::None) {}
 
         bool parseComma() {
-            Lexer& lexer = parser->getLexer();
+            Lexer& lexer = parser.getLexer();
             const Token& token = lexer.getCurrentToken();
 
-            if (endDelimiter == Operator::None) {
+            if (endDelimiter == Operator::None &&
+                alternativeEndDelimiter == Operator::None) {
                 if (commaExpected && !token.isOperator(Operator::Comma)) {
                     return false;
                 }
             } else {
-                if (token.isOperator(endDelimiter)) {
+                if (token.isOperator(endDelimiter) ||
+                    token.isOperator(alternativeEndDelimiter)) {
                     lexer.consumeToken();
                     return false;
                 }
@@ -47,12 +56,12 @@ namespace  {
 
             if (commaExpected) {
                 if (!token.isOperator(Operator::Comma)) {
-                    parser->error("Expected ','.", token);
+                    parser.error("Expected ','.", token);
                 }
                 lexer.consumeToken();
             } else {
                 if (token.isOperator(Operator::Comma)) {
-                    parser->error("Unexpected ','.", token);
+                    parser.error("Unexpected ','.", token);
                 }
             }
 
@@ -61,8 +70,9 @@ namespace  {
         }
         
     private:
-        Parser* parser;
+        Parser& parser;
         Operator::Kind endDelimiter;
+        Operator::Kind alternativeEndDelimiter;
         bool commaExpected;
     };
 
@@ -262,7 +272,7 @@ void Parser::parseGenericTypeParametersDeclaration(
 
     assert(lexer.consumeToken().isOperator(Operator::Less));
 
-    CommaSeparatedListParser listParser(this, Operator::Greater);
+    CommaSeparatedListParser listParser(*this, Operator::Greater);
     while (listParser.parseComma()) {
         const Token& typeParameterName = lexer.consumeToken();
         if (!typeParameterName.isIdentifier()) {
@@ -428,7 +438,7 @@ void Parser::parseMethodArgumentList(MethodDefinition* method) {
 void Parser::parseArgumentList(ArgumentList& argumentList) {
     assert(lexer.consumeToken().isOperator(Operator::OpenParentheses));
 
-    CommaSeparatedListParser listParser(this, Operator::CloseParentheses);
+    CommaSeparatedListParser listParser(*this, Operator::CloseParentheses);
     while (listParser.parseComma()) {
         bool isDataMember = true;
         if (lexer.getCurrentToken().isKeyword(Keyword::Arg)) {
@@ -463,7 +473,7 @@ FunctionSignature* Parser::parseFunctionSignature() {
     }
 
     FunctionSignature* functionSignature = new FunctionSignature(returnType);
-    CommaSeparatedListParser listParser(this, Operator::CloseParentheses);
+    CommaSeparatedListParser listParser(*this, Operator::CloseParentheses);
     while (listParser.parseComma()) {
         functionSignature->addArgument(parseType());
     }
@@ -605,9 +615,15 @@ void Parser::parseEnumeration(bool isMessage) {
                                 name.getLocation(),
                                 tree);
 
-    CommaSeparatedListParser listParser(this, Operator::CloseBrace);
+    CommaSeparatedListParser listParser(*this,
+                                        Operator::CloseBrace,
+                                        Operator::Semicolon);
     while (listParser.parseComma()) {
         parseEnumerationVariant(enumGenerator);
+    }
+
+    if (lexer.previousToken().isOperator(Operator::Semicolon)) {
+        parseEnumerationMethods();
     }
 
     if (isMessage) {
@@ -631,7 +647,7 @@ void Parser::parseEnumerationVariant(EnumGenerator& enumGenerator) {
     ArgumentList variantData;
     if (lexer.getCurrentToken().isOperator(Operator::OpenParentheses)) {
         lexer.consumeToken();
-        CommaSeparatedListParser listParser(this, Operator::CloseParentheses);
+        CommaSeparatedListParser listParser(*this, Operator::CloseParentheses);
         int numberOfDataMembers = 0;
         while (listParser.parseComma()) {
             Location loc = location();
@@ -647,6 +663,58 @@ void Parser::parseEnumerationVariant(EnumGenerator& enumGenerator) {
     enumGenerator.generateVariant(variantName.getValue(),
                                   variantData,
                                   variantName.getLocation());
+}
+
+void Parser::parseEnumerationMethods() {
+    AccessLevel::Kind access = AccessLevel::Public;
+    while (!lexer.getCurrentToken().isOperator(Operator::CloseBrace)) {
+        if (lexer.getCurrentToken().isKeyword(Keyword::Private) &&
+            lexer.peekToken().isOperator(Operator::Colon)) {
+            lexer.consumeToken();
+            lexer.consumeToken();
+            access = AccessLevel::Private;
+        }
+        parseEnumerationMethod(access);
+        expectCloseBraceOrNewline();
+    }
+    lexer.consumeToken();
+}
+
+void Parser::parseEnumerationMethod(AccessLevel::Kind access) {
+    const Token* token = lexer.getCurrentTokenPtr();
+    if (token->isKeyword(Keyword::Private)) {
+        access = AccessLevel::Private;
+        lexer.consumeToken();
+        token = lexer.getCurrentTokenPtr();
+    }
+
+    bool isStatic = false;
+    if (token->isKeyword(Keyword::Static)) {
+        isStatic = true;
+        lexer.consumeToken();
+    }
+
+    Type* type = nullptr;
+    if (!lexer.peekToken().isOperator(Operator::OpenParentheses)||
+        lexer.getCurrentToken().isKeyword(Keyword::Fun)) {
+        type = parseType();
+    }
+
+    const Token& name = lexer.consumeToken();
+    if (!name.isKeyword(Keyword::Init) && !name.isIdentifier()) {
+        error("Expected identifier.", name);
+    }
+
+    if (!lexer.getCurrentToken().isOperator(Operator::OpenParentheses)) {
+        error("Expected 'identifier'('.", lexer.getCurrentToken());
+    }
+
+    MethodDefinition* method = parseMethod(name, type,
+                                           access,
+                                           isStatic,
+                                           false,
+                                           true);
+    tree.addClassMember(method);
 }
 
 void Parser::parseMessage() {
@@ -945,7 +1013,7 @@ Type* Parser::parseTypeName() {
 void Parser::parseGenericTypeParameters(Type* type) {
     assert(lexer.consumeToken().isOperator(Operator::Less));
 
-    CommaSeparatedListParser listParser(this, Operator::Greater);
+    CommaSeparatedListParser listParser(*this, Operator::Greater);
     while (listParser.parseComma()) {
         if (anyErrors) {
             return;
@@ -1252,7 +1320,7 @@ bool Parser::lambdaExpressionStartsHere() {
         LookaheadGuard guard(*this);
 
         lexer.consumeToken();
-        CommaSeparatedListParser listParser(this, Operator::BitwiseOr);
+        CommaSeparatedListParser listParser(*this, Operator::BitwiseOr);
         while (listParser.parseComma()) {
             std::unique_ptr<Type> type;
             const Token& nextToken = lexer.peekToken();
@@ -1306,7 +1374,7 @@ void Parser::parseLambdaArguments(
 
     assert(lexer.consumeToken().isOperator(Operator::BitwiseOr));
 
-    CommaSeparatedListParser listParser(this, Operator::BitwiseOr);
+    CommaSeparatedListParser listParser(*this, Operator::BitwiseOr);
     while (listParser.parseComma()) {
         Type* type = nullptr;
         const Token& nextToken = lexer.peekToken();
@@ -1515,7 +1583,7 @@ Expression* Parser::parseMatchExpression(const Location& location) {
         error("Expected '{'.", openBrace);
     }
 
-    CommaSeparatedListParser listParser(this, Operator::CloseBrace);
+    CommaSeparatedListParser listParser(*this, Operator::CloseBrace);
     while (listParser.parseComma()) {
         matchExpression->addCase(parseMatchCase());
     }
@@ -1564,7 +1632,7 @@ Expression* Parser::parseClassDecompositionExpression(
     ClassDecompositionExpression* classDecomposition =
         new ClassDecompositionExpression(Type::create(typeName), loc);
 
-    CommaSeparatedListParser listParser(this, Operator::CloseBrace);
+    CommaSeparatedListParser listParser(*this, Operator::CloseBrace);
     while (listParser.parseComma()) {
         NamedEntityExpression* memberName = parseNamedEntityExpression();
 
@@ -1826,14 +1894,14 @@ void Parser::parseExpressionList(
 
     assert(lexer.consumeToken().isOperator(firstDelimiter));
 
-    CommaSeparatedListParser listParser(this, lastDelimiter);
+    CommaSeparatedListParser listParser(*this, lastDelimiter);
     while (listParser.parseComma()) {
         expressions.push_back(parseExpression());
     }
 }
 
 void Parser::parseIdentifierList(IdentifierList& identifierList) {
-    CommaSeparatedListParser listParser(this);
+    CommaSeparatedListParser listParser(*this);
     while (listParser.parseComma()) {
         const Token& identifier = lexer.consumeToken();
         if (!identifier.isIdentifier()) {

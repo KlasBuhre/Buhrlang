@@ -2796,9 +2796,7 @@ bool MatchCase::generateTemporariesCreatedByPatterns(BlockStatement* block) {
             pattern->getTemporariesCreatedByPattern();
         if (!temps.empty()) {
             anyTemporaries = true;
-            for (auto j = temps.begin();
-                 j != temps.end();
-                 j++) {
+            for (auto j = temps.begin(); j != temps.end(); j++) {
                 VariableDeclarationStatement* varDeclaration = *j;
                 block->addStatement(varDeclaration);
             }
@@ -3079,7 +3077,7 @@ Expression* MatchExpression::generateSubjectTemporary(
     BlockStatement* matchLogicBlock) {
 
     Expression* subjectRefExpr = nullptr;
-    if (subject->isVariable()) {
+    if (subject->isVariable() || subject->getKind() == Expression::This) {
         subjectRefExpr = subject;
     } else {
         const Location& location = subject->getLocation();

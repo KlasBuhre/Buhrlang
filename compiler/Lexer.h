@@ -13,6 +13,7 @@ public:
 
     const Token& consumeToken();
     const Token& peekToken() const;
+    const Token& previousToken() const;
     void stepBack();
     bool previousTokenWasNewline() const;
 

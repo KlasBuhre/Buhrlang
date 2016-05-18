@@ -48,7 +48,7 @@ public:
     }
 
     bool isKeyword(Keyword::Kind k) const {
-        return keyword == k;
+        return kind == Keyword && keyword == k;
     }
 
     Operator::Kind getOperator() const {
@@ -56,7 +56,7 @@ public:
     }
 
     bool isOperator(Operator::Kind o) const {
-        return op == o;
+        return kind == Operator && op == o;
     }
 
     char getCharacter() const {

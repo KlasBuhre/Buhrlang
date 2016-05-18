@@ -71,6 +71,8 @@ private:
     void parseProcessOrProcessInterface();
     void parseEnumeration(bool isMessage = false);
     void parseEnumerationVariant(EnumGenerator& enumGenerator);
+    void parseEnumerationMethods();
+    void parseEnumerationMethod(AccessLevel::Kind access);
     void parseMessage();
     MethodDefinition* parseFunction();
     BlockStatement* parseBlock(

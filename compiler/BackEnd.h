@@ -81,7 +81,7 @@ private:
     void generateClassNameExpression(
         const ClassNameExpression* classNameExpression);
     void generateNullExpression();
-    void generateThisExpression();
+    void generateThisExpression(const ThisExpression* thisExpression);
     void generateTemporaryExpression(const TemporaryExpression* temporary);
     void generateIfStatement(const IfStatement* ifStatement);
     void generateWhileStatement(const WhileStatement* whileStatement);

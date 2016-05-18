@@ -83,6 +83,7 @@ bool Keyword::isType(Kind keyword) {
         case Byte:
         case Char:
         case Int:
+        case Long:
         case Float:
         case String:
         case Bool:

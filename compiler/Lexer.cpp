@@ -36,6 +36,12 @@ const Token& Lexer::peekToken() const {
     return *peekedToken;
 }
 
+const Token& Lexer::previousToken() const {
+    TokenList::const_iterator prevToken = currentToken;
+    while ((--prevToken)->isNewline());
+    return *prevToken;
+}
+
 void Lexer::stepBack() {
     while ((--currentToken)->isNewline());
 }
