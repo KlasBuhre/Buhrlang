@@ -288,7 +288,7 @@ void Closure::generateClass(
                                                          &callMethod);
     info->className = closureClass->getName();
 
-    // Infer the types in the closure signature by running the
+    // Infer any implicit types in the closure signature by running the
     // typeCheckAndTransform pass on the closure function body.
     callMethod->typeCheckAndTransform();
 

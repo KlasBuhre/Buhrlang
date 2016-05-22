@@ -44,20 +44,20 @@ message class Vector<T> {
     }
 
     // Iterative fold left.
-    T foldl(T start) T(T, T) {
+    T foldl(T start, fun T(T, T) f) {
         var T acc = start
         data.each |element| {
-            acc = yield(acc, element)
+            acc = f(acc, element)
         }
         return acc
     }
 
-    // Create a new vector from the old one and select which elements to 
+    // Create a new vector from the old one and select which elements to
     // include.
-    Vector<T> filter() bool(T) {
+    Vector<T> filter(fun bool(T) f) {
         let result = new Vector<T>
         data.each |element| {
-            if yield(element) {
+            if f(element) {
                 result.add(element)
             }
         }

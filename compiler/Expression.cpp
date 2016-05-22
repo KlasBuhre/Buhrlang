@@ -1000,10 +1000,10 @@ MethodCallExpression* MethodCallExpression::transformMethodCall(
 void MethodCallExpression::resolve(Context& context) {
     Context subcontext(context);
     subcontext.reset();
-    TypeList argumentTypes;
-    resolveArgumentTypes(argumentTypes, subcontext);
-
     const Binding::MethodList& candidates = resolveCandidates(context);
+
+    TypeList argumentTypes;
+    resolveArgumentTypes(argumentTypes, candidates, subcontext);
     findCompatibleMethod(candidates, argumentTypes);
 
     if (memberDefinition == nullptr) {
@@ -1612,7 +1612,8 @@ Traverse::Result MethodCallExpression::traverse(Visitor& visitor) {
 }
 
 void MethodCallExpression::resolveArgumentTypes(
-    TypeList& typeList, 
+    TypeList& typeList,
+    const Binding::MethodList& candidates,
     Context& context) {
 
     if (isConstructorCall() &&
@@ -1620,15 +1621,22 @@ void MethodCallExpression::resolveArgumentTypes(
         context.setIsStringConstructorCall(true);
     }
 
+    unsigned int argumentIndex = 0;
     for (auto i = arguments.begin(); i != arguments.end(); i++) {
-        *i = (*i)->transform(context);
         Expression* expression = *i;
-        typeList.push_back(expression->typeCheck(context));
+        if (AnonymousFunctionExpression* anonymousFunction =
+                expression->dynCast<AnonymousFunctionExpression>()) {
+            anonymousFunction->inferArgumentTypes(candidates, argumentIndex);
+        }
+        *i = (*i)->transform(context);
+        Expression* transformedExpression = *i;
+        typeList.push_back(transformedExpression->typeCheck(context));
+        argumentIndex++;
     }
 
     context.setIsStringConstructorCall(false);
     if (lambda != nullptr) {
-        typeList.push_back(new Type(Type::Lambda));
+        typeList.push_back(lambda->getType());
     }
 }
 
@@ -2412,7 +2420,11 @@ Traverse::Result UnaryExpression::traverse(Visitor& visitor) {
 LambdaExpression::LambdaExpression(BlockStatement* b, const Location& l) :
     Expression(Expression::Lambda, l),
     block(b),
-    signature(nullptr) {}
+    signature(nullptr) {
+
+    type = new Type(Type::Lambda);
+    Tree::lookupAndSetTypeDefinition(type, l);
+}
 
 LambdaExpression::LambdaExpression(BlockStatement* b) :
     LambdaExpression(b, Location()) {}
@@ -2679,6 +2691,57 @@ Traverse::Result AnonymousFunctionExpression::traverse(Visitor& visitor) {
 void AnonymousFunctionExpression::addArgument(VariableDeclaration* argument) {
     argumentList.push_back(argument);
     body->addLocalBinding(argument);
+}
+
+void AnonymousFunctionExpression::inferArgumentTypes(
+    const Binding::MethodList& candidates,
+    unsigned int anonymousFunctionArgumentIndex) {
+
+    if (argumentList.size() == 0) {
+        return;
+    }
+
+    for (auto i = candidates.begin(); i != candidates.end(); i++) {
+        const MethodDefinition* candidate = *i;
+        const ArgumentList& candidateArguments = candidate->getArgumentList();
+        if (anonymousFunctionArgumentIndex < candidateArguments.size()) {
+            const VariableDeclaration* argument =
+                candidateArguments[anonymousFunctionArgumentIndex];
+            const ClassDefinition* argumentClass =
+                argument->getType()->getClass();
+            if (argumentClass->isClosure()) {
+                const MemberMethodList& closureClassMethods =
+                    argumentClass->getMethods();
+                for (auto j = closureClassMethods.cbegin();
+                     j != closureClassMethods.cend();
+                     j++) {
+                    const MethodDefinition* method = *j;
+                    if (method->getName().compare(CommonNames::callMethodName)
+                            == 0) {
+                        const ArgumentList& closureArguments =
+                            method->getArgumentList();
+                        if (argumentList.size() == closureArguments.size()) {
+                            copyArgumentTypes(closureArguments);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+void AnonymousFunctionExpression::copyArgumentTypes(const ArgumentList& from) {
+    assert(argumentList.size() == from.size());
+
+    auto i = argumentList.begin();
+    auto j = from.cbegin();
+    while (i != argumentList.end()) {
+        VariableDeclaration* argument = *i;
+        const VariableDeclaration* fromArgument = *j;
+        argument->setType(fromArgument->getType()->clone());
+        i++;
+        j++;
+    }
 }
 
 MatchCase::MatchCase(const Location& loc) :

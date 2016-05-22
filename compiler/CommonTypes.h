@@ -290,7 +290,7 @@ private:
 
 class Expression;
 
-typedef std::list<VariableDeclaration*> ArgumentList;
+typedef std::vector<VariableDeclaration*> ArgumentList;
 typedef std::vector<Type*> TypeList;
 typedef std::list<Expression*> ExpressionList;
 

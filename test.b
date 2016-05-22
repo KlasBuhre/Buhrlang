@@ -88,7 +88,7 @@ genericTypesExample() {
     }
 
     println("Cheap books:")
-    let cheapBooks = books.filter |book| { book.price < 400.0 }
+    let cheapBooks = books.filter(|book| { book.price < 400.0 })
     cheapBooks.each |book| {
         println(book.toString)
     }
@@ -626,7 +626,7 @@ class LambdaTest {
         ints.add(1)
         ints.add(2)
         ints.add(3)
-        let smallSum = ints.filter |i| { i < 3 }.foldl(0) |i, sum| { i + sum }
+        let smallSum = ints.filter(|i| { i < 3 }).foldl(0, |i, sum| { i + sum })
         println(smallSum)
     }
 
@@ -744,7 +744,7 @@ class ClosureTest {
         method(g)
 
         let h = factory(1)
-        println(h(4, 2))
+        println(h(4, 2, 2))
 
         let j = |z| { z < 3 }
         println(j(2))
@@ -762,8 +762,8 @@ class ClosureTest {
         println(f(2))
     }
 
-    fun int(int, int) factory(int c) {
-        return |int a, int b| { (a / b) + c }
+    fun int(int, int, int) factory(int d) {
+        return |int a, int b, int c| { (a / b) + c + d}
     }
 }
 
@@ -1194,10 +1194,10 @@ class GenericsTest {
         ints.add(3)
         ints.add(4)
         print("Vector.foldl: ")
-        let f = ints.foldl(1) |acc, elem| { acc * elem }
+        let f = ints.foldl(1, |acc, elem| { acc * elem })
         println(f)
 
-        let largeInts = ints.filter |elem| { elem > 2 }
+        let largeInts = ints.filter(|elem| { elem > 2 })
         print("Vector.filter: ")
         largeInts.each |i| {
             print(i)

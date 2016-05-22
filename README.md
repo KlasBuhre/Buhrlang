@@ -20,28 +20,29 @@ Many existing languages used in the server application domain have limitations
 that are hard to overcome without introducing non-backward compatible changes. 
 Such limitations include:
  - Data is mutable by default in C++, Java, C# etc.
- - Null pointer exceptions / segmentation faults.
+ - Null pointers.
  - Specific to C++: memory management is error-prone and there are implicit 
    conversions between unrelated types.
- - Race conditions are common in concurrent applications.
+ - Race conditions in concurrent applications is a common problem.
  - Many languages have grown to be very complicated.
 
 Most of these limitations can be addressed from the beginning in a new language. 
 Therefore, the goal was to design a simple, safe and concurrent language used 
-for developing large server applications.
+for developing large server applications. Also, the language should look
+familiar to most developers and it should be easy to learn.
 
 -------------------------------------------------------------------------------
 Some features
 -------------------------------------------------------------------------------
  - Data is immutable by default
  - All pointers point to a valid object. There are no null pointers
- - Light-wight processes that act as objects
+ - Light-weight processes that act as objects
  - Type inference
  - Pattern matching
  - Classes and interfaces
  - Tagged unions (enumerations)
  - Generics
- 
+
 -------------------------------------------------------------------------------
 The basics – hello world
 -------------------------------------------------------------------------------
@@ -211,7 +212,7 @@ A lambda expression can be passed to other functions as arguments.
 
 Example:
 
-    books.each { |book|
+    books.each |book| {
         println(book.toString)
     }
     // Prints:
@@ -219,9 +220,9 @@ Example:
     // Buhre: Programming for Monkeys. Price: 599.500000
     // Kurzweil: How to Create a Mind. Price: 299.500000
 
-    let cheapBooks = books.select { |book| book.price < 400.0 }
+    let cheapBooks = books.filter(|book| { book.price < 400.0 })
 
-    cheapBooks.each { |book|
+    cheapBooks.each |book| {
         println(book.toString)
     }
     // Prints:
@@ -238,16 +239,17 @@ Example:
     let vector = new Vector<string>
     vector.add("element 1")
     ...
-    vector.eachWithIndex { |element, index|
+    vector.eachWithIndex |element, index| {
         if index == 2 {
             break
         }
         println(element)
     }
 
-    File.open("file_test", "r") { |file|
+    File.open("file_test", "r") |file| {
         print(file.readLine)
-    }
+        ...
+    } // File is closed.
 
 -------------------------------------------------------------------------------
 Functional Features - Pattern matching
@@ -412,7 +414,7 @@ Example:
 -------------------------------------------------------------------------------
 Concurrency
 -------------------------------------------------------------------------------
-Concurrency is implemented using light-wight processes (referred to as just 
+Concurrency is implemented using light-weight processes (referred to as just 
 ”process”). These processes are not native OS processes.
  - Many processes execute within one native OS process.
  - No data is shared between processes. Communications between processes is 

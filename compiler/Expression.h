@@ -488,6 +488,9 @@ public:
     virtual Traverse::Result traverse(Visitor& visitor);
 
     void addArgument(VariableDeclaration* argument);
+    void inferArgumentTypes(
+        const Binding::MethodList& candidates,
+        unsigned int anonymousFunctionArgumentIndex);
 
     BlockStatement* getBody() const {
         return body;
@@ -498,6 +501,8 @@ public:
     }
 
 private:
+    void copyArgumentTypes(const ArgumentList& from);
+
     ArgumentList argumentList;
     BlockStatement* body;
 };
@@ -619,7 +624,10 @@ private:
     void findCompatibleMethod(
         const Binding::MethodList& candidates,
         const TypeList& argumentTypes);
-    void resolveArgumentTypes(TypeList& typeList, Context& context);
+    void resolveArgumentTypes(
+        TypeList& typeList,
+        const Binding::MethodList& candidates,
+        Context& context);
     bool isBuiltInArrayMethod();
     void checkBuiltInArrayMethodPlaceholderTypes(Context& context);
     void checkArrayAppend(const Type* arrayType);
