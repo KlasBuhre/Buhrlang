@@ -44,10 +44,10 @@ namespace {
     public:
         NonLocalVarVisitor(NameBindings& global, NameBindings& func);
 
-        virtual Traverse::Result visitBlock(BlockStatement&);
-        virtual void exitBlock();
-        virtual Traverse::Result visitNamedEntity(NamedEntityExpression&);
-        virtual Traverse::Result visitMemberSelector(MemberSelectorExpression&);
+        Traverse::Result visitBlock(BlockStatement&) override;
+        void exitBlock() override;
+        Traverse::Result visitNamedEntity(NamedEntityExpression&) override;
+        Traverse::Result visitMemberSelector(MemberSelectorExpression&) override;
 
         const VariableDeclarationList& getNonLocalVariables() const {
             return nonLocalVariables;
@@ -146,15 +146,15 @@ namespace {
     public:
         explicit GenericTypeVisitor(const Context& context);
 
-        virtual Traverse::Result visitVariableDeclaration(
-            VariableDeclarationStatement&);
-        virtual Traverse::Result visitHeapAllocation(HeapAllocationExpression&);
-        virtual Traverse::Result visitArrayAllocation(
-            ArrayAllocationExpression&);
-        virtual Traverse::Result visitTypeCast(TypeCastExpression&);
-        virtual Traverse::Result visitClassDecomposition(
-            ClassDecompositionExpression&);
-        virtual Traverse::Result visitTypedExpression(TypedExpression&);
+        Traverse::Result visitVariableDeclaration(
+            VariableDeclarationStatement&) override;
+        Traverse::Result visitHeapAllocation(HeapAllocationExpression&) override;
+        Traverse::Result visitArrayAllocation(
+            ArrayAllocationExpression&) override;
+        Traverse::Result visitTypeCast(TypeCastExpression&) override;
+        Traverse::Result visitClassDecomposition(
+            ClassDecompositionExpression&) override;
+        Traverse::Result visitTypedExpression(TypedExpression&) override;
 
     private:
         const Context& context;

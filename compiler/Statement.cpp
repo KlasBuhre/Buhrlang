@@ -108,7 +108,6 @@ Traverse::Result VariableDeclarationStatement::traverse(Visitor& visitor) {
 Type* VariableDeclarationStatement::typeCheck(Context& context) {
     if (patternExpression != nullptr) {
         generateDeclarationsFromPattern(context);
-        delete this;
         return &Type::voidType();
     }
 
@@ -806,7 +805,6 @@ Type* ReturnStatement::typeCheck(Context& context) {
                 temporaryRetvalDeclaration->getType(),
                 temporaryRetvalDeclaration->getIdentifier());
         context.getBlock()->replaceCurrentStatement(returnValueAssignment);
-        delete this;
         return &Type::voidType();
     }
 

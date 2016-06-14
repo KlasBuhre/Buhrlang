@@ -7,7 +7,7 @@ template<class T>
 class Array: public object {
 public:
     Array() : len(0), cap(5), elements(new T[cap]) {}
-    Array(unsigned c) : len(0), cap(c), elements(new T[c]) {}
+    explicit Array(unsigned c) : len(0), cap(c), elements(new T[c]) {}
     Array(T* e, unsigned l) : len(l), cap(l), elements(e) {}
 
     ~Array() {

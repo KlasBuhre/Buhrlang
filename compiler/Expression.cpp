@@ -149,7 +149,7 @@ Expression* StringLiteralExpression::transform(Context& context) {
         stringCtorCall->addArgument(createCharArrayExpression(context));
         transformedExpression = new HeapAllocationExpression(stringCtorCall);
     }
-    delete this;
+
     return transformedExpression;
 }
 
@@ -304,7 +304,6 @@ Expression* NamedEntityExpression::transform(Context& context) {
             break;
     }
 
-    delete this;
     return resolvedExpression->transform(context);
 }
 
@@ -666,9 +665,6 @@ MemberSelectorExpression::transformIntoBlockStatement(
         }
     }
 
-    left = nullptr;
-    right = nullptr;
-    delete this;
     return wrappedBlockStatement;
 }
 
@@ -1283,7 +1279,7 @@ void MethodCallExpression::checkArrayAppend(const Type* arrayType) {
                          this);
         }
     } else {
-        std::auto_ptr<Type>
+        std::unique_ptr<Type>
             elementType(Type::createArrayElementType(arrayType));
         if (!Type::isAssignableByExpression(elementType.get(), argument)) {
             Trace::error("Cannot append data of incompatible type to array.",
@@ -1396,7 +1392,6 @@ Expression* MethodCallExpression::inlineCalledMethod(Context& context) {
             wrappedBlockStatement->setInlinedNonStaticMethod(true);
         }
         lambda = nullptr;
-        delete this;
         return wrappedBlockStatement;
     } else {
         // The called method returns a value. Inline the method at the location
@@ -1405,7 +1400,6 @@ Expression* MethodCallExpression::inlineCalledMethod(Context& context) {
         TemporaryExpression* temporary =
             inlineMethodWithReturnValue(clonedBody, calledMethod, context);
         lambda = nullptr;
-        delete this;
         return temporary;
     }
 }
@@ -1559,7 +1553,6 @@ WrappedStatementExpression* MethodCallExpression::transformIntoForStatement(
             new WrappedStatementExpression(outerBlock, location);
     wrappedBlockStatement->setInlinedArrayForEach(true);
     lambda = nullptr;
-    delete this;
     return wrappedBlockStatement;
 }
 
@@ -1869,7 +1862,6 @@ Expression* ArraySubscriptExpression::transform(Context& context) {
         if (binExpression->getOperator() == Operator::Range) {
             MemberSelectorExpression* transformedExpression =
                 createSliceMethodCall(binExpression, context);
-            delete this;
             return transformedExpression;
         }
     }
@@ -2220,18 +2212,15 @@ Expression* BinaryExpression::transform(Context& context) {
         }
         MemberSelectorExpression* transformedExpression =
             createStringOperation(context);
-        delete this;
         return transformedExpression;
     } else if (leftType->isArray() && rightType->isArray() &&
                op != Operator::Assignment && op != Operator::Equal &&
                op != Operator::NotEqual) {
         MemberSelectorExpression* transformedExpression =
             createArrayOperation(context);
-        delete this;
         return transformedExpression;
     } else if (Operator::isCompoundAssignment(op) && !leftType->isArray()) {
         BinaryExpression* transformedExpression = decomposeCompoundAssignment();
-        delete this;
         return transformedExpression;
     } else {
         return this;
@@ -2500,7 +2489,6 @@ Expression* YieldExpression::transform(Context& context) {
         // by temporarily resetting the lambda expression in the context. This
         // is to prevent yields from transforming in a lambda expression.
         wrappedBlockStatement->setDisallowYieldTransformation(true);
-        delete this;
         return wrappedBlockStatement;
     } else {
         // The lambda returns a value so transform into a
@@ -2508,7 +2496,6 @@ Expression* YieldExpression::transform(Context& context) {
         // inline the lambda before the current statement.
         LocalVariableExpression* lambdaRetvalTmp =
             inlineLambdaExpressionWithReturnValue(lambdaExpression, context);
-        delete this;
         return lambdaRetvalTmp;
     }
 }

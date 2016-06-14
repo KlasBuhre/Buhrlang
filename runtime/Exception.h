@@ -7,7 +7,7 @@ class IndexOutOfBoundsException: public std::exception {};
 
 class IoException: public std::exception {
 public:
-    IoException(const char* i) : info(i) {}
+    explicit IoException(const char* i) : info(i) {}
 
     const char* what () const throw () {
         return info;
@@ -19,7 +19,7 @@ private:
 
 class NumberFormatException: public std::exception {
 public:
-    NumberFormatException(const char* i) : info(i) {}
+    explicit NumberFormatException(const char* i) : info(i) {}
 
     const char* what () const throw () {
         return info;

@@ -24,7 +24,7 @@ public:
         Label
     };
 
-    Binding(ReferencedEntity e);
+    explicit Binding(ReferencedEntity e);
     Binding(ReferencedEntity e, VariableDeclaration* o);
     Binding(ReferencedEntity e, Definition* d);
     Binding(ReferencedEntity e, MethodDefinition* d);

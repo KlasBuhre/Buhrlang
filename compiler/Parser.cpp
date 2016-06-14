@@ -34,7 +34,7 @@ namespace  {
         CommaSeparatedListParser(Parser& p, Operator::Kind end) :
             CommaSeparatedListParser(p, end, Operator::None) {}
 
-        CommaSeparatedListParser(Parser& p) :
+        explicit CommaSeparatedListParser(Parser& p) :
             CommaSeparatedListParser(p, Operator::None, Operator::None) {}
 
         bool parseComma() {
@@ -78,7 +78,7 @@ namespace  {
 
     class LookaheadGuard {
     public:
-        LookaheadGuard(Parser& p) : parser(p) {
+        explicit LookaheadGuard(Parser& p) : parser(p) {
             parser.setLookaheadMode();
         }
 

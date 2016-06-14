@@ -8,23 +8,31 @@
 #include <condition_variable>
 #include <chrono>
 #include <string>
+#include <memory>
 
 #include "Process.h"
 #include "Utils.h"
 #include "Exception.h"
 
+namespace {
+    template<typename T, typename... Ts>
+    std::unique_ptr<T> make_unique(Ts&&... params)
+    {
+        return std::unique_ptr<T>(new T(std::forward<Ts>(params)...));
+    }
+}
+
 class ProcessControlBlock {
 public:
     ProcessControlBlock(int id, int parent, const std::string& n);
-    ~ProcessControlBlock();
 
     void start(MessageHandlerFactory* factory);
     void run(MessageHandlerFactory* factory);
     void terminate();
     int registerMessageHandler(Pointer<MessageHandler> messageHandler);
-    void addMessage(Message* message);
-    Message* getMessage();
-    Message* getMessage(int messageType, int messageId);
+    void addMessage(std::unique_ptr<Message> message);
+    std::unique_ptr<Message> getMessage();
+    std::unique_ptr<Message> getMessage(int messageType, int messageId);
 
     int getPid() const {
         return pid;
@@ -35,7 +43,7 @@ public:
     }
 
 private:
-    typedef std::list<Message*> MessageQueue;
+    typedef std::list<std::unique_ptr<Message> > MessageQueue;
     typedef std::vector<Pointer<MessageHandler> > MessageHandlerVector;
 
     int pid;
@@ -53,17 +61,16 @@ private:
 class Kernel {
 public:
     Kernel();
-    ~Kernel();
 
     int spawnProcess(MessageHandlerFactory* factory, const std::string& name);
-    void sendMessage(int destinationPid, Message* message);
+    int sendMessage(int destinationPid, std::unique_ptr<Message> message);
     void waitForProcessTermination(int pid);
     void removeProcess(int pid);
 
 private:
     bool isProcessAlive(int pid);
 
-    typedef std::map<int, ProcessControlBlock*> PidToProcessMap;
+    typedef std::map<int, std::unique_ptr<ProcessControlBlock> > PidToProcessMap;
     typedef std::map<std::string, ProcessControlBlock*> NameToProcessMap;
 
     PidToProcessMap processMap;
@@ -126,12 +133,6 @@ ProcessControlBlock::ProcessControlBlock(
     mutex(),
     condition() {}
 
-ProcessControlBlock::~ProcessControlBlock() {
-    for (MessageQueue::iterator i = mailbox.begin(); i != mailbox.end(); i++) {
-        delete *i;
-    }
-}
-
 void ProcessControlBlock::start(MessageHandlerFactory* factory) {
     thread = std::thread(processEntryPoint, this, factory);
     thread.detach();
@@ -142,11 +143,11 @@ void ProcessControlBlock::run(MessageHandlerFactory* factory) {
     defaultMessageHandler = factoryPtr->createMessageHandler();
 
     while (true) {
-        Message* message = currentProcess->getMessage();        
+        auto message = std::move(currentProcess->getMessage());
         int messageType = message->type;
         if (messageType == MessageType::MethodCall) {
-            Pointer<Message> messagePtr(message);
-            int messageHandlerId = message->messageHandlerId;
+            Pointer<Message> messagePtr(message.release());
+            int messageHandlerId = messagePtr->messageHandlerId;
             if (messageHandlerId == 0) {
                 // Route the message to the default message handler (process
                 // object).
@@ -159,19 +160,16 @@ void ProcessControlBlock::run(MessageHandlerFactory* factory) {
                 }
             }
         } else if (messageType == MessageType::Terminate) {
-            delete message;
             break;
-        } else {
-            delete message;
         }
     }
 }
 
 void ProcessControlBlock::terminate() {
-    Message* parentNotification = nullptr;
+    std::unique_ptr<Message> parentNotification;
     int parent = 0;
     if (pid != 0) {
-        parentNotification = new Message(MessageType::ChildTerminated);
+        parentNotification = make_unique<Message>(MessageType::ChildTerminated);
         parentNotification->id = pid;
         parent = parentPid;
     }
@@ -181,7 +179,7 @@ void ProcessControlBlock::terminate() {
     kernel.removeProcess(pid);
 
     if (parentNotification) {
-        kernel.sendMessage(parent, parentNotification);
+        kernel.sendMessage(parent, std::move(parentNotification));
     }
 }
 
@@ -195,27 +193,29 @@ int ProcessControlBlock::registerMessageHandler(
     return ++messageHandlerIdCounter;
 }
 
-void ProcessControlBlock::addMessage(Message* message) {
+void ProcessControlBlock::addMessage(std::unique_ptr<Message> message) {
     std::unique_lock<std::mutex> lock(mutex);
-    mailbox.push_back(message);
+    mailbox.push_back(std::move(message));
     condition.notify_one();
 }
 
-Message* ProcessControlBlock::getMessage() {
+std::unique_ptr<Message> ProcessControlBlock::getMessage() {
     std::unique_lock<std::mutex> lock(mutex);
 
     // Loop to handle spurious wakeups.
     while (mailbox.empty()) {
         condition.wait(lock);
     }
-    Message* message = mailbox.front();
+    auto message = std::move(mailbox.front());
     mailbox.pop_front();    
     return message;
 }
 
-Message* ProcessControlBlock::getMessage(int messageType, int messageId) {
+std::unique_ptr<Message> ProcessControlBlock::getMessage(
+    int messageType,
+    int messageId) {
 
-    Message* matchingMessage = nullptr;
+    std::unique_ptr<Message> matchingMessage;
     std::unique_lock<std::mutex> lock(mutex);
 
     while (true) {
@@ -223,17 +223,15 @@ Message* ProcessControlBlock::getMessage(int messageType, int messageId) {
         while (mailbox.empty()) {
             condition.wait(lock);
         }
-        for (MessageQueue::iterator i = mailbox.begin();
-             i != mailbox.end();
-             i++) {
-            Message* message = *i;
+        for (auto i = mailbox.begin(); i != mailbox.end(); i++) {
+            Message* message = i->get();
             if (message->type == messageType && message->id == messageId) {
+                matchingMessage = std::move(*i);
                 mailbox.erase(i);
-                matchingMessage = message;
                 break;
             }
         }
-        if (matchingMessage != nullptr) {
+        if (matchingMessage) {
             break;
         }
         condition.wait(lock);
@@ -248,17 +246,9 @@ Kernel::Kernel() :
     messageIdCounter(0),
     mutex() {
 
-    ProcessControlBlock* rootProcess = new ProcessControlBlock(0, 0, "root");
-    processMap.insert(std::make_pair(0, rootProcess));
-    currentProcess = rootProcess;
-}
-
-Kernel::~Kernel() {
-    for (PidToProcessMap::iterator i = processMap.begin();
-         i != processMap.end();
-         i++) {
-        delete i->second;
-    }
+    auto rootProcess = make_unique<ProcessControlBlock>(0, 0, "root");
+    currentProcess = rootProcess.get();
+    processMap.insert(std::make_pair(0, std::move(rootProcess)));
 }
 
 int Kernel::spawnProcess(
@@ -272,7 +262,7 @@ int Kernel::spawnProcess(
         std::lock_guard<std::mutex> lock(mutex);
 
         if (!name.empty()) {
-            NameToProcessMap::const_iterator i = nameToProcessMap.find(name);
+            auto i = nameToProcessMap.find(name);
             if (i != nameToProcessMap.end()) {
                 ProcessControlBlock* existingProcess = i->second;
                 return existingProcess->getPid();
@@ -280,7 +270,8 @@ int Kernel::spawnProcess(
         }
         pid = ++pidCounter;
         process = new ProcessControlBlock(pid, currentProcess->getPid(), name);
-        processMap.insert(std::make_pair(pid, process));
+        processMap.insert(
+            std::make_pair(pid, std::unique_ptr<ProcessControlBlock>(process)));
         if (!name.empty()) {
             nameToProcessMap.insert(std::make_pair(name, process));
         }
@@ -290,41 +281,42 @@ int Kernel::spawnProcess(
     return pid;
 }
 
-void Kernel::sendMessage(int destinationPid, Message* message) {
+int Kernel::sendMessage(int destinationPid, std::unique_ptr<Message> message) {
     std::lock_guard<std::mutex> lock(mutex);
 
     PidToProcessMap::const_iterator i = processMap.find(destinationPid);
     if (i != processMap.end()) {
-        ProcessControlBlock* process = i->second;
+        ProcessControlBlock* process = i->second.get();
         int messageType = message->type;
         if (messageType == MessageType::MethodCall ||
             messageType == MessageType::Terminate) {
             message->id = messageIdCounter++;
         }
-        process->addMessage(message);
+        int messageId = message->id;
+        process->addMessage(std::move(message));
+        return messageId;
     }
+    return 0;
 }
 
 void Kernel::removeProcess(int pid) {
     std::lock_guard<std::mutex> lock(mutex);
 
-    PidToProcessMap::iterator i = processMap.find(pid);
+    auto i = processMap.find(pid);
     if (i != processMap.end()) {
-        ProcessControlBlock* process = i->second;
+        ProcessControlBlock* process = i->second.get();
         const std::string& processName = process->getName();
         if (!processName.empty()) {
             nameToProcessMap.erase(processName);
         }
-        delete process;
         processMap.erase(i);
     }
 }
 
 void Kernel::waitForProcessTermination(int childPid) {
     if (isProcessAlive(childPid)) {
-        Message* message =
+        auto message =
             currentProcess->getMessage(MessageType::ChildTerminated, childPid);
-        delete message;
     }
 }
 
@@ -373,21 +365,19 @@ void Process::send(int destinationPid, Pointer<Message> message) {
     // the message.
     Pointer<Message> clonedMsg = dynamicPointerCast<Message>(message->_clone());
 
-    // Release the cloned message from the smart pointer so that the cloned
-    // message is not deleted once this method returns. The reference count for
-    // messages in the kernel is zero.
-    Message* clonedMsgRawPtr = clonedMsg.release();
+    // Release the cloned message from the ref counted pointer so that the
+    // cloned message is not deleted once this method returns. The reference
+    // count for messages in the kernel is zero.
+    std::unique_ptr<Message> clonedMsgPtr(clonedMsg.release());
 
     // Send the message.
-    kernel.sendMessage(destinationPid, clonedMsgRawPtr);
-
     // Set the message ID filled in by the kernel so that the generated code can
     // receive a result message based on the message id in the request message.
-    message->id = clonedMsgRawPtr->id;
+    message->id = kernel.sendMessage(destinationPid, std::move(clonedMsgPtr));
 }
 
 Pointer<Message> Process::receive() {
-    Pointer<Message> message(currentProcess->getMessage());
+    Pointer<Message> message(currentProcess->getMessage().release());
     return message;
 }
 
@@ -397,7 +387,7 @@ Pointer<Message> Process::receiveMethodResult(int messageId) {
 
 Pointer<Message> Process::receive(int messageType, int messageId) {
     Pointer<Message> message(currentProcess->getMessage(messageType,
-                                                        messageId));
+                                                        messageId).release());
     return message;
 }
 
@@ -406,8 +396,7 @@ int Process::getPid() {
 }
 
 void Process::terminate() {
-    Message* message = new Message(MessageType::Terminate);
-    currentProcess->addMessage(message);
+    currentProcess->addMessage(make_unique<Message>(MessageType::Terminate));
 }
 
 void Process::wait(int pid) {

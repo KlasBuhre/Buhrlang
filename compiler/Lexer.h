@@ -9,7 +9,7 @@
 
 class Lexer {
 public:
-    Lexer(const std::string& filename);
+    explicit Lexer(const std::string& filename);
 
     const Token& consumeToken();
     const Token& peekToken() const;

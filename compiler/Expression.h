@@ -121,7 +121,7 @@ class CharacterLiteralExpression: public LiteralExpression {
 public:
     CharacterLiteralExpression(char c, const Location& loc);
 
-    virtual Expression* clone() const;
+    Expression* clone() const override;
 
     char getValue() const {
         return value;
@@ -136,7 +136,7 @@ public:
     IntegerLiteralExpression(int i, const Location& loc);
     explicit IntegerLiteralExpression(int i);
 
-    virtual Expression* clone() const;
+    Expression* clone() const override;
 
     int getValue() const {
         return value;
@@ -151,7 +151,7 @@ public:
     FloatLiteralExpression(float f, const Location& loc);
     explicit FloatLiteralExpression(float i);
 
-    virtual Expression* clone() const;
+    Expression* clone() const override;
 
     float getValue() const {
         return value;
@@ -165,8 +165,8 @@ class StringLiteralExpression: public LiteralExpression {
 public:
     StringLiteralExpression(const std::string& s, const Location& loc);
 
-    virtual Expression* clone() const;
-    virtual Expression* transform(Context& context);
+    Expression* clone() const override;
+    Expression* transform(Context& context) override;
 
     const std::string& getValue() const {
         return value;
@@ -182,7 +182,7 @@ class BooleanLiteralExpression: public LiteralExpression {
 public:
     BooleanLiteralExpression(bool b, const Location& loc);
 
-    virtual Expression* clone() const;
+    Expression* clone() const override;
 
     bool getValue() const {
         return value;
@@ -198,9 +198,9 @@ public:
     ArrayLiteralExpression(Type* t, const Location& loc);
     ArrayLiteralExpression(const ArrayLiteralExpression& other);
 
-    virtual ArrayLiteralExpression* clone() const;
-    virtual Expression* transform(Context& context);
-    virtual Traverse::Result traverse(Visitor& visitor);
+    ArrayLiteralExpression* clone() const override;
+    Expression* transform(Context& context) override;
+    Traverse::Result traverse(Visitor& visitor) override;
 
     void addElement(Expression* element) {
         elements.push_back(element);
@@ -225,10 +225,10 @@ public:
     explicit NamedEntityExpression(const Identifier& i);
     NamedEntityExpression(const Identifier& i, const Location& loc);
 
-    virtual NamedEntityExpression* clone() const;
-    virtual Type* typeCheck(Context& context);
-    virtual Expression* transform(Context& context);
-    virtual Traverse::Result traverse(Visitor& visitor);
+    NamedEntityExpression* clone() const override;
+    Type* typeCheck(Context& context) override;
+    Expression* transform(Context& context) override;
+    Traverse::Result traverse(Visitor& visitor) override;
 
     bool resolve(Context& context);
     bool isReferencingStaticDataMember(Context& context);
@@ -255,11 +255,11 @@ public:
     LocalVariableExpression(Type* t, const Identifier& i, const Location& loc);
     LocalVariableExpression(const LocalVariableExpression& other);
 
-    virtual Expression* clone() const;
-    virtual Expression* transform(Context& context);
-    virtual Type* typeCheck(Context& context);
-    virtual bool isVariable() const;
-    virtual Identifier generateVariableName() const;
+    Expression* clone() const override;
+    Expression* transform(Context& context) override;
+    Type* typeCheck(Context& context) override;
+    bool isVariable() const override;
+    Identifier generateVariableName() const override;
 
     const Identifier& getName() const {
         return identifier;
@@ -275,8 +275,8 @@ public:
     ClassNameExpression(ClassDefinition* c, const Location& loc);
     ClassNameExpression(const ClassNameExpression& other);
 
-    virtual Expression* clone() const;
-    virtual Expression* transform(Context& context);
+    Expression* clone() const override;
+    Expression* transform(Context& context) override;
 
     virtual Type* typeCheck(Context&) {
         return type;
@@ -305,12 +305,12 @@ public:
         const Identifier& r,
         const Location& loc);
 
-    virtual Expression* clone() const;
-    virtual Expression* transform(Context& context);
-    virtual Type* typeCheck(Context& context);
-    virtual Traverse::Result traverse(Visitor& visitor);
-    virtual Identifier generateVariableName() const;
-    virtual Kind getRightmostExpressionKind() const;
+    Expression* clone() const override;
+    Expression* transform(Context& context) override;
+    Type* typeCheck(Context& context) override;
+    Traverse::Result traverse(Visitor& visitor) override;
+    Identifier generateVariableName() const override;
+    Kind getRightmostExpressionKind() const override;
 
     MethodCallExpression* getRhsCall(Context& context);
 
@@ -350,10 +350,10 @@ public:
         const Location& loc);
     BinaryExpression(Operator::Kind oper, Expression* l, Expression* r);
 
-    virtual Expression* clone() const;
-    virtual Type* typeCheck(Context& context);
-    virtual Expression* transform(Context& context);
-    virtual Traverse::Result traverse(Visitor& visitor);
+    Expression* clone() const override;
+    Type* typeCheck(Context& context) override;
+    Expression* transform(Context& context) override;
+    Traverse::Result traverse(Visitor& visitor) override;
 
     Operator::Kind getOperator() const {
         return op;
@@ -396,9 +396,9 @@ public:
         bool p,
         const Location& loc);
 
-    virtual Expression* clone() const;
-    virtual Type* typeCheck(Context& context);
-    virtual Traverse::Result traverse(Visitor& visitor);
+    Expression* clone() const override;
+    Type* typeCheck(Context& context) override;
+    Traverse::Result traverse(Visitor& visitor) override;
 
     Operator::Kind getOperator() const {
         return op;
@@ -421,12 +421,12 @@ private:
 class LambdaExpression: public Expression {
 public:
     LambdaExpression(BlockStatement* b, const Location& l);
-    LambdaExpression(BlockStatement* b);
+    explicit LambdaExpression(BlockStatement* b);
     LambdaExpression(const LambdaExpression& other);
 
-    virtual LambdaExpression* clone() const;
-    virtual Type* typeCheck(Context& context);
-    virtual Traverse::Result traverse(Visitor& visitor);
+    LambdaExpression* clone() const override;
+    Type* typeCheck(Context& context) override;
+    Traverse::Result traverse(Visitor& visitor) override;
 
     void addArgument(VariableDeclarationStatement* argument);
 
@@ -457,10 +457,10 @@ public:
     explicit YieldExpression(const Location& l);
     YieldExpression(const YieldExpression& other);
 
-    virtual Expression* clone() const;
-    virtual Expression* transform(Context& context);
-    virtual Type* typeCheck(Context& context);
-    virtual Traverse::Result traverse(Visitor& visitor);
+    Expression* clone() const override;
+    Expression* transform(Context& context) override;
+    Type* typeCheck(Context& context) override;
+    Traverse::Result traverse(Visitor& visitor) override;
 
     ExpressionList& getArguments() {
         return arguments;
@@ -482,10 +482,10 @@ public:
     AnonymousFunctionExpression(BlockStatement* b, const Location& l);
     AnonymousFunctionExpression(const AnonymousFunctionExpression& other);
 
-    virtual Expression* clone() const;
-    virtual Type* typeCheck(Context& context);
-    virtual Expression* transform(Context& context);
-    virtual Traverse::Result traverse(Visitor& visitor);
+    Expression* clone() const override;
+    Type* typeCheck(Context& context) override;
+    Expression* transform(Context& context) override;
+    Traverse::Result traverse(Visitor& visitor) override;
 
     void addArgument(VariableDeclaration* argument);
     void inferArgumentTypes(
@@ -541,11 +541,11 @@ public:
     DataMemberExpression(DataMemberDefinition* d, const Location& loc);
     DataMemberExpression(const DataMemberExpression& other);
 
-    virtual Expression* clone() const;
-    virtual Expression* transform(Context& context);
-    virtual Type* typeCheck(Context& context);
-    virtual bool isVariable() const;
-    virtual Identifier generateVariableName() const;
+    Expression* clone() const override;
+    Expression* transform(Context& context) override;
+    Type* typeCheck(Context& context) override;
+    bool isVariable() const override;
+    Identifier generateVariableName() const override;
 
     const Identifier& getName() const;
 
@@ -559,10 +559,10 @@ public:
     explicit MethodCallExpression(const Identifier& n);
     MethodCallExpression(const MethodCallExpression& other);
 
-    virtual MethodCallExpression* clone() const;
-    virtual Expression* transform(Context& context);
-    virtual Type* typeCheck(Context& context);
-    virtual Traverse::Result traverse(Visitor& visitor);
+    MethodCallExpression* clone() const override;
+    Expression* transform(Context& context) override;
+    Type* typeCheck(Context& context) override;
+    Traverse::Result traverse(Visitor& visitor) override;
 
     void setIsConstructorCall();
     void setConstructorCallName(Type* allocatedObjectType);
@@ -665,10 +665,10 @@ public:
     HeapAllocationExpression(Type* t, MethodCallExpression* m);
     HeapAllocationExpression(const HeapAllocationExpression& other);
 
-    virtual Expression* clone() const;
-    virtual Expression* transform(Context& context);
-    virtual Type* typeCheck(Context& context);
-    virtual Traverse::Result traverse(Visitor& visitor);
+    Expression* clone() const override;
+    Expression* transform(Context& context) override;
+    Type* typeCheck(Context& context) override;
+    Traverse::Result traverse(Visitor& visitor) override;
 
     void lookupType(const Context& context);
 
@@ -695,9 +695,9 @@ public:
     ArrayAllocationExpression(Type* t, Expression* c);
     ArrayAllocationExpression(const ArrayAllocationExpression& other);
 
-    virtual Expression* clone() const;
-    virtual Type* typeCheck(Context& context);
-    virtual Traverse::Result traverse(Visitor& visitor);
+    Expression* clone() const override;
+    Type* typeCheck(Context& context) override;
+    Traverse::Result traverse(Visitor& visitor) override;
 
     void lookupType(const Context& context);
 
@@ -723,10 +723,10 @@ class ArraySubscriptExpression: public Expression {
 public:
     ArraySubscriptExpression(Expression* n, Expression* i);
 
-    virtual Expression* clone() const;
-    virtual Expression* transform(Context& context);
-    virtual Type* typeCheck(Context& context);
-    virtual Traverse::Result traverse(Visitor& visitor);
+    Expression* clone() const override;
+    Expression* transform(Context& context) override;
+    Type* typeCheck(Context& context) override;
+    Traverse::Result traverse(Visitor& visitor) override;
 
     Expression* getArrayNameExpression() const {
         return arrayNameExpression;
@@ -751,9 +751,9 @@ public:
     TypeCastExpression(Type* target, Expression* o);
     TypeCastExpression(const TypeCastExpression& other);
 
-    virtual Expression* clone() const;
-    virtual Type* typeCheck(Context& context);
-    virtual Traverse::Result traverse(Visitor& visitor);
+    Expression* clone() const override;
+    Type* typeCheck(Context& context) override;
+    Traverse::Result traverse(Visitor& visitor) override;
 
     void lookupTargetType(const Context& context);
 
@@ -789,7 +789,7 @@ public:
     MatchCase();
     MatchCase(const MatchCase& other);
 
-    virtual Traverse::Result traverse(Visitor& visitor);
+    Traverse::Result traverse(Visitor& visitor) override;
 
     MatchCase* clone() const;    
     void addPatternExpression(Expression* e);
@@ -850,11 +850,11 @@ public:
     explicit MatchExpression(Expression* s);
     MatchExpression(const MatchExpression& other);
 
-    virtual Expression* clone() const;
-    virtual Expression* transform(Context& context);
-    virtual Type* typeCheck(Context& context);
-    virtual bool mayFallThrough() const;
-    virtual Traverse::Result traverse(Visitor& visitor);
+    Expression* clone() const override;
+    Expression* transform(Context& context) override;
+    Type* typeCheck(Context& context) override;
+    bool mayFallThrough() const override;
+    Traverse::Result traverse(Visitor& visitor) override;
 
     void addCase(MatchCase* c) {
         cases.push_back(c);
@@ -896,9 +896,9 @@ public:
     ClassDecompositionExpression(Type* t, const Location& l);
     ClassDecompositionExpression(const ClassDecompositionExpression& other);
 
-    virtual ClassDecompositionExpression* clone() const;
-    virtual Type* typeCheck(Context&);
-    virtual Traverse::Result traverse(Visitor& visitor);
+    ClassDecompositionExpression* clone() const override;
+    Type* typeCheck(Context&) override;
+    Traverse::Result traverse(Visitor& visitor) override;
 
     void addMember(Expression* nameExpr, Expression* patternExpr);
     void lookupType(const Context& context);
@@ -925,9 +925,9 @@ public:
     TypedExpression(Type* targetType, Expression* n,  const Location& l);
     TypedExpression(const TypedExpression& other);
 
-    virtual TypedExpression* clone() const;
-    virtual Type* typeCheck(Context& context);
-    virtual Traverse::Result traverse(Visitor& visitor);
+    TypedExpression* clone() const override;
+    Type* typeCheck(Context& context) override;
+    Traverse::Result traverse(Visitor& visitor) override;
 
     void lookupType(const Context& context);
 
@@ -944,7 +944,7 @@ public:
     explicit PlaceholderExpression(const Location& l);
     PlaceholderExpression();
 
-    virtual Expression* clone() const;
+    Expression* clone() const override;
 
     virtual Type* typeCheck(Context&) {
         return &Type::voidType();
@@ -955,7 +955,7 @@ class WildcardExpression: public Expression {
 public:
     explicit WildcardExpression(const Location& l);
 
-    virtual Expression* clone() const;
+    Expression* clone() const override;
 
     virtual Type* typeCheck(Context&) {
         return &Type::voidType();
@@ -966,7 +966,7 @@ class NullExpression: public Expression {
 public:
     explicit NullExpression(const Location& l);
 
-    virtual Expression* clone() const;
+    Expression* clone() const override;
 
     virtual Type* typeCheck(Context&) {
         return &Type::nullType();
@@ -978,16 +978,16 @@ public:
     ThisExpression();
     explicit ThisExpression(const Location& l);
 
-    virtual Expression* clone() const;
-    virtual Type* typeCheck(Context& context);
+    Expression* clone() const override;
+    Type* typeCheck(Context& context) override;
 };
 
 class TemporaryExpression: public Expression {
 public:
     TemporaryExpression(VariableDeclaration* d, const Location& l);
 
-    virtual Expression* clone() const;
-    virtual Type* typeCheck(Context& context);
+    Expression* clone() const override;
+    Type* typeCheck(Context& context) override;
 
     void setNonStaticInlinedMethodBody(BlockStatement* b) {
         nonStaticInlinedMethodBody = b;
@@ -1011,8 +1011,8 @@ public:
     WrappedStatementExpression(Statement* s, const Location& l);
     WrappedStatementExpression(const WrappedStatementExpression& other);
 
-    virtual Expression* clone() const;
-    virtual Type* typeCheck(Context& context);
+    Expression* clone() const override;
+    Type* typeCheck(Context& context) override;
 
     Statement* getStatement() const {
         return statement;

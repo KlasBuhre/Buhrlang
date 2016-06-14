@@ -30,8 +30,8 @@ public:
         Enumeration
     };
 
-    Type(BuiltInType t);
-    Type(const Identifier& n);
+    explicit Type(BuiltInType t);
+    explicit Type(const Identifier& n);
     Type(const Type& other);
 
     Type* clone() const;

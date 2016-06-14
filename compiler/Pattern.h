@@ -17,7 +17,7 @@ class TypedExpression;
 
 class MatchCoverage {
 public:
-    MatchCoverage(Type* subjectType);
+    explicit MatchCoverage(Type* subjectType);
 
     bool isCaseCovered(const Identifier& caseName) const;
     bool areAllCasesCovered() const;
@@ -69,15 +69,15 @@ public:
     explicit SimplePattern(Expression* e);
     SimplePattern(const SimplePattern& other);
 
-    virtual Pattern* clone() const;
-    virtual bool isMatchExhaustive(
+    Pattern* clone() const override;
+    bool isMatchExhaustive(
         Expression* subject,
         MatchCoverage& coverage,
         bool isMatchGuardPresent,
-        Context& context);
-    virtual BinaryExpression* generateComparisonExpression(
+        Context& context) override;
+    BinaryExpression* generateComparisonExpression(
         Expression* subject,
-        Context& context);
+        Context& context) override;
 
 private:
     Expression* expression;
@@ -88,15 +88,15 @@ public:
     explicit ArrayPattern(ArrayLiteralExpression* e);
     ArrayPattern(const ArrayPattern& other);
 
-    virtual Pattern* clone() const;
-    virtual bool isMatchExhaustive(
+    Pattern* clone() const override;
+    bool isMatchExhaustive(
         Expression* subject,
         MatchCoverage& coverage,
         bool isMatchGuardPresent,
-        Context& context);
-    virtual BinaryExpression* generateComparisonExpression(
+        Context& context) override;
+    BinaryExpression* generateComparisonExpression(
         Expression* subject,
-        Context& context);
+        Context& context) override;
 
     static VariableDeclarationStatement*
     generateMatchSubjectLengthDeclaration(Expression* subject);
@@ -126,15 +126,15 @@ public:
     explicit ClassDecompositionPattern(ClassDecompositionExpression* e);
     ClassDecompositionPattern(const ClassDecompositionPattern& other);
 
-    virtual Pattern* clone() const;
-    virtual bool isMatchExhaustive(
+    Pattern* clone() const override;
+    bool isMatchExhaustive(
         Expression* subject,
         MatchCoverage& coverage,
         bool isMatchGuardPresent,
-        Context& context);
-    virtual BinaryExpression* generateComparisonExpression(
+        Context& context) override;
+    BinaryExpression* generateComparisonExpression(
         Expression* subject,
-        Context& context);
+        Context& context) override;
 
 private:
     bool isEnumMatchExhaustive(
@@ -166,15 +166,15 @@ public:
     explicit TypedPattern(TypedExpression* e);
     TypedPattern(const TypedPattern& other);
 
-    virtual Pattern* clone() const;
-    virtual bool isMatchExhaustive(
+    Pattern* clone() const override;
+    bool isMatchExhaustive(
         Expression* subject,
         MatchCoverage& coverage,
         bool isMatchGuardPresent,
-        Context& context);
-    virtual BinaryExpression* generateComparisonExpression(
+        Context& context) override;
+    BinaryExpression* generateComparisonExpression(
         Expression* subject,
-        Context& context);
+        Context& context) override;
 
 private:
     TypedExpression* typedExpression;

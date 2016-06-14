@@ -128,7 +128,6 @@ void NameBindings::removeObsoleteLocalBindings() {
             nameInBindings.compare(
                 binding->getLocalObject()->getIdentifier()) != 0) {
             bindings.erase(i++);
-            // delete binding;
         } else {
             ++i;
         }

@@ -33,10 +33,10 @@ namespace {
     public:
         GenericTypeVisitor();
 
-        virtual Traverse::Result visitClass(ClassDefinition& classDefinition);
-        virtual Traverse::Result visitDataMember(
-            DataMemberDefinition& dataMember);
-        virtual Traverse::Result visitMethod(MethodDefinition& method);
+        Traverse::Result visitClass(ClassDefinition& classDefinition) override;
+        Traverse::Result visitDataMember(
+            DataMemberDefinition& dataMember) override;
+        Traverse::Result visitMethod(MethodDefinition& method) override;
     };
 
     GenericTypeVisitor::GenericTypeVisitor() :
@@ -69,10 +69,10 @@ namespace {
     public:
         ClosureTypeVisitor();
 
-        virtual Traverse::Result visitClass(ClassDefinition& classDefinition);
-        virtual Traverse::Result visitDataMember(
-            DataMemberDefinition& dataMember);
-        virtual Traverse::Result visitMethod(MethodDefinition& method);
+        Traverse::Result visitClass(ClassDefinition& classDefinition) override;
+        Traverse::Result visitDataMember(
+            DataMemberDefinition& dataMember) override;
+        Traverse::Result visitMethod(MethodDefinition& method) override;
     };
 
     ClosureTypeVisitor::ClosureTypeVisitor() :
@@ -105,7 +105,7 @@ namespace {
     public:
         CheckReturnStatementsVisitor();
 
-        virtual Traverse::Result visitMethod(MethodDefinition& method);
+        Traverse::Result visitMethod(MethodDefinition& method) override;
     };
 
     CheckReturnStatementsVisitor::CheckReturnStatementsVisitor() :
@@ -125,7 +125,7 @@ namespace {
     public:
         GenerateCloneMethodsVisitor();
 
-        virtual Traverse::Result visitClass(ClassDefinition& classDefinition);
+        Traverse::Result visitClass(ClassDefinition& classDefinition) override;
     };
 
     GenerateCloneMethodsVisitor::GenerateCloneMethodsVisitor() :
@@ -151,8 +151,8 @@ namespace {
     public:
         TypeCheckAndTransformVisitor();
 
-        virtual Traverse::Result visitClass(ClassDefinition& classDefinition);
-        virtual Traverse::Result visitMethod(MethodDefinition& method);
+        Traverse::Result visitClass(ClassDefinition& classDefinition) override;
+        Traverse::Result visitMethod(MethodDefinition& method) override;
     };
 
     TypeCheckAndTransformVisitor::TypeCheckAndTransformVisitor() :

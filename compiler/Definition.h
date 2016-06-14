@@ -124,8 +124,8 @@ public:
         Properties& properties,
         const Location& location);
 
-    virtual ClassDefinition* clone() const;
-    virtual Traverse::Result traverse(Visitor& visitor);
+    ClassDefinition* clone() const override;
+    Traverse::Result traverse(Visitor& visitor) override;
 
     void appendMember(Definition* member);
     void insertMember(
@@ -329,8 +329,8 @@ public:
         bool isStatic,
         ClassDefinition* classDefinition);
 
-    virtual Definition* clone() const;
-    virtual Traverse::Result traverse(Visitor& visitor);
+    Definition* clone() const override;
+    Traverse::Result traverse(Visitor& visitor) override;
 
     void typeCheckAndTransform();
     void updateGenericTypesInSignature();
@@ -483,8 +483,8 @@ public:
         const Location& l);
     DataMemberDefinition(const DataMemberDefinition& other);
 
-    virtual Definition* clone() const;
-    virtual Traverse::Result traverse(Visitor& visitor);
+    Definition* clone() const override;
+    Traverse::Result traverse(Visitor& visitor) override;
 
     void typeCheckAndTransform();
     void convertClosureType();
@@ -522,7 +522,7 @@ public:
     GenericTypeParameterDefinition(const Identifier& name, const Location& l);
     GenericTypeParameterDefinition(const GenericTypeParameterDefinition& other);
 
-    virtual GenericTypeParameterDefinition* clone() const;
+    GenericTypeParameterDefinition* clone() const override;
 
     void setConcreteType(Type* type) {
         concreteType = type;
@@ -538,10 +538,10 @@ private:
 
 class ForwardDeclarationDefinition: public Definition {
 public:
-    ForwardDeclarationDefinition(const Identifier& name);
+    explicit ForwardDeclarationDefinition(const Identifier& name);
     ForwardDeclarationDefinition(const ForwardDeclarationDefinition& other);
 
-    virtual ForwardDeclarationDefinition* clone() const;
+    ForwardDeclarationDefinition* clone() const override;
 };
 
 #endif

@@ -763,7 +763,7 @@ class ClosureTest {
     }
 
     fun int(int, int, int) factory(int d) {
-        return |int a, int b, int c| { (a / b) + c + d}
+        return |int a, int b, int c| { (a / b) + c + d }
     }
 }
 

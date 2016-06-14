@@ -59,9 +59,9 @@ public:
     VariableDeclarationStatement(const Identifier& i, Expression* e);
     VariableDeclarationStatement(const VariableDeclarationStatement& other);
 
-    virtual VariableDeclarationStatement* clone() const;
-    virtual Type* typeCheck(Context& context);
-    virtual Traverse::Result traverse(Visitor& visitor);
+    VariableDeclarationStatement* clone() const override;
+    Type* typeCheck(Context& context) override;
+    Traverse::Result traverse(Visitor& visitor) override;
 
     void lookupType(const Context& context);
 
@@ -136,10 +136,10 @@ public:
         const Location& l);
     BlockStatement(const BlockStatement& other);
 
-    virtual BlockStatement* clone() const;
-    virtual Type* typeCheck(Context& context);
-    virtual bool mayFallThrough() const;
-    virtual Traverse::Result traverse(Visitor& visitor);
+    BlockStatement* clone() const override;
+    Type* typeCheck(Context& context) override;
+    bool mayFallThrough() const override;
+    Traverse::Result traverse(Visitor& visitor) override;
 
     void addStatement(Statement* statement);
     void insertStatementAtFront(Statement* statement);
@@ -194,10 +194,10 @@ public:
         BlockStatement* eb,
         const Location& l);
 
-    virtual Statement* clone() const;
-    virtual Type* typeCheck(Context& context);
-    virtual bool mayFallThrough() const;
-    virtual Traverse::Result traverse(Visitor& visitor);
+    Statement* clone() const override;
+    Type* typeCheck(Context& context) override;
+    bool mayFallThrough() const override;
+    Traverse::Result traverse(Visitor& visitor) override;
 
     Expression* getExpression() const {
         return expression;
@@ -221,10 +221,10 @@ class WhileStatement: public Statement {
 public:
     WhileStatement(Expression* e, BlockStatement* b, const Location& l);
 
-    virtual Statement* clone() const;
-    virtual Type* typeCheck(Context& context);
-    virtual bool mayFallThrough() const;
-    virtual Traverse::Result traverse(Visitor& visitor);
+    Statement* clone() const override;
+    Type* typeCheck(Context& context) override;
+    bool mayFallThrough() const override;
+    Traverse::Result traverse(Visitor& visitor) override;
 
     Expression* getExpression() const {
         return expression;
@@ -247,10 +247,10 @@ public:
         BlockStatement* b,
         const Location& l);
 
-    virtual Statement* clone() const;
-    virtual Type* typeCheck(Context& context);
-    virtual bool mayFallThrough() const;
-    virtual Traverse::Result traverse(Visitor& visitor);
+    Statement* clone() const override;
+    Type* typeCheck(Context& context) override;
+    bool mayFallThrough() const override;
+    Traverse::Result traverse(Visitor& visitor) override;
 
     Expression* getConditionExpression() const {
         return conditionExpression;
@@ -274,18 +274,18 @@ class BreakStatement: public Statement {
 public:
     explicit BreakStatement(const Location& l);
 
-    virtual Statement* clone() const;
-    virtual Type* typeCheck(Context& context);
-    virtual bool mayFallThrough() const;
+    Statement* clone() const override;
+    Type* typeCheck(Context& context) override;
+    bool mayFallThrough() const override;
 };
 
 class ContinueStatement: public Statement {
 public:
     explicit ContinueStatement(const Location& l);
 
-    virtual Statement* clone() const;
-    virtual Type* typeCheck(Context& context);
-    virtual bool mayFallThrough() const;
+    Statement* clone() const override;
+    Type* typeCheck(Context& context) override;
+    bool mayFallThrough() const override;
 };
 
 class ReturnStatement: public Statement {
@@ -294,10 +294,10 @@ public:
     explicit ReturnStatement(Expression* e);
     ReturnStatement(const ReturnStatement& other);
 
-    virtual Statement* clone() const;
-    virtual Type* typeCheck(Context& context);
-    virtual bool mayFallThrough() const;
-    virtual Traverse::Result traverse(Visitor& visitor);
+    Statement* clone() const override;
+    Type* typeCheck(Context& context) override;
+    bool mayFallThrough() const override;
+    Traverse::Result traverse(Visitor& visitor) override;
 
     Expression* getExpression() const {
         return expression;
@@ -313,9 +313,9 @@ public:
     DeferStatement(BlockStatement* b, const Location& l);
     DeferStatement(const DeferStatement& other);
 
-    virtual Statement* clone() const;
-    virtual Type* typeCheck(Context& context);
-    virtual Traverse::Result traverse(Visitor& visitor);
+    Statement* clone() const override;
+    Type* typeCheck(Context& context) override;
+    Traverse::Result traverse(Visitor& visitor) override;
 
 private:
     BlockStatement* block;
@@ -325,11 +325,11 @@ class MethodCallExpression;
 
 class ConstructorCallStatement: public Statement {
 public:
-    ConstructorCallStatement(MethodCallExpression* c);
+    explicit ConstructorCallStatement(MethodCallExpression* c);
 
-    virtual Statement* clone() const;
-    virtual Type* typeCheck(Context& context);
-    virtual Traverse::Result traverse(Visitor& visitor);
+    Statement* clone() const override;
+    Type* typeCheck(Context& context) override;
+    Traverse::Result traverse(Visitor& visitor) override;
 
     MethodCallExpression* getMethodCallExpression() const {
         return constructorCall;
@@ -349,8 +349,8 @@ class LabelStatement: public Statement {
 public:
     LabelStatement(const Identifier& n, const Location& l);
 
-    virtual Statement* clone() const;
-    virtual Type* typeCheck(Context&);
+    Statement* clone() const override;
+    Type* typeCheck(Context&) override;
 
     const Identifier& getName() const {
         return name;
@@ -364,9 +364,9 @@ class JumpStatement: public Statement {
 public:
     JumpStatement(const Identifier& n, const Location& l);
 
-    virtual Statement* clone() const;
-    virtual Type* typeCheck(Context& context);
-    virtual bool mayFallThrough() const;
+    Statement* clone() const override;
+    Type* typeCheck(Context& context) override;
+    bool mayFallThrough() const override;
 
     const Identifier& getLabelName() const {
         return labelName;

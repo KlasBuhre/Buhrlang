@@ -9,7 +9,7 @@
 
 class Module {
 public:
-    Module(const std::string& fname);
+    explicit Module(const std::string& fname);
 
     void compile();
     void addDependency(const std::string& fname);
