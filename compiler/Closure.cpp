@@ -56,7 +56,7 @@ namespace {
     private:
         void checkIfNonLocal(const NamedEntityExpression& namedEntity);
 
-        typedef std::set<Identifier> IdentifierSet;
+        using IdentifierSet = std::set<Identifier>;
 
         NameBindings& globalScope;
         NameBindings& funcScope;

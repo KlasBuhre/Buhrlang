@@ -11,7 +11,7 @@
 #include "File.h"
 
 namespace {
-    typedef std::map<std::string, std::string> FileMap;
+    using FileMap = std::map<std::string, std::string>;
 
     FileMap fileMap;
     std::string selfPath;

@@ -8,7 +8,7 @@
 #include "File.h"
 
 namespace {
-    typedef std::vector<Module*> ModuleList;
+    using ModuleList = std::vector<Module*>;
     ModuleList modules;
 
     void compile() {

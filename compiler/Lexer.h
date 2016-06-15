@@ -56,8 +56,8 @@ private:
         GettingFloatingPointNumber
     };
 
-    typedef std::list<Token> TokenList;
-    typedef std::map<std::string, Keyword::Kind> KeywordMap;
+    using TokenList = std::list<Token>;
+    using KeywordMap = std::map<std::string, Keyword::Kind>;
 
     TokenList tokenList;
     State state;

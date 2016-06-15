@@ -9,7 +9,7 @@ class Tree;
 class AnonymousFunctionExpression;
 class Context;
 
-typedef std::vector<VariableDeclaration*> VariableDeclarationList;
+using VariableDeclarationList = std::vector<VariableDeclaration*>;
 
 struct ClosureInfo {
     ClosureInfo() :

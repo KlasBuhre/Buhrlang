@@ -188,8 +188,8 @@ struct Location {
     int column;
 };
 
-typedef std::string Identifier;
-typedef std::list<Identifier> IdentifierList;
+using Identifier = std::string;
+using IdentifierList = std::list<Identifier>;
 
 class Visitor;
 
@@ -290,9 +290,9 @@ private:
 
 class Expression;
 
-typedef std::vector<VariableDeclaration*> ArgumentList;
-typedef std::vector<Type*> TypeList;
-typedef std::list<Expression*> ExpressionList;
+using ArgumentList = std::vector<VariableDeclaration*>;
+using TypeList = std::vector<Type*>;
+using ExpressionList = std::list<Expression*>;
 
 class FunctionSignature {
 public:

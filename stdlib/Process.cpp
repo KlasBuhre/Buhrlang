@@ -1,3 +1,7 @@
+#include "Process.h"
+#include "Utils.h"
+#include "Exception.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <list>
@@ -9,10 +13,6 @@
 #include <chrono>
 #include <string>
 #include <memory>
-
-#include "Process.h"
-#include "Utils.h"
-#include "Exception.h"
 
 namespace {
     template<typename T, typename... Ts>
@@ -43,8 +43,8 @@ public:
     }
 
 private:
-    typedef std::list<std::unique_ptr<Message> > MessageQueue;
-    typedef std::vector<Pointer<MessageHandler> > MessageHandlerVector;
+    using MessageQueue = std::list<std::unique_ptr<Message>>;
+    using MessageHandlerVector = std::vector<Pointer<MessageHandler>>;
 
     int pid;
     int parentPid;
@@ -70,8 +70,8 @@ public:
 private:
     bool isProcessAlive(int pid);
 
-    typedef std::map<int, std::unique_ptr<ProcessControlBlock> > PidToProcessMap;
-    typedef std::map<std::string, ProcessControlBlock*> NameToProcessMap;
+    using PidToProcessMap = std::map<int, std::unique_ptr<ProcessControlBlock>>;
+    using NameToProcessMap = std::map<std::string, ProcessControlBlock*>;
 
     PidToProcessMap processMap;
     NameToProcessMap nameToProcessMap;

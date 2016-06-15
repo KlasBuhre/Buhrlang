@@ -78,11 +78,11 @@ class BlockStatement;
 class ConstructorCallStatement;
 class Expression;
 
-typedef std::list<Definition*> DefinitionList;
-typedef std::vector<GenericTypeParameterDefinition*> GenericTypeParameterList;
-typedef std::vector<ClassDefinition*> ClassList;
-typedef std::vector<MethodDefinition*> MemberMethodList;
-typedef std::vector<DataMemberDefinition*> DataMemberList;
+using DefinitionList = std::list<Definition*>;
+using GenericTypeParameterList = std::vector<GenericTypeParameterDefinition*>;
+using ClassList = std::vector<ClassDefinition*>;
+using MemberMethodList = std::vector<MethodDefinition*>;
+using DataMemberList = std::vector<DataMemberDefinition*>;
 
 class ClassDefinition: public Definition {
 public:

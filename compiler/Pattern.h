@@ -24,7 +24,7 @@ public:
     void markCaseAsCovered(const Identifier& caseName);
 
 private:
-    typedef std::set<Identifier> CaseSet;
+    using CaseSet = std::set<Identifier>;
 
     CaseSet notCoveredCases;
 };

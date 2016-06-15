@@ -83,7 +83,7 @@ private:
     Kind kind;
 };
 
-typedef std::string Value;
+using Value = std::string;
 
 class LiteralExpression: public Expression {
 public:
@@ -781,7 +781,7 @@ private:
 class Pattern;
 class MatchCoverage;
 
-typedef std::vector<Pattern*> PatternList;
+using PatternList = std::vector<Pattern*>;
 
 class MatchCase: public Node {
 public:
@@ -865,7 +865,7 @@ public:
     }
 
 private:
-    typedef std::vector<MatchCase*> CaseList;
+    using CaseList = std::vector<MatchCase*>;
 
     BlockStatement* generateMatchLogic(
         Context& context,
@@ -891,7 +891,7 @@ public:
         Expression* patternExpr;
     };
 
-    typedef std::vector<Member> MemberList;
+    using MemberList = std::vector<Member>;
 
     ClassDecompositionExpression(Type* t, const Location& l);
     ClassDecompositionExpression(const ClassDecompositionExpression& other);

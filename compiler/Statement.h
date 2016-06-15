@@ -122,8 +122,7 @@ private:
     bool hasLookedUpType;
 };
 
-typedef std::vector<VariableDeclarationStatement*>
-    VariableDeclarationStatementList;
+using VariableDeclarationStatementList = std::vector<VariableDeclarationStatement*>;
 
 class LabelStatement;
 class ConstructorCallStatement;
@@ -156,7 +155,7 @@ public:
     Expression* getLastStatementAsExpression() const;
     bool containsDeferDeclaration() const;
 
-    typedef std::list<Statement*> StatementList;
+    using StatementList = std::list<Statement*>;
 
     StatementList& getStatements() {
         return statements;

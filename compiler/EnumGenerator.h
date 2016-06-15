@@ -33,7 +33,7 @@ private:
         Location location;
     };
 
-    typedef std::vector<GenericNoDataVariant> GenericNoDataVariantList;
+    using GenericNoDataVariantList = std::vector<GenericNoDataVariant>;
 
     EnumGenerator(
         Type* type,

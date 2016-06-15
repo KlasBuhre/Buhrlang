@@ -45,7 +45,7 @@ public:
         return definition;
     }
 
-    typedef std::list<MethodDefinition*> MethodList;
+    using MethodList = std::list<MethodDefinition*>;
 
     MethodList& getMethodList() {
         return methodList;
@@ -97,7 +97,7 @@ public:
     }
 
 private:
-    typedef std::map<Identifier, Binding*> BindingMap;
+    using BindingMap = std::map<Identifier, Binding*>;
 
     NameBindings* enclosing;
     BindingMap bindings;
