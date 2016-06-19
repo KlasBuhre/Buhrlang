@@ -234,16 +234,14 @@ ClassDefinition* Closure::generateInterface(const Type* closureType) {
 MethodDefinition* Closure::generateCallMethodSignature(
     const Type* closureType) {
 
-    FunctionSignature* closureSignature = closureType->getFunctionSignature();
-    MethodDefinition* methodSignature =
+    auto closureSignature = closureType->getFunctionSignature();
+    auto methodSignature =
         new MethodDefinition(CommonNames::callMethodName,
                              closureSignature->getReturnType(),
                              tree.getCurrentClass());
 
     int index = 0;
-    const TypeList& arguments = closureSignature->getArguments();
-    for (auto i = arguments.cbegin(); i != arguments.cend(); i++) {
-        Type* argumentType = *i;
+    for (auto argumentType: closureSignature->getArguments()) {
         methodSignature->addArgument(argumentType->clone(),
                                      Symbol::makeTemp(index));
         index++;
@@ -330,22 +328,18 @@ ClassDefinition* Closure::startGeneratingClass(
                                      function->getLocation());
     tree.startGeneratedClass(closureClassName, properties);
 
-    for (auto i = nonLocalVariables.cbegin();
-         i != nonLocalVariables.cend();
-         i++) {
-        VariableDeclaration* nonLocalVar = *i;
+    for (auto nonLocalVar: nonLocalVariables) {
         tree.addClassDataMember(nonLocalVar->getType()->clone(),
                                 nonLocalVar->getIdentifier());
     }
     tree.getCurrentClass()->generateConstructor();
 
-    MethodDefinition* callMethodDef =
-        new MethodDefinition(CommonNames::callMethodName,
-                             new Type(Type::Implicit),
-                             AccessLevel::Public,
-                             false,
-                             tree.getCurrentClass(),
-                             function->getLocation());
+    auto callMethodDef = new MethodDefinition(CommonNames::callMethodName,
+                                              new Type(Type::Implicit),
+                                              AccessLevel::Public,
+                                              false,
+                                              tree.getCurrentClass(),
+                                              function->getLocation());
     callMethodDef->setIsClosure(true);
     callMethodDef->setBody(function->getBody());
     callMethodDef->addArguments(function->getArgumentList());
@@ -356,13 +350,11 @@ ClassDefinition* Closure::startGeneratingClass(
 }
 
 Type* Closure::getClosureInterfaceType(MethodDefinition* callMethod) {
-    Type* closureType = new Type(Type::Function);
+    auto closureType = new Type(Type::Function);
 
-    FunctionSignature* closureSignature =
+    auto closureSignature =
         new FunctionSignature(callMethod->getReturnType()->clone());
-    const ArgumentList& argumentList = callMethod->getArgumentList();
-    for (auto i = argumentList.cbegin(); i!= argumentList.cend(); i++) {
-        VariableDeclaration* argument = *i;
+    for (auto argument: callMethod->getArgumentList()) {
         closureSignature->addArgument(argument->getType()->clone());
     }
 

@@ -12,16 +12,14 @@ namespace {
     ModuleList modules;
 
     void compile() {
-        for (auto i = modules.begin(); i != modules.end(); i++) {
-            Module* module = *i;
+        for (auto module: modules) {
             printf("Compiling %s.b\n", module->getFilename().c_str());
             module->compile();
         }
     }
 
     void writeGeneratedCppCodeToDisk() {
-        for (auto i = modules.cbegin(); i != modules.cend(); i++) {
-            const Module* module = *i;
+        for (auto module: modules) {
             if (module->isNative()) {
                 continue;
             }
@@ -33,8 +31,7 @@ namespace {
     }
 
     void removeGeneratedCppCode() {
-        for (auto i = modules.cbegin(); i != modules.cend(); i++) {
-            const Module* module = *i;
+        for (auto module: modules) {
             const std::string& filename = module->getFilename();
             std::string cmd = "rm " + filename + ".o ";
             if (!module->isNative()) {
@@ -46,8 +43,7 @@ namespace {
 
     void callGcc(const std::string& executableName) {
         std::string objectFiles;
-        for (auto i = modules.cbegin(); i != modules.cend(); i++) {
-            const Module* module = *i;
+        for (auto module: modules) {
             const std::string& filename = module->getFilename();
             const std::string& compilerPath = File::getSelfPath();
 

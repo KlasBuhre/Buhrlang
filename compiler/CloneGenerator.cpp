@@ -7,9 +7,7 @@ namespace {
     const Identifier elementVariableName("element");
 
     MethodDefinition* getCloneMethod(const ClassDefinition *classDef) {
-        const MemberMethodList& methods = classDef->getMethods();
-        for (auto i = methods.cbegin(); i != methods.cend(); i++) {
-            MethodDefinition* method = *i;
+        for (auto method: classDef->getMethods()) {
             if (method->getName().compare(CommonNames::cloneMethodName) == 0) {
                 return method;
             }
@@ -106,14 +104,12 @@ void CloneGenerator::generateCloneMethod() {
 void CloneGenerator::generateCopyConstructor() {
     // An empty copy constructor was created for the message class when the
     // class was created. We will now generate the method body.
-    MethodDefinition* copyConstructor = inputClass->getCopyConstructor();
+    auto copyConstructor = inputClass->getCopyConstructor();
     tree.setCurrentBlock(copyConstructor->getBody());
 
     generateBaseClassConstructorCall();
 
-    const DataMemberList& dataMembers = inputClass->getDataMembers();
-    for (auto i = dataMembers.cbegin(); i != dataMembers.cend(); i++) {
-        const DataMemberDefinition* dataMember = *i;
+    for (auto dataMember: inputClass->getDataMembers()) {
         if (dataMember->isStatic()) {
             continue;
         }

@@ -62,8 +62,7 @@ namespace {
     }
 
     bool isParentClassMessage(const ClassList& parents) {
-        for (auto i = parents.cbegin(); i != parents.cend(); i++) {
-            ClassDefinition* parent = *i;
+        for (auto parent: parents) {
             if (parent->isMessage()) {
                 return true;
             }
@@ -150,8 +149,7 @@ ClassDefinition* ClassDefinition::create(
     const Location& location) {
 
     ClassParents classParents;
-    for (auto i = parentNames.cbegin(); i != parentNames.cend(); i++) {
-        const Identifier& parentName = *i;
+    for (const auto& parentName: parentNames) {
         addParentDefinition(parentName,
                             classParents,
                             enclosingBindings,
@@ -205,23 +203,22 @@ ClassDefinition* ClassDefinition::create(
 }
 
 void ClassDefinition::copyParentClassesNameBindings() {
-    for (auto i = parentClasses.begin(); i != parentClasses.end(); i++) {
-        ClassDefinition* parentClassDef = *i;
+    for (auto parentClassDef: parentClasses) {
         nameBindings.copyFrom(parentClassDef->getNameBindings());
     }
 }
 
 void ClassDefinition::copyMembers(const DefinitionList& from) {
-    for (auto i = from.cbegin(); i != from.cend(); i++) {
-        appendMember((*i)->clone());
+    for (auto i: from) {
+        appendMember(i->clone());
     }
 }
 
 void ClassDefinition::copyGenericTypeParameters(
     const GenericTypeParameterList& from) {
 
-    for (auto i = from.cbegin(); i != from.cend(); i++) {
-        addGenericTypeParameter((*i)->clone());
+    for (auto i: from) {
+        addGenericTypeParameter(i->clone());
     }
 }
 
@@ -236,10 +233,7 @@ Identifier ClassDefinition::getFullName() const {
 
     bool insertComma = false;
     Identifier fullName = name + '<';
-    for (auto i = genericTypeParameters.begin();
-         i != genericTypeParameters.end();
-         i++) {
-        GenericTypeParameterDefinition* gericTypeParameterDef = *i;
+    for (auto gericTypeParameterDef: genericTypeParameters) {
         if (insertComma) {
             fullName += ',';
         }
@@ -348,7 +342,7 @@ void ClassDefinition::addMethod(MethodDefinition* newMethod) {
         newMethod->setIsVirtual(true);
     }
 
-    Binding* methodBinding = nameBindings.lookupLocal(newMethod->getName());
+    auto methodBinding = nameBindings.lookupLocal(newMethod->getName());
     if (methodBinding != nullptr) {
         if (methodBinding->getReferencedEntity() != Binding::Method) {
             Trace::error("Identifier already defined: " + newMethod->getName(), 
@@ -356,8 +350,7 @@ void ClassDefinition::addMethod(MethodDefinition* newMethod) {
         }
 
         Binding::MethodList& methodList = methodBinding->getMethodList();
-        for (auto i = methodList.cbegin(); i != methodList.cend(); i++) {
-            const MethodDefinition* method = *i;
+        for (auto method: methodList) {
             if (method->argumentsAreEqual(newMethod->getArgumentList())) {
                 if (method->getClass() == this) {
                     Trace::error("Method with same arguments already defined in"
@@ -402,12 +395,9 @@ void ClassDefinition::addPrimaryCtorArgsAsDataMembers(
 
     assert(primaryCtorArgDataMembers.size() == 0);
 
-    for (auto i = constructorArguments.cbegin();
-         i != constructorArguments.cend();
-         i++) {
-        VariableDeclaration* varDeclaration = *i;
+    for (auto varDeclaration: constructorArguments) {
         if (varDeclaration->isDataMember()) {
-            DataMemberDefinition* dataMember =
+            auto dataMember =
                 new DataMemberDefinition(varDeclaration->getIdentifier(),
                                          varDeclaration->getType()->clone(),
                                          AccessLevel::Public,
@@ -459,7 +449,7 @@ void ClassDefinition::generateEmptyCopyConstructor() {
     // generated for message classes. We still want the default constructor to
     // be generated for message classes.
     bool tmp = hasConstructor;
-    MethodDefinition* copyConstructor =
+    auto copyConstructor =
         MethodDefinition::create(Keyword::initString, nullptr, false, this);
     copyConstructor->addArgument(name, CommonNames::otherVariableName);
     appendMember(copyConstructor);
@@ -467,7 +457,7 @@ void ClassDefinition::generateEmptyCopyConstructor() {
 }
 
 MethodDefinition* ClassDefinition::generateEmptyConstructor() {
-    MethodDefinition* emptyConstructor =
+    auto emptyConstructor =
         MethodDefinition::create(Keyword::initString, nullptr, false, this);
     if (baseClass) {
         emptyConstructor->generateBaseClassConstructorCall(
@@ -477,8 +467,7 @@ MethodDefinition* ClassDefinition::generateEmptyConstructor() {
 }
 
 MethodDefinition* ClassDefinition::getDefaultConstructor() const {
-    for (auto i = methods.cbegin(); i != methods.cend(); i++) {
-        MethodDefinition* method = *i;
+    for (auto method: methods) {
         if (method->isConstructor() && method->getArgumentList().empty()) {
             return method;
         }
@@ -506,11 +495,8 @@ Context* ClassDefinition::createInitializationContext(
     const Identifier& methodName,
     bool isStatic) {
 
-    MethodDefinition* method = MethodDefinition::create(methodName,
-                                                        nullptr,
-                                                        isStatic,
-                                                        this);
-    Context* context = new Context(method);
+    auto method = MethodDefinition::create(methodName, nullptr, isStatic, this);
+    auto context = new Context(method);
     context->enterBlock(method->getBody());
     return context;
 }
@@ -520,16 +506,14 @@ Traverse::Result ClassDefinition::traverse(Visitor& visitor) {
         return Traverse::Continue;
     }
 
-    for (auto i = members.cbegin(); i != members.cend(); i++) {
-        Definition* member = *i;
+    for (auto member: members) {
         switch (member->getKind()) {
             case Definition::Class:
                 member->traverse(visitor);
                 break;
             case Definition::Member: {
                 unsigned int traverseMask = visitor.getTraverseMask();
-                ClassMemberDefinition* classMember =
-                    member->cast<ClassMemberDefinition>();
+                auto classMember = member->cast<ClassMemberDefinition>();
                 switch (classMember->getKind()) {
                     case ClassMemberDefinition::Method:
                         if (traverseMask & Visitor::TraverseMethods) {
@@ -584,8 +568,7 @@ void ClassDefinition::generateCloneMethod() {
 }
 
 bool ClassDefinition::isSubclassOf(const ClassDefinition* otherClass) const {
-    for (auto i = parentClasses.cbegin(); i != parentClasses.cend(); i++) {
-        const ClassDefinition* parentClassDef = *i;
+    for (auto parentClassDef: parentClasses) {
         if (parentClassDef->getName().compare(otherClass->getName()) == 0 ||
             parentClassDef->isSubclassOf(otherClass)) {
             return true;
@@ -595,8 +578,7 @@ bool ClassDefinition::isSubclassOf(const ClassDefinition* otherClass) const {
 }
 
 bool ClassDefinition::isInheritingFromProcessInterface() const {
-    for (auto i = parentClasses.begin(); i != parentClasses.end(); i++) {
-        const ClassDefinition* parentClassDef = *i;
+    for (auto parentClassDef: parentClasses) {
         if ((parentClassDef->isProcess() && parentClassDef->isInterface()) ||
              parentClassDef->isInheritingFromProcessInterface()) {
             return true;
@@ -611,8 +593,7 @@ void ClassDefinition::checkImplementsAllAbstractMethods(
 
     treePath.push_back(this);
 
-    for (auto i = parentClasses.cbegin(); i != parentClasses.cend(); i++) {
-        ClassDefinition* parentClassDef = *i;
+    for (auto parentClassDef: parentClasses) {
         parentClassDef->checkImplementsAllAbstractMethods(treePath, loc);
     }
 
@@ -622,16 +603,12 @@ void ClassDefinition::checkImplementsAllAbstractMethods(
         return;
     }
 
-    for (auto i = methods.cbegin(); i != methods.cend(); i++) {
-        MethodDefinition* abstractMethod = *i;
+    for (auto abstractMethod: methods) {
         if (!abstractMethod->isAbstract()) {
             continue;
         }
         bool methodImplemented = false;
-        for (ClassList::const_iterator j = treePath.begin();
-             j != treePath.end();
-             j++) {
-            ClassDefinition* subclass = *j;
+        for (auto subclass: treePath) {
             if (subclass->implements(abstractMethod)) {
                 methodImplemented = true;
             }
@@ -648,8 +625,7 @@ void ClassDefinition::checkImplementsAllAbstractMethods(
 }
 
 bool ClassDefinition::implements(const MethodDefinition* abstractMethod) const {
-    for (auto i = methods.cbegin(); i != methods.cend(); i++) {
-        const MethodDefinition* method = *i;
+    for (auto method: methods) {
         if (method->implements(abstractMethod)) {
             return true;
         }
@@ -667,9 +643,7 @@ MethodDefinition* ClassDefinition::getMainMethod() const {
     const Binding* methodBinding = nameBindings.lookupLocal("main");
     if (methodBinding &&
         methodBinding->getReferencedEntity() == Binding::Method) {
-        const Binding::MethodList& methodList = methodBinding->getMethodList();
-        for (auto i = methodList.cbegin(); i != methodList.cend(); i++) {
-            MethodDefinition* method = *i;
+        for (auto method: methodBinding->getMethodList()) {
             if (method->isStatic() &&
                 method->getReturnType()->isVoid() &&
                 method->getArgumentList().empty()) {                
@@ -681,12 +655,11 @@ MethodDefinition* ClassDefinition::getMainMethod() const {
 }
 
 MethodDefinition* ClassDefinition::getCopyConstructor() const {
-    for (auto i = methods.cbegin(); i != methods.cend(); i++) {
-        MethodDefinition* method = *i;
+    for (auto method: methods) {
         if (method->isConstructor()) {
             const ArgumentList& arguments = method->getArgumentList();
             if (arguments.size() == 1) {
-                const VariableDeclaration* argument = arguments.front();
+                auto argument = arguments.front();
                 if (argument->getType()->getDefinition() == this) {
                     return method;
                 }
@@ -708,10 +681,7 @@ ClassDefinition* ClassDefinition::getNestedClass(
 }
 
 bool ClassDefinition::isGeneric() const {
-    for (auto i = genericTypeParameters.cbegin();
-         i != genericTypeParameters.cend();
-         i++) {
-        GenericTypeParameterDefinition* genericTypeParameter = *i;
+    for (auto genericTypeParameter: genericTypeParameters) {
         if (genericTypeParameter->getConcreteType() == nullptr) {
             // No concrete type has been set for the type parameter, which means
             // the class is generic.
@@ -755,11 +725,8 @@ void ClassDefinition::setConcreteTypeParameters(
 }
 
 bool ClassDefinition::allTypeParametersAreMessagesOrPrimitives() const {
-    for (auto i = genericTypeParameters.cbegin();
-         i != genericTypeParameters.cend();
-         i++) {
-        GenericTypeParameterDefinition* genericTypeParameter = *i;
-        Type* concreteType = genericTypeParameter->getConcreteType();
+    for (auto genericTypeParameter: genericTypeParameters) {
+        auto concreteType = genericTypeParameter->getConcreteType();
         assert(concreteType != nullptr);
         if (!concreteType->isMessageOrPrimitive()) {
             return false;
@@ -775,7 +742,7 @@ bool ClassDefinition::needsCloneMethod() {
 
 void ClassDefinition::removeCloneableParent() {
     for (auto i = parentClasses.begin(); i != parentClasses.end(); i++) {
-        ClassDefinition* parentClassDef = *i;
+        auto parentClassDef = *i;
         if (parentClassDef->isInterface() &&
             parentClassDef->getName().compare(
                 CommonNames::cloneableTypeName) == 0) {
@@ -787,7 +754,7 @@ void ClassDefinition::removeCloneableParent() {
 
 void ClassDefinition::removeMethod(const Identifier& methodName) {
     for (auto i = members.begin(); i!= members.end(); i++) {
-        Definition* definition = *i;
+        auto definition = *i;
         if (MethodDefinition* method =
                 definition->dynCast<MethodDefinition>()) {
             if (method->getName().compare(methodName) == 0) {
@@ -800,13 +767,13 @@ void ClassDefinition::removeMethod(const Identifier& methodName) {
 
 void ClassDefinition::removeCopyConstructor() {
     for (auto i = members.begin(); i!= members.end(); i++) {
-        Definition* definition = *i;
+        auto definition = *i;
         if (MethodDefinition* method =
                 definition->dynCast<MethodDefinition>()) {
             if (method->isConstructor()) {
                 const ArgumentList& arguments = method->getArgumentList();
                 if (arguments.size() == 1) {
-                    const VariableDeclaration* argument = arguments.front();
+                    auto* argument = arguments.front();
                     if (argument->getType()->getDefinition() == this) {
                         members.erase(i);
                         break;
@@ -819,8 +786,7 @@ void ClassDefinition::removeCopyConstructor() {
 
 void ClassDefinition::updateConstructorName() {
     Identifier newName = name + "_" + Keyword::initString;
-    for (auto i = methods.cbegin(); i != methods.cend(); i++) {
-        MethodDefinition* method = *i;
+    for (auto method: methods) {
         if (method->isConstructor()) {
             nameBindings.updateMethodName(method->getName(), newName);
             method->setName(newName);
@@ -869,16 +835,14 @@ bool ClassDefinition::isMethodImplementingParentInterfaceMethod(
     MethodDefinition* method) const {
 
     if (method->getEnclosingDefinition() != this) {
-        for (auto i = methods.cbegin(); i != methods.cend(); i++) {
-            MethodDefinition* memberMethod = *i;
+        for (auto memberMethod: methods) {
             if (method->implements(memberMethod)) {
                 return true;
             }
         }
     }
 
-    for (auto i = parentClasses.cbegin(); i != parentClasses.cend(); i++) {
-        ClassDefinition* parent = *i;
+    for (auto parent: parentClasses) {
         if (parent->isMethodImplementingParentInterfaceMethod(method)) {
             return true;
         }
@@ -966,8 +930,7 @@ MethodDefinition::MethodDefinition(const MethodDefinition& other) :
 }
 
 void MethodDefinition::copyArgumentList(const ArgumentList& from) {
-    for (auto i = from.cbegin(); i != from.cend(); i++) {
-        VariableDeclaration* argument = *i;
+    for (auto argument: from) {
         addArgument(new VariableDeclaration(*argument));
     }
 }
@@ -979,16 +942,14 @@ MethodDefinition* MethodDefinition::create(
     ClassDefinition* classDefinition) {
 
     const Location& location = classDefinition->getLocation();
-    MethodDefinition* emptyMethod = new
-        MethodDefinition(name,
-                         retType,
-                         AccessLevel::Public,
-                         isStatic,
-                         classDefinition,
-                         location);
-    BlockStatement* body = new BlockStatement(classDefinition,
-                                              nullptr,
-                                              location);
+    auto emptyMethod =
+        new MethodDefinition(name,
+                             retType,
+                             AccessLevel::Public,
+                             isStatic,
+                             classDefinition,
+                             location);
+    auto body = new BlockStatement(classDefinition, nullptr, location);
     emptyMethod->setBody(body);
     return emptyMethod;
 }
@@ -1020,11 +981,10 @@ std::string MethodDefinition::toString() const {
     }
     str += "(";
     bool addComma = false;
-    for (auto i = argumentList.cbegin(); i != argumentList.cend(); i++) {
+    for (auto variableDeclaration: argumentList) {
         if (addComma) {
             str += ", ";
         }
-        VariableDeclaration* variableDeclaration = *i;
         str += variableDeclaration->getType()->toString();
         addComma = true;
     }
@@ -1078,8 +1038,7 @@ void MethodDefinition::addArgument(
 }
 
 void MethodDefinition::addArguments(const ArgumentList& arguments) {
-    for (auto i = arguments.cbegin(); i != arguments.cend(); i++) {
-        VariableDeclaration* argument = *i;
+    for (auto argument: arguments) {
         addArgument(argument);
     }
 }
@@ -1153,9 +1112,8 @@ void MethodDefinition::updateGenericReturnType(
 void MethodDefinition::updateGenericTypesInArgumentList(
     const NameBindings& nameBindings) {
 
-    for (auto i = argumentList.cbegin(); i != argumentList.cend(); i++) {
-        VariableDeclaration* argument = *i;
-        Type* argumentType = argument->getType();
+    for (auto argument: argumentList) {
+        auto argumentType = argument->getType();
         const Location& loc = argument->getLocation();
 
         // It could be that the class has been cloned when creating a concrete
@@ -1164,7 +1122,7 @@ void MethodDefinition::updateGenericTypesInArgumentList(
         // definition again.
         Tree::lookupAndSetTypeDefinition(argumentType, nameBindings, loc);
 
-        Type* concreteType =
+        auto concreteType =
             Tree::makeGenericTypeConcrete(argumentType, nameBindings, loc);
         if (concreteType != nullptr) {
             // The argument type is a generic type parameter that has been
@@ -1181,31 +1139,25 @@ void MethodDefinition::updateGenericTypesInLambdaSignature(
     assert(lambdaSignature != nullptr);
 
     const Location& loc = getLocation();
-    Type* lambdaReturnType = lambdaSignature->getReturnType();
+    auto lambdaReturnType = lambdaSignature->getReturnType();
     Tree::lookupAndSetTypeDefinition(lambdaReturnType, nameBindings, loc);
-    Type* concreteType = Tree::makeGenericTypeConcrete(lambdaReturnType,
-                                                       nameBindings,
-                                                       loc);
+    auto concreteType =
+        Tree::makeGenericTypeConcrete(lambdaReturnType, nameBindings, loc);
     if (concreteType != nullptr) {
         // The return type is a generic type parameter that has been assigned a
         // concrete type. Change the return type to the concrete type.
         lambdaSignature->setReturnType(concreteType);
     }
 
-    TypeList& lambdaArgumentTypes = lambdaSignature->getArguments();
-    for (auto i = lambdaArgumentTypes.begin();
-         i != lambdaArgumentTypes.end();
-         i++) {
-        Type* argumentType = *i;
+    for (auto& argumentType: lambdaSignature->getArguments()) {
         Tree::lookupAndSetTypeDefinition(argumentType, nameBindings, loc);
-        Type* argumentConcreteType = Tree::makeGenericTypeConcrete(argumentType,
-                                                                   nameBindings,
-                                                                   loc);
+        auto argumentConcreteType =
+            Tree::makeGenericTypeConcrete(argumentType, nameBindings, loc);
         if (argumentConcreteType != nullptr) {
             // The argument type is a generic type parameter that has been
             // assigned a concrete type. Change the argument type to the
             // concrete type.
-            *i = argumentConcreteType;
+            argumentType = argumentConcreteType;
         }
     }
 }
@@ -1223,9 +1175,8 @@ void MethodDefinition::convertClosureTypesInSignature() {
 }
 
 void MethodDefinition::convertClosureTypesInArgumentList() {
-    for (auto i = argumentList.cbegin(); i != argumentList.cend(); i++) {
-        VariableDeclaration* argument = *i;
-        Type* closureInterfaceType =
+    for (auto argument: argumentList) {
+        auto closureInterfaceType =
             Tree::convertToClosureInterface(argument->getType());
         if (closureInterfaceType != nullptr) {
             argument->setType(closureInterfaceType);
@@ -1236,21 +1187,17 @@ void MethodDefinition::convertClosureTypesInArgumentList() {
 void MethodDefinition::convertClosureTypesInLambdaSignature() {
     assert(lambdaSignature != nullptr);
 
-    Type* closureInterfaceType =
+    auto closureInterfaceType =
         Tree::convertToClosureInterface(lambdaSignature->getReturnType());
     if (closureInterfaceType != nullptr) {
         lambdaSignature->setReturnType(closureInterfaceType);
     }
 
-    TypeList& lambdaArgumentTypes = lambdaSignature->getArguments();
-    for (auto i = lambdaArgumentTypes.begin();
-         i != lambdaArgumentTypes.end();
-         i++) {
-        Type* argumentType = *i;
-        Type* argumentClosureInterfaceType =
+    for (auto& argumentType: lambdaSignature->getArguments()) {
+        auto argumentClosureInterfaceType =
             Tree::convertToClosureInterface(argumentType);
         if (argumentClosureInterfaceType != nullptr) {
-            *i = argumentClosureInterfaceType;
+            argumentType = argumentClosureInterfaceType;
         }
     }
 }
@@ -1259,8 +1206,7 @@ void MethodDefinition::makeArgumentNamesUnique() {
     assert(body != nullptr);
 
     NameBindings& nameBindings = body->getNameBindings();
-    for (auto i = argumentList.cbegin(); i != argumentList.cend(); i++) {
-        VariableDeclaration* argument = *i;
+    for (auto argument: argumentList) {
         if (argument->getType()->isLambda()) {
             continue;
         }
@@ -1325,11 +1271,8 @@ void MethodDefinition::generateMemberInitializationsFromConstructorArgumets(
 
     const Location& location = getLocation();
 
-    for (auto i = constructorArguments.cbegin();
-         i != constructorArguments.cend();
-         i++) {
-        VariableDeclaration* varDeclaration = *i;
-        Type* varDeclarationType = varDeclaration->getType();
+    for (auto varDeclaration: constructorArguments) {
+        auto varDeclarationType = varDeclaration->getType();
         const Identifier& varDeclarationName = varDeclaration->getIdentifier();
 
         if (varDeclaration->isDataMember()) {
@@ -1358,8 +1301,7 @@ void MethodDefinition::generateMemberInitializations(
 
     const Location& location = getLocation();
 
-    for (auto i = dataMembers.cbegin(); i != dataMembers.cend(); i++) {
-        DataMemberDefinition* dataMember = *i;
+    for (auto dataMember: dataMembers) {
         if (dataMember->isStatic()) {
             continue;
         }
@@ -1493,8 +1435,8 @@ void MethodDefinition::setLambdaSignature(
     const Location& loc) {
 
     lambdaSignature = s;
-    VariableDeclaration* lambdaArgument = 
-        new VariableDeclaration(new Type(Type::Lambda), "", getLocation());
+    auto lambdaArgument =
+        new VariableDeclaration(new Type(Type::Lambda), "",  getLocation());
     addArgument(lambdaArgument);
 
     assert(enclosingDefinition->isClass());
@@ -1504,12 +1446,7 @@ void MethodDefinition::setLambdaSignature(
     Tree::lookupAndSetTypeDefinition(lambdaSignature->getReturnType(),
                                      nameBindings,
                                      loc);
-
-    const TypeList& lambdaArgumentTypes = lambdaSignature->getArguments();
-    for (auto i = lambdaArgumentTypes.cbegin();
-         i != lambdaArgumentTypes.cend();
-         i++) {
-        Type* argumentType = *i;
+    for (auto argumentType: lambdaSignature->getArguments()) {
         Tree::lookupAndSetTypeDefinition(argumentType, nameBindings, loc);
     }
 }

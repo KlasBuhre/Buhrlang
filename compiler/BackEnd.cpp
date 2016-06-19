@@ -183,8 +183,7 @@ void CppBackEnd::generateIncludes(
     generateCpp(includeRuntime);
     generateNewline();
 
-    for (auto i = dependencies.cbegin(); i != dependencies.cend(); i++) {
-        const std::string& dependency = *i;
+    for (auto& dependency: dependencies) {
         generateInclude(dependency);
     }
 
@@ -215,8 +214,7 @@ void CppBackEnd::generateForwardDeclaration(
 }
 
 void CppBackEnd::generateDefinitions(const DefinitionList& definitions) {
-    for (auto i = definitions.cbegin(); i != definitions.cend(); i++) {
-        const Definition* definition = *i;
+    for (auto definition: definitions) {
         if (definition->isImported()) {
             // Don't generate code from imported definitions.
             continue;
@@ -279,7 +277,7 @@ void CppBackEnd::generateClassParentList(const ClassDefinition* classDef) {
         generateClassParent(objectName);
     } else {
         for (auto i = parents.cbegin(); i != parents.cend(); ) {
-            const ClassDefinition* parent = *i;
+            auto parent = *i;
             generateClassParent(mangle(parent->getName()));
             if (++i != parents.end()) {
                 generateCpp(comma);
@@ -300,11 +298,7 @@ void CppBackEnd::generateClassParent(const Identifier& parentName) {
 }
 
 void CppBackEnd::generateClassMembers(const ClassDefinition* classDef) {
-    const DefinitionList& memberDefinitions = classDef->getMembers();
-    for (auto i = memberDefinitions.cbegin();
-         i != memberDefinitions.cend();
-         i++) {
-        const Definition* definition = *i;
+    for (auto definition: classDef->getMembers()) {
         switch (definition->getKind()) {
             case Definition::Member:
                 generateClassMember(definition->cast<ClassMemberDefinition>());
@@ -448,8 +442,8 @@ void CppBackEnd::generateScope(const Definition* enclosing) {
 void CppBackEnd::generateArgumentList(const ArgumentList& arguments) {
     generateCpp(openParentheses);
     for (auto i = arguments.cbegin(); i != arguments.cend(); ) {
-        const VariableDeclaration* argument = *i;
-        const Type* type = argument->getType();
+        auto argument = *i;
+        auto type = argument->getType();
         if (type->isLambda()) {
             break;
         }
@@ -1059,7 +1053,7 @@ void CppBackEnd::generateMethodCall(const MethodCallExpression* methodCall) {
 void CppBackEnd::generateMemberSelectorExpression(
     const MemberSelectorExpression* memberSelector) {
 
-    Expression* left = memberSelector->getLeft();
+    auto left = memberSelector->getLeft();
     generateExpression(left);
     if (left->getRightmostExpressionKind() == Expression::ClassName) {
         generateCpp(operatorScope);

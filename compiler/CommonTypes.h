@@ -240,10 +240,8 @@ private:
 namespace Utils {
     template<class T>
     void cloneList(T& to, const T& from) {
-        for (typename T::const_iterator i = from.begin();
-             i != from.end();
-             i++) {
-            to.push_back((*i)->clone());
+        for (auto i: from) {
+            to.push_back(i->clone());
         }
     }
 }
