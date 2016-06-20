@@ -269,15 +269,12 @@ bool Type::areTypeParametersMatching(const Type* other) const {
 }
 
 bool Type::isMessageOrPrimitive() const {
-    if (ClassDefinition* classDef = definition->cast<ClassDefinition>()) {
+    if (auto classDef = definition->cast<ClassDefinition>()) {
         if (!isPrimitive() && !classDef->isMessage()) {
             return false;
         }
 
-        for (auto i = genericTypeParameters.cbegin();
-             i != genericTypeParameters.cend();
-             i++) {
-            Type* typeParameter = *i;
+        for (auto typeParameter: genericTypeParameters) {
             if (!typeParameter->isMessageOrPrimitive()) {
                 return false;
             }
@@ -346,10 +343,7 @@ Identifier Type::getFullConstructedName() const {
 
     bool insertComma = false;
     Identifier fullName = name + '<';
-    for (auto i = genericTypeParameters.cbegin();
-         i != genericTypeParameters.cend();
-         i++) {
-        const Type* typeParameter = *i;
+    for (auto typeParameter: genericTypeParameters) {
         if (insertComma) {
             fullName += ',';
         }
@@ -365,16 +359,14 @@ Identifier Type::getClosureInterfaceName() const {
     assert(functionSignature != nullptr);
 
     Identifier interfaceName = Keyword::funString + ' ';
-    const Type* returnType = functionSignature->getReturnType();
+    auto returnType = functionSignature->getReturnType();
     if (returnType != nullptr) {
         interfaceName += returnType->toString();
     }
 
     bool insertComma = false;
     interfaceName += '(';
-    const TypeList& arguments = functionSignature->getArguments();
-    for (auto i = arguments.cbegin(); i != arguments.cend(); i++) {
-        const Type* argumentType = *i;
+    for (auto argumentType: functionSignature->getArguments()) {
         if (insertComma) {
             interfaceName += ',';
         }

@@ -18,7 +18,7 @@ namespace {
         const Identifier& retvalTmpIdentifier) {
 
         Location returnExpressionLocation(returnExpression->getLocation());
-        LocalVariableExpression* retvalTmp =
+        auto retvalTmp =
             new LocalVariableExpression(returnType,
                                         retvalTmpIdentifier,
                                         returnExpressionLocation);
@@ -113,10 +113,10 @@ Type* VariableDeclarationStatement::typeCheck(Context& context) {
 
     lookupType(context);
 
-    Type* declaredType = declaration.getType();
+    auto declaredType = declaration.getType();
     const Identifier& name = declaration.getIdentifier();
     if (initExpression == nullptr) {
-        MethodDefinition* method = context.getMethodDefinition();
+        auto method = context.getMethodDefinition();
         if (declaredType->isImplicit()) {
             Trace::error(
                 "Implicitly typed variables must be initialized: " + name,
@@ -153,15 +153,15 @@ void VariableDeclarationStatement::typeCheckAndTransformInitExpression(
         return;
     }
 
-    Type* declaredType = declaration.getType();
+    auto declaredType = declaration.getType();
     initExpression = initExpression->transform(context);
-    Type* initType = initExpression->typeCheck(context);
+    auto initType = initExpression->typeCheck(context);
     if (declaredType->isImplicit()) {
         if (initType->isVoid()) {
             Trace::error("Initialization expression is of void type.",
                          this);
         }
-        Type* copiedInitType = initType->clone();
+        auto copiedInitType = initType->clone();
         copiedInitType->setConstant(declaredType->isConstant());
         declaration.setType(copiedInitType);
     } else {
@@ -186,14 +186,14 @@ void VariableDeclarationStatement::generateDeclarationsFromPattern(
 
     initExpression = initExpression->transform(context);
     initExpression->typeCheck(context);
-    Expression* initRefExpr = generateInitTemporary(context);
+    auto initRefExpr = generateInitTemporary(context);
 
     if (!patternExpression->isClassDecomposition() &&
         patternExpression->dynCast<MethodCallExpression>() == nullptr) {
         Trace::error("Unexpected pattern.", this);
     }
 
-    Pattern* pattern = Pattern::create(patternExpression, context);
+    auto pattern = Pattern::create(patternExpression, context);
     MatchCoverage coverage(initRefExpr->getType());
     if (!pattern->isMatchExhaustive(initRefExpr, coverage, false, context)) {
         Trace::error("Pattern used in a variable declaration must always "
@@ -203,7 +203,7 @@ void VariableDeclarationStatement::generateDeclarationsFromPattern(
 
     pattern->generateComparisonExpression(initRefExpr, context);
 
-    BlockStatement* currentBlock = context.getBlock();
+    auto currentBlock = context.getBlock();
     const VariableDeclarationStatementList& variablesCreatedByPattern =
          pattern->getVariablesCreatedByPattern();
 
@@ -339,8 +339,7 @@ void BlockStatement::copyStatements(const BlockStatement& from) {
     BlockStatement* tmp = cloningBlock;
     cloningBlock = this;
 
-    for (auto i = from.statements.cbegin(); i != from.statements.cend(); i++) {
-        Statement* statement = *i;
+    for (auto statement: from.statements) {
         addStatement(statement->clone());
     }
 
@@ -439,7 +438,7 @@ Type* BlockStatement::typeCheck(Context& context) {
     for (iterator = statements.begin();
          iterator != statements.end();
          iterator++) {
-        Statement* statement = *iterator;
+        auto statement = *iterator;
         if (statement->getKind() == Statement::ExpressionStatement) {
             *iterator = statement->cast<Expression>()->transform(context);
             statement = *iterator;
@@ -465,8 +464,7 @@ Traverse::Result BlockStatement::traverse(Visitor& visitor) {
         return Traverse::Continue;
     }
 
-    for (auto i = statements.cbegin(); i != statements.cend(); i++) {
-        Statement* statement = *i;
+    for (auto statement: statements) {
         statement->traverse(visitor);
     }
 

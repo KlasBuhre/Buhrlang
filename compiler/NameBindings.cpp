@@ -62,21 +62,20 @@ NameBindings::NameBindings() : enclosing(nullptr) {}
 NameBindings::NameBindings(NameBindings* enc) : enclosing(enc) {}
 
 void NameBindings::copyFrom(const NameBindings& from) {
-    const BindingMap& fromBindings = from.bindings;
-    for (auto i = fromBindings.cbegin(); i != fromBindings.cend(); i++) {
-        bindings.insert(make_pair(i->first, new Binding(*(i->second))));
+    for (auto& binding: from.bindings) {
+        bindings.insert(make_pair(binding.first,
+                                  new Binding(*(binding.second))));
     }
 }
 
 void NameBindings::use(const NameBindings& usedNamespace) {
-    const BindingMap& usedBindings = usedNamespace.bindings;
-    for (auto i = usedBindings.cbegin(); i != usedBindings.cend(); i++) {
-        Binding* binding = i->second;
-        switch (binding->getReferencedEntity()) {
+    for (auto& binding: usedNamespace.bindings) {
+        switch (binding.second->getReferencedEntity()) {
             case Binding::Class:
             case Binding::Method:
             case Binding::DataMember:
-                bindings.insert(make_pair(i->first, new Binding(*binding)));
+                bindings.insert(make_pair(binding.first,
+                                          new Binding(*(binding.second))));
                 break;
             default:
                 break;
@@ -85,7 +84,7 @@ void NameBindings::use(const NameBindings& usedNamespace) {
 }
 
 Binding* NameBindings::lookup(const Identifier& name) const {
-    BindingMap::const_iterator i = bindings.find(name);
+    auto i = bindings.find(name);
     if (i == bindings.end()) {
         if (enclosing != nullptr) {
             return enclosing->lookup(name);
@@ -96,7 +95,7 @@ Binding* NameBindings::lookup(const Identifier& name) const {
 }
 
 Definition* NameBindings::lookupType(const Identifier& name) const {
-    BindingMap::const_iterator i = bindings.find(name);
+    auto i = bindings.find(name);
     if (i == bindings.end() || !(i->second->isReferencingType())) {
         if (enclosing != nullptr) {
             return enclosing->lookupType(name);
@@ -107,7 +106,7 @@ Definition* NameBindings::lookupType(const Identifier& name) const {
 }
 
 Binding* NameBindings::lookupLocal(const Identifier& name) const {
-    BindingMap::const_iterator i = bindings.find(name);
+    auto i = bindings.find(name);
     if (i == bindings.end()) {
         return nullptr;
     }
@@ -115,14 +114,14 @@ Binding* NameBindings::lookupLocal(const Identifier& name) const {
 }
 
 bool NameBindings::insertLocalObject(VariableDeclaration* localObject) {
-    Binding* binding = new Binding(Binding::LocalObject, localObject);
+    auto binding = new Binding(Binding::LocalObject, localObject);
     return bindings.insert(make_pair(localObject->getIdentifier(),
                                      binding)).second;
 }
 
 void NameBindings::removeObsoleteLocalBindings() {
     for (auto i = bindings.cbegin(); i != bindings.cend(); ) {
-        Binding* binding = i->second;
+        auto binding = i->second;
         const Identifier& nameInBindings = i->first;
         if (binding->getReferencedEntity() == Binding::LocalObject &&
             nameInBindings.compare(
@@ -138,7 +137,7 @@ bool NameBindings::insertClass(
     const Identifier& name,
     ClassDefinition* classDef) {
 
-    Binding* binding = new Binding(Binding::Class, classDef);
+    auto binding = new Binding(Binding::Class, classDef);
     return bindings.insert(make_pair(name, binding)).second;
 }
 
@@ -146,12 +145,12 @@ bool NameBindings::insertDataMember(
     const Identifier& name,
     DataMemberDefinition* dataMemberDef) {
 
-    Binding* binding = new Binding(Binding::DataMember, dataMemberDef);
+    auto binding = new Binding(Binding::DataMember, dataMemberDef);
     return bindings.insert(make_pair(name, binding)).second;
 }
 
 bool NameBindings::removeDataMember(const Identifier& name) {
-    Binding* binding = lookupLocal(name);
+    auto binding = lookupLocal(name);
     if (binding == nullptr ||
         binding->getReferencedEntity() != Binding::DataMember) {
         return false;
@@ -164,7 +163,7 @@ bool NameBindings::insertMethod(
     const Identifier& name,
     MethodDefinition* methodDef) {
 
-    Binding* binding = new Binding(Binding::Method, methodDef);
+    auto binding = new Binding(Binding::Method, methodDef);
     return bindings.insert(make_pair(name, binding)).second;
 }
 
@@ -172,7 +171,7 @@ bool NameBindings::overloadMethod(
     const Identifier& name,
     MethodDefinition* methodDef) {
 
-    Binding* binding = lookupLocal(name);
+    auto binding = lookupLocal(name);
     if (binding == nullptr) {
         return insertMethod(name, methodDef);
     } else if (binding->getReferencedEntity() != Binding::Method) {
@@ -187,7 +186,7 @@ bool NameBindings::updateMethodName(
     const Identifier& oldName,
     const Identifier& newName) {
 
-    Binding* binding = lookupLocal(oldName);
+    auto binding = lookupLocal(oldName);
     if (binding == nullptr ||
         binding->getReferencedEntity() != Binding::Method) {
         return false;
@@ -197,7 +196,7 @@ bool NameBindings::updateMethodName(
 }
 
 bool NameBindings::removeLastOverloadedMethod(const Identifier& name) {
-    Binding* binding = lookupLocal(name);
+    auto binding = lookupLocal(name);
     if (binding == nullptr ||
         binding->getReferencedEntity() != Binding::Method) {
         return false;
@@ -210,8 +209,8 @@ bool NameBindings::insertGenericTypeParameter(
     const Identifier& name,
     GenericTypeParameterDefinition* genericTypeParameterDef) {
 
-    Binding* binding = new Binding(Binding::GenericTypeParameter,
-                                   genericTypeParameterDef);
+    auto binding =
+        new Binding(Binding::GenericTypeParameter, genericTypeParameterDef);
     return bindings.insert(make_pair(name, binding)).second;
 }
 
@@ -219,7 +218,7 @@ bool NameBindings::insertLabel(const Identifier& label) {
     if (lookup(label) != nullptr) {
         return false;
     }
-    Binding* binding = new Binding(Binding::Label);
+    auto binding = new Binding(Binding::Label);
     bindings.insert(make_pair(label, binding));
     return true;
 }

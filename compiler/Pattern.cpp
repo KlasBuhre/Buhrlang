@@ -44,14 +44,12 @@ namespace {
     }
 
     MethodCallExpression* getConstructorCall(Expression* e, Context& context) {
-        if (MethodCallExpression* constructorCall =
-                e->dynCast<MethodCallExpression>()) {
+        if (auto constructorCall = e->dynCast<MethodCallExpression>()) {
             constructorCall->tryResolveEnumConstructor(context);
             return constructorCall;
-        } else if (NamedEntityExpression* nameExpr =
-                       e->dynCast<NamedEntityExpression>()) {
+        } else if (auto nameExpr = e->dynCast<NamedEntityExpression>()) {
             return nameExpr->getCall(context, true);
-        } else if (MemberSelectorExpression* memberSelector =
+        } else if (auto memberSelector =
                        e->dynCast<MemberSelectorExpression>()) {
             return memberSelector->getRhsCall(context);
         } else {
@@ -67,14 +65,13 @@ namespace {
         MethodCallExpression* constructorCall,
         Context& context) {
 
-        ClassDecompositionExpression* classDecomposition =
+        auto classDecomposition =
             new ClassDecompositionExpression(
                 Type::create(constructorCall->getName()),
                 constructorCall->getLocation());
 
-        Type* type = classDecomposition->typeCheck(context);
-        ClassDefinition* classDef =
-            type->getDefinition()->cast<ClassDefinition>();
+        auto type = classDecomposition->typeCheck(context);
+        auto classDef = type->getDefinition()->cast<ClassDefinition>();
 
         const DataMemberList& primaryCtorArgDataMembers =
             classDef->getPrimaryCtorArgDataMembers();
@@ -90,10 +87,10 @@ namespace {
         while (i != constructorPatternArgs.end()) {
             Expression* patternExpr = *i;
             DataMemberDefinition* dataMember = *j;
-            NamedEntityExpression* memberName =
+            auto memberName =
                 new NamedEntityExpression(dataMember->getName(),
                                           patternExpr->getLocation());
-            if (MethodCallExpression* constructorCall =
+            if (auto constructorCall =
                     getConstructorCall(patternExpr, context)) {
                 patternExpr = createClassDecompositionExpr(constructorCall,
                                                            context);
@@ -111,9 +108,9 @@ namespace {
         MethodDefinition* enumConstructor,
         Context& context) {
 
-        const ClassDefinition* enumDef = enumConstructor->getClass();
+        const auto enumDef = enumConstructor->getClass();
 
-        ClassDecompositionExpression* classDecomposition =
+        auto classDecomposition =
             new ClassDecompositionExpression(
                 Type::create(enumDef->getName()),
                 enumConstructorCall->getLocation());
@@ -134,7 +131,7 @@ namespace {
             return classDecomposition;
         }
 
-        ClassDefinition* enumVariantDef =
+        auto enumVariantDef =
             enumDef->getNestedClass(
                 Symbol::makeEnumVariantClassName(enumVariantName));
         const DataMemberList& variantDataMembers =
@@ -144,14 +141,14 @@ namespace {
         auto j = variantDataMembers.cbegin();
         auto i = constructorPatternArgs.cbegin();
         while (i != constructorPatternArgs.end()) {
-            Expression* patternExpr = *i;
-            DataMemberDefinition* dataMember = *j;
-            MemberSelectorExpression* memberSelector =
+            auto patternExpr = *i;
+            auto dataMember = *j;
+            auto memberSelector =
                 new MemberSelectorExpression(Symbol::makeEnumVariantDataName(
                                                  enumVariantName),
                                              dataMember->getName(),
                                              patternExpr->getLocation());
-            if (MethodCallExpression* constructorCall =
+            if (auto constructorCall =
                     getConstructorCall(patternExpr, context)) {
                 patternExpr = createClassDecompositionExpr(constructorCall,
                                                            context);
@@ -168,8 +165,7 @@ namespace {
         MethodCallExpression* constructorCall,
         Context& context) {
 
-        MethodDefinition* enumConstructor =
-            constructorCall->getEnumCtorMethodDefinition();
+        auto enumConstructor = constructorCall->getEnumCtorMethodDefinition();
         if (enumConstructor != nullptr) {
             return createClassDecompositionFromEnumCtorCall(constructorCall,
                                                             enumConstructor,
@@ -186,16 +182,13 @@ MatchCoverage::MatchCoverage(Type* subjectType) : notCoveredCases() {
         notCoveredCases.insert(boolTrueCaseName);
         notCoveredCases.insert(boolFalseCaseName);
     } else if (subjectType->isEnumeration()) {
-        Definition* subjectTypeDef = subjectType->getDefinition();
+        auto subjectTypeDef = subjectType->getDefinition();
         assert(subjectTypeDef->isClass());
-        ClassDefinition* subjectClass = subjectTypeDef->cast<ClassDefinition>();
+        auto subjectClass = subjectTypeDef->cast<ClassDefinition>();
         assert(subjectClass->isEnumeration());
 
-        const DefinitionList& members = subjectClass->getMembers();
-        for (auto i = members.cbegin(); i != members.cend(); i++) {
-            Definition* member = *i;
-            if (MethodDefinition* method =
-                    member->dynCast<MethodDefinition>()) {
+        for (auto member: subjectClass->getMembers()) {
+            if (auto method = member->dynCast<MethodDefinition>()) {
                 if (method->isEnumConstructor()) {
                     notCoveredCases.insert(method->getName());
                 }
@@ -230,15 +223,14 @@ void Pattern::cloneVariableDeclarations(const Pattern& from) {
 }
 
 Pattern* Pattern::create(Expression* e, Context& context) {
-    if (ArrayLiteralExpression* array = e->dynCast<ArrayLiteralExpression>()) {
+    if (auto array = e->dynCast<ArrayLiteralExpression>()) {
         return new ArrayPattern(array);
-    } else if (TypedExpression* typed = e->dynCast<TypedExpression>()) {
+    } else if (auto typed = e->dynCast<TypedExpression>()) {
         return new TypedPattern(typed);
-    } else if (ClassDecompositionExpression* classDecomposition =
+    } else if (auto classDecomposition =
                    e->dynCast<ClassDecompositionExpression>()) {
         return new ClassDecompositionPattern(classDecomposition);
-    } else if (MethodCallExpression* constructorCall =
-                   getConstructorCall(e, context)) {
+    } else if (auto constructorCall = getConstructorCall(e, context)) {
         return new ClassDecompositionPattern(
             createClassDecompositionExpr(constructorCall, context));
     } else {
@@ -265,8 +257,7 @@ bool SimplePattern::isMatchExhaustive(
         return !isMatchGuardPresent;
     }
 
-    BooleanLiteralExpression* boolLiteral =
-        expression->dynCast<BooleanLiteralExpression>();
+    auto boolLiteral = expression->dynCast<BooleanLiteralExpression>();
     if (boolLiteral != nullptr && subject->getType()->isBoolean()) {
         Identifier boolCaseName;
         if (boolLiteral->getValue() == true) {
@@ -287,8 +278,7 @@ bool SimplePattern::isMatchExhaustive(
         return false;
     }
 
-    NamedEntityExpression* namedEntity =
-        expression->dynCast<NamedEntityExpression>();
+    auto namedEntity = expression->dynCast<NamedEntityExpression>();
     if (namedEntity == nullptr) {
         return false;
     }
@@ -313,8 +303,7 @@ BinaryExpression* SimplePattern::generateComparisonExpression(
 
     const Location& location = expression->getLocation();
 
-    NamedEntityExpression* namedEntity =
-        expression->dynCast<NamedEntityExpression>();
+    auto namedEntity = expression->dynCast<NamedEntityExpression>();
     if (namedEntity != nullptr &&
         patternExpressionCreatesVariable(namedEntity, context)) {
         // The pattern introduces a new variable. The variable will bind to the
@@ -361,13 +350,13 @@ BinaryExpression* ArrayPattern::generateComparisonExpression(
     Expression* subject,
     Context& context) {
 
-    BinaryExpression* comparison = generateLengthComparisonExpression();
+    auto comparison = generateLengthComparisonExpression();
     bool toTheRightOfWildcard = false;
 
     const ExpressionList& elements = array->getElements();
     for (auto i = elements.cbegin(); i != elements.cend(); i++) {
-        Expression* element = *i;
-        BinaryExpression* elementComparison =
+        auto element = *i;
+        auto elementComparison =
             generateElementComparisonExpression(subject,
                                                 i,
                                                 context,
@@ -426,15 +415,14 @@ BinaryExpression* ArrayPattern::generateNamedEntityElementComparisonExpression(
     bool toTheRightOfWildcard) {
 
     Expression* element = *i;
-    NamedEntityExpression* namedEntity =
-        element->dynCast<NamedEntityExpression>();
+    auto namedEntity = element->dynCast<NamedEntityExpression>();
     assert(namedEntity != nullptr);
 
     if (patternExpressionCreatesVariable(namedEntity, context)) {
         // The pattern introduces a new variable. The variable will bind to the
         // value of the corresponding array element in the match subject.
         const Location& location = namedEntity->getLocation();
-        Expression* matchSubjectElementExpression =
+        auto matchSubjectElementExpression =
             generateArraySubscriptExpression(subject, i, toTheRightOfWildcard);
         declarations.push_back(
             new VariableDeclarationStatement(new Type(Type::Implicit),
@@ -443,6 +431,7 @@ BinaryExpression* ArrayPattern::generateNamedEntityElementComparisonExpression(
                                              location));
         return nullptr;
     }
+
     return new BinaryExpression(
         Operator::Equal,
         generateArraySubscriptExpression(subject, i, toTheRightOfWildcard),
@@ -481,9 +470,7 @@ BinaryExpression* ArrayPattern::generateLengthComparisonExpression() {
     int numberOfElements = 0;
     bool wildcardPresent = false;
 
-    const ExpressionList& elements = array->getElements();
-    for (auto i = elements.cbegin(); i != elements.cend(); i++) {
-        Expression* element = *i;
+    for (auto element: array->getElements()) {
         if (element->isWildcard()) {
             if (wildcardPresent) {
                 Trace::error("Wilcard '..' can only be present once in an array"
@@ -516,7 +503,7 @@ BinaryExpression* ArrayPattern::generateLengthComparisonExpression() {
 VariableDeclarationStatement*
 ArrayPattern::generateMatchSubjectLengthDeclaration(Expression* subject) {
     const Location& location = subject->getLocation();
-    MemberSelectorExpression* arrayLengthSelector =
+    auto arrayLengthSelector =
         new MemberSelectorExpression(
             subject->clone(),
             new NamedEntityExpression(BuiltInTypes::arrayLengthMethodName,
@@ -546,7 +533,7 @@ bool ClassDecompositionPattern::isMatchExhaustive(
     bool isMatchGuardPresent,
     Context& context) {
 
-    Type* classPatternType = classDecomposition->typeCheck(context);
+    auto classPatternType = classDecomposition->typeCheck(context);
     const Identifier& enumVariantName =
         classDecomposition->getEnumVariantName();
 
@@ -603,10 +590,7 @@ bool ClassDecompositionPattern::isEnumMatchExhaustive(
 bool ClassDecompositionPattern::areAllMemberPatternsIrrefutable(
     Context& context) {
 
-    const ClassDecompositionExpression::MemberList& members =
-        classDecomposition->getMembers();
-    for (auto i = members.cbegin(); i != members.cend(); i++) {
-        const ClassDecompositionExpression::Member& member = *i;
+    for (const auto& member: classDecomposition->getMembers()) {
         if (!memberPatternIsIrrefutable(member.patternExpr, context)) {
             return false;
         }
@@ -618,16 +602,13 @@ BinaryExpression* ClassDecompositionPattern::generateComparisonExpression(
     Expression* subject,
     Context& context) {
 
-    BinaryExpression* comparison = generateTypeComparisonExpression(&subject);
+    auto comparison = generateTypeComparisonExpression(&subject);
 
-    const ClassDecompositionExpression::MemberList& members =
-        classDecomposition->getMembers();
-    for (auto i = members.cbegin(); i != members.cend(); i++) {
-        const ClassDecompositionExpression::Member& member = *i;
+    for (const auto& member: classDecomposition->getMembers()) {
         if (memberPatternIsIrrefutable(member.patternExpr, context)) {
             generateVariableCreatedByMemberPattern(member, subject, context);
         } else {
-            BinaryExpression* memberComparison =
+            auto memberComparison =
                 generateMemberComparisonExpression(subject, member, context);
             if (comparison == nullptr) {
                 comparison = memberComparison;
@@ -660,7 +641,7 @@ void ClassDecompositionPattern::generateVariableCreatedByMemberPattern(
     }
 
     if (patternVar != nullptr) {
-        Expression* matchSubjectMemberExpression =
+        auto matchSubjectMemberExpression =
             generateMatchSubjectMemberSelector(subject, member.nameExpr);
         declarations.push_back(
             new VariableDeclarationStatement(new Type(Type::Implicit),
@@ -678,10 +659,10 @@ BinaryExpression* ClassDecompositionPattern::generateMemberComparisonExpression(
     BinaryExpression* comparisonExpression = nullptr;
     Expression* subjectMemberSelector =
         generateMatchSubjectMemberSelector(subject, member.nameExpr);
-    Expression* patternExpr = member.patternExpr;
-    if (ClassDecompositionExpression* classDecompositionExpr =
+    auto patternExpr = member.patternExpr;
+    if (auto classDecompositionExpr =
             patternExpr->dynCast<ClassDecompositionExpression>()) {
-        ClassDecompositionPattern* classDecompositionPattern =
+        auto classDecompositionPattern =
             new ClassDecompositionPattern(classDecompositionExpr);
 
         // The type of the subject expression needs to be calculated before
@@ -707,7 +688,7 @@ BinaryExpression* ClassDecompositionPattern::generateMemberComparisonExpression(
 BinaryExpression* ClassDecompositionPattern::generateTypeComparisonExpression(
     Expression** subject) {
 
-    Expression* originalSubject = *subject;
+    auto originalSubject = *subject;
     const Identifier& enumVariantName =
         classDecomposition->getEnumVariantName();
     if (!enumVariantName.empty()) {
@@ -715,7 +696,7 @@ BinaryExpression* ClassDecompositionPattern::generateTypeComparisonExpression(
                                                           enumVariantName);
     }
 
-    Type* classDecompositionType = classDecomposition->getType();
+    auto classDecompositionType = classDecomposition->getType();
     if (Type::areEqualNoConstCheck(originalSubject->getType(),
                                    classDecompositionType,
                                    false)) {
@@ -734,11 +715,11 @@ BinaryExpression* ClassDecompositionPattern::generateTypeComparisonExpression(
                                                            castedSubjectName,
                                                            nullptr,
                                                            location));
-    TypeCastExpression* typeCast =
+    auto typeCast =
         new TypeCastExpression(castedSubjectType,
                                originalSubject->clone(),
                                location);
-    Expression* castedSubject = new LocalVariableExpression(castedSubjectType,
+    auto castedSubject = new LocalVariableExpression(castedSubjectType,
                                                             castedSubjectName,
                                                             location);
     *subject = castedSubject;
@@ -760,13 +741,13 @@ ClassDecompositionPattern::generateEnumVariantTagComparisonExpression(
     const Location& location = classDecomposition->getLocation();
     const Identifier& enumName = subject->getType()->getFullConstructedName();
 
-    MemberSelectorExpression* tagMember =
+    auto tagMember =
         new MemberSelectorExpression(subject->clone(),
                                      new NamedEntityExpression(
                                          CommonNames::enumTagVariableName,
                                          location),
                                      location);
-    MemberSelectorExpression* tagConstant =
+    auto tagConstant =
         new MemberSelectorExpression(new NamedEntityExpression(enumName,
                                                                location),
                                      new NamedEntityExpression(
@@ -795,7 +776,7 @@ bool TypedPattern::isMatchExhaustive(
     bool isMatchGuardPresent,
     Context& context) {
 
-    Type* targetType = typedExpression->typeCheck(context);
+    auto targetType = typedExpression->typeCheck(context);
     if (Type::areEqualNoConstCheck(subject->getType(), targetType, false) &&
         !isMatchGuardPresent) {
         return true;
@@ -808,24 +789,24 @@ BinaryExpression* TypedPattern::generateComparisonExpression(
     Expression* subject,
     Context&) {
 
-    Type* targetType = typedExpression->getType();
+    auto targetType = typedExpression->getType();
     const Location& location = typedExpression->getLocation();
     const Identifier
         castedSubjectName("__" + targetType->getName() + "_" +
                           subject->generateVariableName());
-    Type* castedSubjectType = targetType->clone();
+    auto castedSubjectType = targetType->clone();
     castedSubjectType->setConstant(false);
     temporaries.push_back(new VariableDeclarationStatement(castedSubjectType,
                                                            castedSubjectName,
                                                            nullptr,
                                                            location));
-    TypeCastExpression* typeCast =
+    auto typeCast =
         new TypeCastExpression(castedSubjectType, subject->clone(), location);
-    Expression* castedSubject = new LocalVariableExpression(castedSubjectType,
-                                                            castedSubjectName,
-                                                            location);
-    if (NamedEntityExpression* resultName =
-            typedExpression->getResultName()->dynCast<
+    auto castedSubject =
+        new LocalVariableExpression(castedSubjectType,
+                                    castedSubjectName,
+                                    location);
+    if (auto resultName = typedExpression->getResultName()->dynCast<
                 NamedEntityExpression>()) {
         declarations.push_back(
             new VariableDeclarationStatement(new Type(Type::Implicit),

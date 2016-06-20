@@ -156,13 +156,10 @@ Expression* StringLiteralExpression::transform(Context& context) {
 Expression* StringLiteralExpression::createCharArrayExpression(
     Context& context) {
     const Location& location = getLocation();
-    ArrayLiteralExpression* charArrayLiteral = new ArrayLiteralExpression(
-        new Type(Type::Char), 
-        location);
-    for (std::string::const_iterator i = value.begin();
-         i != value.end();
-         i++) {
-        charArrayLiteral->addElement(new CharacterLiteralExpression(*i,
+    auto charArrayLiteral =
+        new ArrayLiteralExpression(new Type(Type::Char), location);
+    for (auto charVal: value) {
+        charArrayLiteral->addElement(new CharacterLiteralExpression(charVal,
                                                                     location));
     }
     return charArrayLiteral->transform(context);
@@ -214,8 +211,7 @@ Traverse::Result ArrayLiteralExpression::traverse(Visitor& visitor) {
         return Traverse::Continue;
     }
 
-    for (auto i = elements.begin(); i != elements.end(); i++) {
-        Expression* element = *i;
+    for (auto element: elements) {
         element->traverse(visitor);
     }
 
@@ -224,11 +220,11 @@ Traverse::Result ArrayLiteralExpression::traverse(Visitor& visitor) {
 
 void ArrayLiteralExpression::checkElements(Context& context) {
     const Type* commonType = nullptr;
-    for (auto i = elements.begin(); i != elements.end(); i++) {
-        *i = (*i)->transform(context);
-        Expression* element = *i;
-        Type* elementType = element->typeCheck(context);
-        const Type* previousCommonType = commonType;
+
+    for (auto& element: elements) {
+        element = element->transform(context);
+        auto elementType = element->typeCheck(context);
+        auto previousCommonType = commonType;
         commonType = Type::calculateCommonType(commonType, elementType);
         if (commonType == nullptr) {
             Trace::error("Array element types are not compatible. Previous "
@@ -989,7 +985,7 @@ MethodCallExpression* MethodCallExpression::transformMethodCall(
     MethodCallExpression* methodCall,
     Context& context) {
 
-    Expression* transformedExpression = methodCall->transform(context);
+    auto transformedExpression = methodCall->transform(context);
     return transformedExpression->dynCast<MethodCallExpression>();
 }
 
@@ -1004,8 +1000,7 @@ void MethodCallExpression::resolve(Context& context) {
 
     if (memberDefinition == nullptr) {
         bool candidateClassIsGeneric = false;
-        for (auto i = candidates.cbegin(); i != candidates.cend(); i++) {
-            MethodDefinition* candidate = *i;
+        for (auto candidate: candidates) {
             if (candidate->getClass()->isGeneric()) {
                 candidateClassIsGeneric = true;
                 if (candidate->isConstructor() || candidate->isStatic()) {
@@ -1132,7 +1127,7 @@ void MethodCallExpression::findCompatibleMethod(
     for (Binding::MethodList::const_reverse_iterator i = candidates.rbegin();
          i != candidates.rend();
          i++) {
-        MethodDefinition* candidate = *i;
+        auto candidate = *i;
         if (candidate->isCompatible(argumentTypes) &&
             !candidate->getClass()->isGeneric()) {
             memberDefinition = candidate;
@@ -1322,17 +1317,15 @@ void MethodCallExpression::reportError(
     }
     std::string error("Method argument mismatch: " + methodName + "(");
     bool addComma = false;
-    for (auto i = argumentTypes.cbegin(); i != argumentTypes.cend(); i++) {
+    for (auto argumentType: argumentTypes) {
         if (addComma) {
             error += ", ";
         }
-        Type* argumentType = *i;
         error += argumentType->toString();
         addComma = true;
     }
     error += ")\nCandidates are:\n";
-    for (auto i = candidates.cbegin(); i != candidates.cend(); i++) {
-        MethodDefinition* candidate = *i;
+    for (auto candidate: candidates) {
         error += candidate->toString() + "\n";
     }
     Trace::error(error, this);
@@ -1592,8 +1585,7 @@ Traverse::Result MethodCallExpression::traverse(Visitor& visitor) {
         return Traverse::Continue;
     }
 
-    for (auto i = arguments.cbegin(); i != arguments.cend(); i++) {
-        Expression* argument = *i;
+    for (auto argument: arguments) {
         argument->traverse(visitor);
     }
 
@@ -1615,15 +1607,13 @@ void MethodCallExpression::resolveArgumentTypes(
     }
 
     unsigned int argumentIndex = 0;
-    for (auto i = arguments.begin(); i != arguments.end(); i++) {
-        Expression* expression = *i;
-        if (AnonymousFunctionExpression* anonymousFunction =
+    for (auto& expression: arguments) {
+        if (auto anonymousFunction =
                 expression->dynCast<AnonymousFunctionExpression>()) {
             anonymousFunction->inferArgumentTypes(candidates, argumentIndex);
         }
-        *i = (*i)->transform(context);
-        Expression* transformedExpression = *i;
-        typeList.push_back(transformedExpression->typeCheck(context));
+        expression = expression->transform(context);
+        typeList.push_back(expression->typeCheck(context));
         argumentIndex++;
     }
 
@@ -2444,8 +2434,7 @@ Traverse::Result LambdaExpression::traverse(Visitor& visitor) {
         return Traverse::Continue;
     }
 
-    for (auto i = arguments.cbegin(); i != arguments.cend(); i++) {
-        VariableDeclarationStatement* argument = *i;
+    for (auto argument: arguments) {
         argument->traverse(visitor);
     }
 
@@ -2604,8 +2593,7 @@ Traverse::Result YieldExpression::traverse(Visitor& visitor) {
         return Traverse::Continue;
     }
 
-    for (auto i = arguments.cbegin(); i != arguments.cend(); i++) {
-        Expression* argument = *i;
+    for (auto argument: arguments) {
         argument->traverse(visitor);
     }
 
@@ -2625,9 +2613,7 @@ AnonymousFunctionExpression::AnonymousFunctionExpression(
     argumentList(),
     body(other.body->clone()) {
 
-    const ArgumentList& from = other.argumentList;
-    for (auto i = from.cbegin(); i != from.cend(); i++) {
-        VariableDeclaration* argument = *i;
+    for (auto argument: other.argumentList) {
         addArgument(argument->clone());
     }
 }
@@ -2652,11 +2638,8 @@ Expression* AnonymousFunctionExpression::transform(Context& context) {
     closure.generateClass(this, context, &closureInfo);
 
     const Location& loc = getLocation();
-    MethodCallExpression* constructorCall =
-        new MethodCallExpression(closureInfo.className, loc);
-    const VariableDeclarationList& nonLocalVars = closureInfo.nonLocalVars;
-    for (auto i = nonLocalVars.cbegin(); i != nonLocalVars.cend(); i++) {
-        VariableDeclaration* nonLocalVarDecl = *i;
+    auto constructorCall = new MethodCallExpression(closureInfo.className, loc);
+    for (auto nonLocalVarDecl: closureInfo.nonLocalVars) {
         constructorCall->addArgument(
             new NamedEntityExpression(nonLocalVarDecl->getIdentifier(), loc));
     }
@@ -2688,21 +2671,16 @@ void AnonymousFunctionExpression::inferArgumentTypes(
         return;
     }
 
-    for (auto i = candidates.begin(); i != candidates.end(); i++) {
-        const MethodDefinition* candidate = *i;
+    for (auto candidate: candidates) {
         const ArgumentList& candidateArguments = candidate->getArgumentList();
         if (anonymousFunctionArgumentIndex < candidateArguments.size()) {
-            const VariableDeclaration* argument =
+            const auto argument =
                 candidateArguments[anonymousFunctionArgumentIndex];
-            const ClassDefinition* argumentClass =
-                argument->getType()->getClass();
+            const auto argumentClass = argument->getType()->getClass();
             if (argumentClass->isClosure()) {
                 const MemberMethodList& closureClassMethods =
                     argumentClass->getMethods();
-                for (auto j = closureClassMethods.cbegin();
-                     j != closureClassMethods.cend();
-                     j++) {
-                    const MethodDefinition* method = *j;
+                for (auto method: closureClassMethods) {
                     if (method->getName().compare(CommonNames::callMethodName)
                             == 0) {
                         const ArgumentList& closureArguments =
@@ -2754,10 +2732,7 @@ MatchCase::MatchCase(const MatchCase& other) :
 }
 
 Traverse::Result MatchCase::traverse(Visitor& visitor) {
-    for (auto i = patternExpressions.cbegin();
-         i != patternExpressions.cend();
-         i++) {
-        Expression* expression = *i;
+    for (auto expression: patternExpressions) {
         expression->traverse(visitor);
     }
 
@@ -2790,10 +2765,7 @@ void MatchCase::setResultExpression(
 }
 
 void MatchCase::buildPatterns(Context& context) {
-    for (auto i = patternExpressions.cbegin();
-         i != patternExpressions.cend();
-         i++) {
-        Expression* expression = *i;
+    for (auto expression: patternExpressions) {
         patterns.push_back(Pattern::create(expression, context));
     }
 }
@@ -2803,8 +2775,7 @@ bool MatchCase::isMatchExhaustive(
     MatchCoverage& coverage,
     Context& context) {
 
-    for (auto i = patterns.cbegin(); i != patterns.cend(); i++) {
-        Pattern* pattern = *i;
+    for (auto pattern: patterns) {
         if (pattern->isMatchExhaustive(subject,
                                        coverage,
                                        patternGuard != nullptr,
@@ -2840,14 +2811,12 @@ BinaryExpression* MatchCase::generateComparisonExpression(
 bool MatchCase::generateTemporariesCreatedByPatterns(BlockStatement* block) {
     bool anyTemporaries = false;
 
-    for (auto i = patterns.cbegin(); i != patterns.cend(); i++) {
-        const Pattern* pattern = *i;
+    for (auto pattern: patterns) {
         const VariableDeclarationStatementList& temps =
             pattern->getTemporariesCreatedByPattern();
         if (!temps.empty()) {
             anyTemporaries = true;
-            for (auto j = temps.begin(); j != temps.end(); j++) {
-                VariableDeclarationStatement* varDeclaration = *j;
+            for (auto varDeclaration: temps) {
                 block->addStatement(varDeclaration);
             }
         }
@@ -2957,13 +2926,9 @@ void MatchCase::generateVariablesCreatedByPatterns(BlockStatement* block) {
     assert(!patterns.empty());
 
     checkVariablesCreatedByPatterns();
-    const Pattern* pattern = patterns.front();
-    const VariableDeclarationStatementList& variablesCreatedByPattern =
-         pattern->getVariablesCreatedByPattern();
-    for (auto i = variablesCreatedByPattern.cbegin();
-         i != variablesCreatedByPattern.cend();
-         i++) {
-        VariableDeclarationStatement* varDeclaration = *i;
+    const auto pattern = patterns.front();
+
+    for (auto varDeclaration: pattern->getVariablesCreatedByPattern()) {
         block->addStatement(varDeclaration);
     }
 }
@@ -2982,15 +2947,10 @@ void MatchCase::checkVariablesCreatedByPatterns() {
             Trace::error("All patterns in a case must bind the same variables.",
                          this);
         }
-        for (auto j = firstPatternVariables.cbegin();
-             j != firstPatternVariables.cend();
-             j++) {
+
+        for (auto firstPatternVariable: firstPatternVariables) {
             bool variableFound = false;
-            VariableDeclarationStatement* firstPatternVariable = *j;
-            for (auto k = patternVariables.cbegin();
-                 k != patternVariables.cend();
-                 k++) {
-                VariableDeclarationStatement* patternVariable = *k;
+            for (auto patternVariable: patternVariables) {
                 if (*(firstPatternVariable->getDeclaration()) ==
                     *(patternVariable->getDeclaration())) {
                     variableFound = true;
@@ -3084,12 +3044,12 @@ BlockStatement* MatchExpression::generateMatchLogic(
 
     const Location& location = getLocation();
 
-    BlockStatement* matchLogicBlock =
+    auto matchLogicBlock =
         new BlockStatement(context.getClassDefinition(),
                            context.getBlock(),
                            location);
 
-    Expression* subjectRefExpr = generateSubjectTemporary(matchLogicBlock);
+    auto subjectRefExpr = generateSubjectTemporary(matchLogicBlock);
 
     if (subjectRefExpr->getType()->isArray()) {
         matchLogicBlock->addStatement(
@@ -3099,24 +3059,23 @@ BlockStatement* MatchExpression::generateMatchLogic(
 
     Identifier matchEndLabelName = generateMatchEndLabelName();
 
-    for (auto i = cases.cbegin(); i != cases.cend(); i++) {
-        MatchCase* matchCase = *i;
-        BlockStatement* caseBlock =
+    for (auto matchCase: cases) {
+        auto caseBlock =
             new BlockStatement(context.getClassDefinition(),
                                matchLogicBlock,
                                location);
-        Type* caseResultType = matchCase->generateCaseBlock(caseBlock,
-                                                            context,
-                                                            subjectRefExpr,
-                                                            resultTmpName,
-                                                            matchEndLabelName);
+        auto caseResultType =
+            matchCase->generateCaseBlock(caseBlock,
+                                         context,
+                                         subjectRefExpr,
+                                         resultTmpName,
+                                         matchEndLabelName);
         checkResultType(caseResultType, matchCase);
         matchLogicBlock->addStatement(caseBlock);
     }
 
     if (!matchEndLabelName.empty()) {
-        LabelStatement* matchEndLabel = new LabelStatement(matchEndLabelName,
-                                                           location);
+        auto matchEndLabel = new LabelStatement(matchEndLabelName, location);
         matchLogicBlock->addStatement(matchEndLabel);
     }
 
@@ -3131,8 +3090,8 @@ Expression* MatchExpression::generateSubjectTemporary(
         subjectRefExpr = subject;
     } else {
         const Location& location = subject->getLocation();
-        Type* subjectType = subject->getType();
-        VariableDeclarationStatement* subjectTmpDeclaration =
+        auto subjectType = subject->getType();
+        auto subjectTmpDeclaration =
             new VariableDeclarationStatement(subjectType,
                                              CommonNames::matchSubjectName,
                                              subject,
@@ -3169,8 +3128,7 @@ void MatchExpression::checkResultType(
 }
 
 void MatchExpression::buildCasePatterns(Context& context) {
-    for (auto i = cases.cbegin(); i != cases.cend(); i++) {
-        MatchCase* matchCase = *i;
+    for (auto matchCase: cases) {
         matchCase->buildPatterns(context);
     }
 }
@@ -3178,10 +3136,10 @@ void MatchExpression::buildCasePatterns(Context& context) {
 void MatchExpression::checkCases(Context& context) {
     MatchCoverage coverage(subject->getType());
     for (auto i = cases.cbegin(); i != cases.cend(); i++) {
-        MatchCase* matchCase = *i;
+        auto matchCase = *i;
         if (matchCase->isMatchExhaustive(subject, coverage, context)) {
             if (i + 1 != cases.end()) {
-                MatchCase* unreachableMatchCase = *(++i);
+                auto unreachableMatchCase = *(++i);
                 Trace::error("Pattern is unreachable.", unreachableMatchCase);
             }
             return;
@@ -3205,8 +3163,7 @@ bool MatchExpression::mayFallThrough() const {
         return true;
     }
 
-    for (auto i = cases.cbegin(); i != cases.cend(); i++) {
-        MatchCase* matchCase = *i;
+    for (auto matchCase: cases) {
         if (matchCase->getResultBlock()->mayFallThrough()) {
             return true;
         }
@@ -3221,8 +3178,7 @@ Traverse::Result MatchExpression::traverse(Visitor& visitor) {
 
     subject->traverse(visitor);
 
-    for (auto i = cases.cbegin(); i != cases.cend(); i++) {
-        MatchCase* matchCase = *i;
+    for (auto matchCase: cases) {
         matchCase->traverse(visitor);
     }
 
@@ -3245,11 +3201,11 @@ ClassDecompositionExpression::ClassDecompositionExpression(
     members(),
     enumVariantName(other.enumVariantName) {
 
-    const MemberList& otherMembers = other.members;
-    for (auto i = otherMembers.cbegin(); i != otherMembers.cend(); i++) {
+    for (const auto& otherMember: other.members) {
         Member member;
-        member.nameExpr = i->nameExpr->clone();
-        member.patternExpr = i->patternExpr ? i->patternExpr->clone() : nullptr;
+        member.nameExpr = otherMember.nameExpr->clone();
+        member.patternExpr = otherMember.patternExpr ?
+                             otherMember.patternExpr->clone() : nullptr;
         members.push_back(member);
     }
 }
@@ -3272,13 +3228,13 @@ Traverse::Result ClassDecompositionExpression::traverse(Visitor& visitor) {
         return Traverse::Continue;
     }
 
-    for (auto i = members.cbegin(); i != members.cend(); i++) {
-        Expression* nameExpr = i->nameExpr;
+    for (const auto& member: members) {
+        auto nameExpr = member.nameExpr;
         if (nameExpr != nullptr) {
             nameExpr->traverse(visitor);
         }
 
-        Expression* patternExpr = i->patternExpr;
+        auto patternExpr = member.patternExpr;
         if (patternExpr != nullptr) {
             patternExpr->traverse(visitor);
         }

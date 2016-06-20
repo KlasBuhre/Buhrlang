@@ -62,9 +62,7 @@ namespace {
     }
 
     MethodDefinition* getDeepCopyMethod(const ClassDefinition* enumClass) {
-        const MemberMethodList& methods = enumClass->getMethods();
-        for (auto i = methods.cbegin(); i != methods.cend(); i++) {
-            MethodDefinition* method = *i;
+        for (auto method: enumClass->getMethods()) {
             if (method->getName().compare(
                     CommonNames::deepCopyMethodName) == 0) {
                 return method;
@@ -86,10 +84,7 @@ EnumGenerator::EnumGenerator(
     genericNoDataVariantList(),
     enumClass(nullptr) {
 
-    for (auto i = genericTypeParameters.cbegin();
-         i != genericTypeParameters.cend();
-         i++) {
-        GenericTypeParameterDefinition* genericTypeDef = *i;
+    for (auto genericTypeDef: genericTypeParameters) {
         fullEnumType->addGenericTypeParameter(
             Type::create(genericTypeDef->getName()));
     }
@@ -323,9 +318,8 @@ void EnumGenerator::generateInitializations(
     const ArgumentList& variantData,
     const Location& location) {
 
-    for (auto i = variantData.cbegin(); i != variantData.cend(); i++) {
-        VariableDeclaration* variantDataMember = *i;
-        MemberSelectorExpression* lhs =
+    for (auto variantDataMember: variantData) {
+        auto lhs =
             new MemberSelectorExpression(
                 new NamedEntityExpression(retvalVariableName, location),
                 new MemberSelectorExpression(
@@ -416,7 +410,7 @@ void EnumGenerator::generateEmptyDeepCopyMethod() {
 void EnumGenerator::generateDeepCopyMethod() {
     // An empty deepCopy method was created for the message enum when it was
     // created. We will now generate the method body.
-    MethodDefinition* deepCopyMethod = getDeepCopyMethod(enumClass);
+    auto deepCopyMethod = getDeepCopyMethod(enumClass);
     if (deepCopyMethod == nullptr) {
         // No deepCopy method means that this is a convertable enum. Convertable
         // enums don't have a deepCopy method.
@@ -427,7 +421,7 @@ void EnumGenerator::generateDeepCopyMethod() {
     tree.setCurrentBlock(deepCopyMethod->getBody());
 
     const Location& location = tree.getCurrentClass()->getLocation();
-    MemberSelectorExpression* otherTagSelector =
+    auto otherTagSelector =
         new MemberSelectorExpression(otherVariableName,
                                      CommonNames::enumTagVariableName);
     tree.addStatement(new VariableDeclarationStatement(new Type(Type::Integer),
@@ -441,18 +435,17 @@ void EnumGenerator::generateDeepCopyMethod() {
                                  CommonNames::enumTagVariableName),
                              new NamedEntityExpression(otherTagVariableName)));
 
-    MatchExpression* match =
+    auto match =
         new MatchExpression(new NamedEntityExpression(otherTagVariableName));
     const DefinitionList& members = tree.getCurrentClass()->getMembers();
-    for (auto i = members.cbegin(); i != members.cend(); i++) {
-        Definition* member = *i;
-        if (MethodDefinition* method = member->dynCast<MethodDefinition>()) {
+    for (auto member: members) {
+        if (auto method = member->dynCast<MethodDefinition>()) {
             if (method->isEnumConstructor()) {
                 match->addCase(generateVariantMatchCase(method));
             }
         }
     }
-    MatchCase* unknownCase = new MatchCase();
+    auto unknownCase = new MatchCase();
     unknownCase->addPatternExpression(new PlaceholderExpression());
     match->addCase(unknownCase);
     tree.addStatement(match);
@@ -501,7 +494,7 @@ MethodDefinition* EnumGenerator::generateDeepCopyMethodSignature(
 MatchCase* EnumGenerator::generateVariantMatchCase(
     MethodDefinition* variantConstructor) {
 
-    MatchCase* matchCase = new MatchCase();
+    auto matchCase = new MatchCase();
     const Identifier& variantName = variantConstructor->getName();
     matchCase->addPatternExpression(
         new NamedEntityExpression(Symbol::makeEnumVariantTagName(variantName)));
@@ -509,17 +502,15 @@ MatchCase* EnumGenerator::generateVariantMatchCase(
 
     Identifier enumVariantDataName(
         Symbol::makeEnumVariantDataName(variantName));
-    const ArgumentList& variantData = variantConstructor->getArgumentList();
-    for (auto i = variantData.cbegin(); i != variantData.cend(); i++) {
-        VariableDeclaration* variantDataMember = *i;
-        MemberSelectorExpression* lhs =
+    for (auto variantDataMember: variantConstructor->getArgumentList()) {
+        auto* lhs =
             new MemberSelectorExpression(
                 new NamedEntityExpression(retvalVariableName),
                 new MemberSelectorExpression(
                     enumVariantDataName,
                     variantDataMember->getIdentifier()));
-        Expression* rhs = generateVariantDataMemberInitRhs(variantDataMember,
-                                                           enumVariantDataName);
+        auto rhs = generateVariantDataMemberInitRhs(variantDataMember,
+                                                    enumVariantDataName);
         tree.addStatement(new BinaryExpression(Operator::Assignment, lhs, rhs));
     }
 
@@ -546,7 +537,7 @@ MatchCase* EnumGenerator::generateVariantMatchCase(
 // }
 //
 ClassDefinition* EnumGenerator::generateConvertableEnum() {
-    Type* convertableEnumType = Type::create(fullEnumType->getName());
+    auto convertableEnumType = Type::create(fullEnumType->getName());
     convertableEnumType->addGenericTypeParameter(new Type(Type::Placeholder));
 
     EnumGenerator enumGenerator(convertableEnumType,
@@ -554,10 +545,7 @@ ClassDefinition* EnumGenerator::generateConvertableEnum() {
                                 enumClass->getLocation(),
                                 tree);
 
-    for (auto i = genericNoDataVariantList.cbegin();
-         i != genericNoDataVariantList.cend();
-         i++) {
-        const GenericNoDataVariant& variant = *i;
+    for (const auto& variant: genericNoDataVariantList) {
         const Identifier& variantName = variant.name;
         const Location& variantLocation = variant.location;
         enumGenerator.generateVariantStaticTag(variantName,

@@ -223,8 +223,9 @@ std::unique_ptr<Message> ProcessControlBlock::getMessage(
         while (mailbox.empty()) {
             condition.wait(lock);
         }
+
         for (auto i = mailbox.begin(); i != mailbox.end(); i++) {
-            Message* message = i->get();
+            auto message = i->get();
             if (message->type == messageType && message->id == messageId) {
                 matchingMessage = std::move(*i);
                 mailbox.erase(i);

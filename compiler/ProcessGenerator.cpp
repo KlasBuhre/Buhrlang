@@ -38,7 +38,7 @@ namespace {
         ClassDefinition* classDef, 
         BlockStatement* body) {
 
-        MethodDefinition* methodSignature = 
+        auto methodSignature =
             new MethodDefinition(BuiltInTypes::processWaitMethodName,
                                  nullptr,
                                  classDef);
@@ -51,7 +51,7 @@ namespace {
         BlockStatement* body,
         const Identifier& processInterfaceName) {
 
-        MethodDefinition* methodSignature =
+        auto methodSignature =
             new MethodDefinition("get" + processInterfaceName + "_Proxy",
                                  Type::create(processInterfaceName),
                                  classDef);
@@ -60,7 +60,7 @@ namespace {
     }
 
     void checkRemoteMethodSignature(const MethodDefinition* method) {
-        const Type* returnType = method->getReturnType();
+        auto returnType = method->getReturnType();
         if (!returnType->isVoid() &&
             (!returnType->isMessageOrPrimitive() &&
              !returnType->getClass()->isProcess())) {
@@ -68,10 +68,9 @@ namespace {
                          "message or process.",
                          method);
         }
-        const ArgumentList& arguments = method->getArgumentList();
-        for (auto i = arguments.cbegin(); i != arguments.cend(); i++) {
-            const VariableDeclaration* argument = *i;
-            const Type* argumentType = argument->getType();
+
+        for (auto argument: method->getArgumentList()) {
+            auto argumentType = argument->getType();
             if (!argumentType->isMessageOrPrimitive() &&
                 !argumentType->getClass()->isProcess()) {
                 Trace::error("Remote method arguments must be of type message "
@@ -131,9 +130,7 @@ void ProcessGenerator::addMessageHandlerAbilityToRegularClass() {
 void ProcessGenerator::fillRemoteMethodSignaturesList(
     ClassDefinition* fromClass) {
 
-    const MemberMethodList& processMethods = fromClass->getMethods();
-    for (auto i = processMethods.cbegin(); i != processMethods.cend(); i++) {
-        MethodDefinition* method = *i;
+    for (auto method: fromClass->getMethods()) {
         if (!method->isConstructor() && !method->isPrivate()) {
             remoteMethodSignatures.push_back(method);
             checkRemoteMethodSignature(method);
@@ -192,10 +189,7 @@ MethodDefinition* ProcessGenerator::generateCallMethodSignature(
 }
 
 void ProcessGenerator::generateCallClasses() {
-    for (auto i = remoteMethodSignatures.cbegin();
-         i != remoteMethodSignatures.cend();
-         i++) {
-        MethodDefinition* remoteMethodSignature = *i;
+    for (auto remoteMethodSignature: remoteMethodSignatures) {
         generateCallClass(remoteMethodSignature);
     }
 }
@@ -239,13 +233,8 @@ void ProcessGenerator::generateCallClass(
         tree.addClassDataMember(Type::Integer, sourcePidVariableName);
     }
 
-    const ArgumentList& remoteMethodSignatureArgumentList =
-        remoteMethodSignature->getArgumentList();
-    for (auto i = remoteMethodSignatureArgumentList.cbegin();
-         i != remoteMethodSignatureArgumentList.cend();
-         i++) {
-        VariableDeclaration* argument = *i;
-        Type* argumentType = argument->getType();
+    for (auto argument: remoteMethodSignature->getArgumentList()) {
+        auto argumentType = argument->getType();
         if (argumentType->getClass()->isProcess()) {
             argumentType = Type::create(argumentType->getName() + "_Proxy");
         } else {
@@ -272,7 +261,7 @@ void ProcessGenerator::generateCallClass(
 void ProcessGenerator::generateCallConstructor(
     MethodDefinition* remoteMethodSignature) {
 
-    MethodDefinition* callConstructor =
+    auto callConstructor =
         generateCallConstructorSignature(tree.startBlock(),
                                          remoteMethodSignature);
 
@@ -284,16 +273,10 @@ void ProcessGenerator::generateCallConstructor(
                                                    pidVariableName)));
     }
 
-    const ArgumentList& remoteMethodSignatureArgumentList =
-        remoteMethodSignature->getArgumentList();
-    for (auto i = remoteMethodSignatureArgumentList.cbegin();
-         i != remoteMethodSignatureArgumentList.cend();
-         i++) {
-        VariableDeclaration* argument = *i;
-        NamedEntityExpression* lhs =
-            new NamedEntityExpression(argument->getIdentifier());
+    for (auto argument: remoteMethodSignature->getArgumentList()) {
+        auto lhs = new NamedEntityExpression(argument->getIdentifier());
         Expression* rhs = NULL;
-        Type* argumentType = argument->getType();
+        auto argumentType = argument->getType();
         if (argumentType->getClass()->isProcess()) {
             rhs = new TypeCastExpression(
                       Type::create(argumentType->getName() + "_Proxy"),
@@ -316,7 +299,7 @@ MethodDefinition* ProcessGenerator::generateCallConstructorSignature(
     BlockStatement* body,
     MethodDefinition* remoteMethodSignature) {
 
-    MethodDefinition* methodSignature =
+    auto methodSignature =
         new MethodDefinition(Keyword::initString,
                              nullptr,
                              tree.getCurrentClass());
@@ -325,12 +308,8 @@ MethodDefinition* ProcessGenerator::generateCallConstructorSignature(
     if (!remoteMethodSignature->getReturnType()->isVoid()) {
         methodSignature->addArgument(Type::Integer, pidVariableName);
     }
-    const ArgumentList& remoteMethodSignatureArgumentList =
-        remoteMethodSignature->getArgumentList();
-    for (auto i = remoteMethodSignatureArgumentList.cbegin();
-         i != remoteMethodSignatureArgumentList.cend();
-         i++) {
-        VariableDeclaration* argument = *i;
+
+    for (auto argument: remoteMethodSignature->getArgumentList()) {
         methodSignature->addArgument(argument->getType()->clone(),
                                      argument->getIdentifier() + "_Arg");
     }
@@ -372,14 +351,9 @@ void ProcessGenerator::generateCallMethod(
 MemberSelectorExpression* ProcessGenerator::generateProcessMethodCall(
     MethodDefinition* remoteMethodSignature) {
 
-    MethodCallExpression* processMethodCall =
+    auto processMethodCall =
         new MethodCallExpression(remoteMethodSignature->getName());
-    const ArgumentList& remoteMethodSignatureArgumentList =
-        remoteMethodSignature->getArgumentList();
-    for (auto i = remoteMethodSignatureArgumentList.cbegin();
-         i != remoteMethodSignatureArgumentList.cend();
-         i++) {
-        VariableDeclaration* argument = *i;
+    for (auto argument: remoteMethodSignature->getArgumentList()) {
         processMethodCall->addArgument(argument->getIdentifier());
     }
     return new MemberSelectorExpression(processInstanceVariableName,
@@ -398,9 +372,9 @@ VariableDeclarationStatement* ProcessGenerator::generateRetValDeclaration(
     if (remoteCallReturnType->isReference()) {
         initExpression = processMethodCall;
     } else {
-        Type* boxType = Type::create(BuiltInTypes::boxTypeName);
+        auto boxType = Type::create(BuiltInTypes::boxTypeName);
         boxType->addGenericTypeParameter(remoteCallReturnType->clone());
-        MethodCallExpression* boxConstructorCall =
+        auto boxConstructorCall =
             new MethodCallExpression(BuiltInTypes::boxTypeName);
         boxConstructorCall->addArgument(processMethodCall);
         initExpression = new HeapAllocationExpression(boxType,
@@ -443,9 +417,7 @@ void ProcessGenerator::generateInterfaceIdClass(bool generatedAsNestedClass) {
         generateInterfaceId(inputClassName + "Id", id++);
     }
     if (inputClass->isInheritingFromProcessInterface()) {
-        const ClassList& parents = inputClass->getParentClasses();
-        for (auto i = parents.cbegin(); i != parents.cend(); i++) {
-            ClassDefinition* parent = *i;
+        for (auto parent: inputClass->getParentClasses()) {
             if (parent->isProcess() && parent->isInterface()) {
                 generateInterfaceId(parent->getName() + "Id", id++);
             }
@@ -465,7 +437,7 @@ void ProcessGenerator::generateInterfaceIdClass(bool generatedAsNestedClass) {
 //
 void ProcessGenerator::generateInterfaceId(const Identifier& name, int id) {
     Location loc;
-    DataMemberDefinition* dataMember =
+    auto dataMember =
         new DataMemberDefinition(name,
                                  new Type(Type::Integer),
                                  AccessLevel::Public,
@@ -581,11 +553,9 @@ void ProcessGenerator::generateHandleMessageMethod() {
 //     // Do nothing.
 //
 void ProcessGenerator::generateInterfaceMatchCases(MatchExpression* match) {
-    const ClassList& parents = inputClass->getParentClasses();
-    for (auto i = parents.cbegin(); i != parents.cend(); i++) {
-        ClassDefinition* parent = *i;
+    for (auto parent: inputClass->getParentClasses()) {
         if (parent->isProcess() && parent->isInterface()) {
-            MatchCase* interfaceCase = new MatchCase();
+            auto interfaceCase = new MatchCase();
             const Identifier& interfaceName = parent->getName();
             interfaceCase->addPatternExpression(
                 new MemberSelectorExpression(interfaceIdClassName,
@@ -597,7 +567,8 @@ void ProcessGenerator::generateInterfaceMatchCases(MatchExpression* match) {
             match->addCase(interfaceCase);
         }
     }
-    MatchCase* unknownCase = new MatchCase();
+
+    auto unknownCase = new MatchCase();
     unknownCase->addPatternExpression(new PlaceholderExpression());
     match->addCase(unknownCase);
 }
@@ -625,10 +596,10 @@ MethodDefinition* ProcessGenerator::generateHandleMessageMethodSignature(
 MemberSelectorExpression* ProcessGenerator::generateCastAndCall(
     const Identifier& processType) {
 
-    MethodCallExpression* call = new MethodCallExpression(callMethodName);
+    auto call = new MethodCallExpression(callMethodName);
     call->addArgument(messageVariableName);
     call->addArgument(new ThisExpression());
-    TypeCastExpression* typeCast =
+    auto typeCast =
         new TypeCastExpression(Type::create(processType + "_Call"),
                                new MemberSelectorExpression(messageVariableName,
                                                             dataVariableName));
@@ -637,9 +608,7 @@ MemberSelectorExpression* ProcessGenerator::generateCastAndCall(
 
 void ProcessGenerator::generateMessageHandlerGetProxyMethods() {
     if (inputClass->isInheritingFromProcessInterface()) {
-        const ClassList& parents = inputClass->getParentClasses();
-        for (auto i = parents.cbegin(); i != parents.cend(); i++) {
-            ClassDefinition* parent = *i;
+        for (auto parent: inputClass->getParentClasses()) {
             if (parent->isProcess() && parent->isInterface()) {
                 generateMessageHandlerGetInterfaceProxyMethod(
                     parent->getName());
@@ -810,17 +779,12 @@ void ProcessGenerator::generateProxyClass() {
     }
     generateProxyConstructorWithPid();
 
-    for (auto i = remoteMethodSignatures.cbegin();
-         i != remoteMethodSignatures.cend();
-         i++) {
-        MethodDefinition* remoteMethodSignature = *i;
+    for (auto remoteMethodSignature: remoteMethodSignatures) {
         generateProxyRemoteMethod(remoteMethodSignature);
     }
 
     if (inputClass->isInheritingFromProcessInterface()) {
-        const ClassList& parents = inputClass->getParentClasses();
-        for (auto i = parents.cbegin(); i != parents.cend(); i++) {
-            ClassDefinition* parent = *i;
+        for (auto parent: inputClass->getParentClasses()) {
             if (parent->isProcess() && parent->isInterface()) {
                 generateProxyGetProxyMethod(parent->getName());
             }
@@ -954,17 +918,13 @@ MethodDefinition* ProcessGenerator::generateProxyRemoteMethodSignature(
     MethodDefinition* remoteMethodSignature,
     BlockStatement* body) {
 
-    MethodDefinition* methodSignature =
+    auto methodSignature =
         new MethodDefinition(remoteMethodSignature->getName(),
                              remoteMethodSignature->getReturnType()->clone(),
                              tree.getCurrentClass());
     methodSignature->setBody(body);
-    const ArgumentList& remoteMethodSignatureArgumentList =
-        remoteMethodSignature->getArgumentList();
-    for (auto i = remoteMethodSignatureArgumentList.cbegin();
-         i != remoteMethodSignatureArgumentList.cend();
-         i++) {
-        VariableDeclaration* argument = *i;
+
+    for (auto argument: remoteMethodSignature->getArgumentList()) {
         methodSignature->addArgument(argument->getType()->clone(),
                                      argument->getIdentifier());
     }
@@ -987,23 +947,20 @@ MethodDefinition* ProcessGenerator::generateProxyRemoteMethodSignature(
 Statement* ProcessGenerator::generateMessageDeclaration(
     MethodDefinition* remoteMethodSignature) {
 
-    MethodCallExpression* callClassConstructorCall =
+    auto callClassConstructorCall =
         new MethodCallExpression(inputClassName + "_" +
                                  remoteMethodSignature->getName() + "_Call");
     if (!remoteMethodSignature->getReturnType()->isVoid()) {
         callClassConstructorCall->addArgument(
             new MemberSelectorExpression(processTypeName, getPidMethodName));
     }
-    const ArgumentList& remoteMethodSignatureArgumentList =
-        remoteMethodSignature->getArgumentList();
-    for (auto i = remoteMethodSignatureArgumentList.cbegin();
-         i != remoteMethodSignatureArgumentList.cend();
-         i++) {
-        VariableDeclaration* argument = *i;
+
+    for (auto argument: remoteMethodSignature->getArgumentList()) {
         callClassConstructorCall->addArgument(
             generateCallClassConstructorCallArgument(argument));
     }
-    MethodCallExpression* messageClassConstructorCall =
+
+    auto messageClassConstructorCall =
         new MethodCallExpression(messageTypeName);
     if (inputClass->isInterface()) {
         messageClassConstructorCall->addArgument(messageHandlerIdVariableName);

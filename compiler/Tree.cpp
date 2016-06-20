@@ -9,8 +9,7 @@
 
 namespace {
     const Type* findRecursiveType(const TypeList& types) {
-        for (auto i = types.cbegin(); i != types.cend(); i++) {
-            const Type* type = *i;
+        for (auto type: types) {
             if (type->getClass()->isRecursive()) {
                 return type;
             }
@@ -19,9 +18,8 @@ namespace {
     }
 
     ClassDefinition* findInnerClass(const TypeList& types) {
-        for (auto i = types.cbegin(); i != types.cend(); i++) {
-            const Type* type = *i;
-            ClassDefinition* classDef = type->getClass();
+        for (auto type: types) {
+            auto classDef = type->getClass();
             if (classDef->getEnclosingDefinition() != nullptr) {
                 return classDef;
             }
@@ -693,7 +691,7 @@ void Tree::traverse(Visitor& visitor) {
     for (definitionIter = globalDefinitions.begin();
          definitionIter != globalDefinitions.end();
          definitionIter++) {
-        Definition* definition = *definitionIter;
+        auto definition = *definitionIter;
         unsigned int traverseMask = visitor.getTraverseMask();
         switch (definition->getKind()) {
             case Definition::Class:
@@ -743,12 +741,9 @@ NameBindings& Tree::getCurrentNameBindings() {
 }
 
 MethodDefinition* Tree::getMainMethod() const {
-    MethodDefinition* main = globalFunctionsClass->getMainMethod();
+    auto main = globalFunctionsClass->getMainMethod();
     if (main == nullptr) {
-        for (auto i = globalDefinitions.cbegin();
-             i != globalDefinitions.cend();
-             i++) {
-            Definition* definition = *i;
+        for (auto definition: globalDefinitions) {
             if (definition->isClass()) {
                 main = definition->cast<ClassDefinition>()->getMainMethod();
                 if (main != nullptr) {
@@ -790,26 +785,24 @@ void Tree::lookupAndSetTypeDefinitionInCurrentTree(
     const NameBindings& scope,
     const Location& location) {
 
-    Definition* definition = scope.lookupType(type->getName());
+    auto definition = scope.lookupType(type->getName());
     if (definition == nullptr) {
         Trace::error("Unknown type: " + type->getName(), location);
     }
 
     type->setDefinition(definition);
 
-    ClassDefinition* classDefinition = definition->dynCast<ClassDefinition>();
+    auto classDefinition = definition->dynCast<ClassDefinition>();
     if (classDefinition != nullptr && classDefinition == getCurrentClass()) {
         classDefinition->setRecursive(true);
     }
 
     if (type->isFunction()) {
-        FunctionSignature* signature = type->getFunctionSignature();
+        auto signature = type->getFunctionSignature();
         lookupAndSetTypeDefinitionInCurrentTree(signature->getReturnType(),
                                                 scope,
                                                 location);
-        const TypeList& arguments = signature->getArguments();
-        for (auto i = arguments.cbegin(); i != arguments.cend(); i++) {
-            Type* argumentType = *i;
+        for (auto argumentType: signature->getArguments()) {
             lookupAndSetTypeDefinitionInCurrentTree(argumentType,
                                                     scope,
                                                     location);
@@ -831,11 +824,7 @@ void Tree::lookupAndSetTypeDefinitionInCurrentTree(
                           location);
         }
 
-        const TypeList& typeParameters = type->getGenericTypeParameters();
-        for (auto i = typeParameters.cbegin();
-             i != typeParameters.cend();
-             i++) {
-            Type* typeParameter = *i;
+        for (auto typeParameter: type->getGenericTypeParameters()) {
             lookupAndSetTypeDefinitionInCurrentTree(typeParameter,
                                                     scope,
                                                     location);
@@ -850,23 +839,21 @@ Definition* Tree::getConcreteClassFromTypeParameterList(
     const Location& location) {
 
     TypeList& typeParameters = type->getGenericTypeParameters();
-    for (auto i = typeParameters.begin(); i != typeParameters.end(); i++) {
-        Type* typeParameter = *i;
-        Type* concreteType = makeGenericTypeConcreteInCurrentTree(typeParameter,
-                                                                  scope,
-                                                                  location);
+    for (auto& typeParameter: typeParameters) {
+        auto concreteType = makeGenericTypeConcreteInCurrentTree(typeParameter,
+                                                                 scope,
+                                                                 location);
         if (concreteType != nullptr) {
             // The type parameter was a generic type parameter which has been
             // assigned a concrete type. Change the type parameter to the
             // concrete type.
-            *i = concreteType;
+            typeParameter = concreteType;
         }
     }
 
     // Lookup the generated concrete class using the name of the generic class
     // and the type parameters.
-    Definition* concreteClass =
-        scope.lookupType(type->getFullConstructedName());
+    auto concreteClass = scope.lookupType(type->getFullConstructedName());
     if (concreteClass == nullptr) {
         concreteClass = generateConcreteClassFromGeneric(genericClass,
                                                          typeParameters,
@@ -939,7 +926,7 @@ void Tree::makeSignatureTypesConcrete(
     const NameBindings& scope,
     const Location& location) {
 
-    Type* concreteReturnType =
+    auto concreteReturnType =
         makeGenericTypeConcreteInCurrentTree(signature->getReturnType(),
                                              scope,
                                              location);
@@ -947,17 +934,15 @@ void Tree::makeSignatureTypesConcrete(
         signature->setReturnType(concreteReturnType);
     }
 
-    TypeList& arguments = signature->getArguments();
-    for (auto i = arguments.begin(); i != arguments.end(); i++) {
-        Type* argumentType = *i;
-        Type* concreteType = makeGenericTypeConcreteInCurrentTree(argumentType,
+    for (auto& argumentType: signature->getArguments()) {
+        auto concreteType = makeGenericTypeConcreteInCurrentTree(argumentType,
                                                                   scope,
                                                                   location);
         if (concreteType != nullptr) {
             // The argument type was a generic type parameter which has been
             // assigned a concrete type. Change the argument type to the
             // concrete type.
-            *i = concreteType;
+            argumentType = concreteType;
         }
     }
 }
