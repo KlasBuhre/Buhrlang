@@ -17,9 +17,6 @@ public:
         ForwardDeclaration
     };
 
-    Definition(Kind k, const Identifier& n, const Location& l);
-    Definition(const Definition& other);
-
     virtual Definition* clone() const = 0;
 
     ClassDefinition* getEnclosingClass() const;
@@ -61,6 +58,9 @@ public:
     }
 
 protected:
+    Definition(Kind k, const Identifier& n, const Location& l);
+    Definition(const Definition& other);
+
     Identifier name;
     Definition* enclosingDefinition;
 
@@ -106,16 +106,9 @@ public:
         bool isEnumerationVariant;
     };
 
-    ClassDefinition(
-        const Identifier& name, 
-        const GenericTypeParameterList& genericTypeParameters,
-        ClassDefinition* base,
-        const ClassList& parents,
-        NameBindings* enclosingBindings,
-        const Properties& p,
-        const Location& l);
-    ClassDefinition(const ClassDefinition& other);
-
+    static ClassDefinition* create(
+        const Identifier& name,
+        NameBindings* enclosingBindings);
     static ClassDefinition* create(
         const Identifier& name,
         const GenericTypeParameterList& genericTypeParameters,
@@ -231,6 +224,16 @@ public:
     }
 
 private:
+    ClassDefinition(
+        const Identifier& name,
+        const GenericTypeParameterList& genericTypeParameters,
+        ClassDefinition* base,
+        const ClassList& parents,
+        NameBindings* enclosingBindings,
+        const Properties& p,
+        const Location& l);
+    ClassDefinition(const ClassDefinition& other);
+
     void addMember(Definition* member);
     void addNestedClass(ClassDefinition* classDefinition);
     void addClassMemberDefinition(ClassMemberDefinition* member);
@@ -273,14 +276,6 @@ public:
         Method
     };
 
-    ClassMemberDefinition(
-        Kind k,
-        const Identifier& name,
-        AccessLevel::Kind a,
-        bool s, 
-        const Location& l);
-    ClassMemberDefinition(const ClassMemberDefinition& other);
-
     Kind getKind() const {
         return kind;
     }
@@ -305,6 +300,15 @@ public:
         return access == AccessLevel::Private;
     }
 
+protected:
+    ClassMemberDefinition(
+        Kind k,
+        const Identifier& name,
+        AccessLevel::Kind a,
+        bool s,
+        const Location& l);
+    ClassMemberDefinition(const ClassMemberDefinition& other);
+
 private:
     Kind kind;
     AccessLevel::Kind access;
@@ -313,16 +317,18 @@ private:
 
 class MethodDefinition: public ClassMemberDefinition {
 public:
-    MethodDefinition(const Identifier& name, Type* retType, Definition* e);
-    MethodDefinition(
-        const Identifier& name, 
+
+    static MethodDefinition* create(
+        const Identifier& name,
         Type* retType,
         AccessLevel::Kind access,
-        bool isStatic, 
+        bool isStatic,
         Definition* e,
         const Location& l);
-    MethodDefinition(const MethodDefinition& other);
-
+    static MethodDefinition* create(
+        const Identifier& name,
+        Type* retType,
+        Definition* e);
     static MethodDefinition* create(
         const Identifier& name,
         Type* retType,
@@ -446,6 +452,15 @@ public:
     }
 
 private:
+    MethodDefinition(
+        const Identifier& name,
+        Type* retType,
+        AccessLevel::Kind access,
+        bool isStatic,
+        Definition* e,
+        const Location& l);
+    MethodDefinition(const MethodDefinition& other);
+
     void updateGenericReturnType(const NameBindings& nameBindings);
     void updateGenericTypesInArgumentList(const NameBindings& nameBindings);
     void updateGenericTypesInLambdaSignature(const NameBindings& nameBindings);
@@ -473,15 +488,14 @@ private:
 class DataMemberDefinition: public ClassMemberDefinition {
 public:
 
-    DataMemberDefinition(const Identifier& name, Type* typ);
-    DataMemberDefinition(
-        const Identifier& name, 
+    static DataMemberDefinition* create(const Identifier& name, Type* typ);
+    static DataMemberDefinition* create(
+        const Identifier& name,
         Type* typ,
         AccessLevel::Kind access,
         bool isStatic,
         bool isPrimaryCtorArg,
         const Location& l);
-    DataMemberDefinition(const DataMemberDefinition& other);
 
     Definition* clone() const override;
     Traverse::Result traverse(Visitor& visitor) override;
@@ -508,6 +522,15 @@ public:
     }
 
 private:
+    DataMemberDefinition(
+        const Identifier& name,
+        Type* typ,
+        AccessLevel::Kind access,
+        bool isStatic,
+        bool isPrimaryCtorArg,
+        const Location& l);
+    DataMemberDefinition(const DataMemberDefinition& other);
+
     void changeTypeIfGeneric(const NameBindings& nameBindings);
     void typeCheckInitExpression(Context& context);
 
@@ -519,8 +542,9 @@ private:
 
 class GenericTypeParameterDefinition: public Definition {
 public:
-    GenericTypeParameterDefinition(const Identifier& name, const Location& l);
-    GenericTypeParameterDefinition(const GenericTypeParameterDefinition& other);
+    static GenericTypeParameterDefinition* create(
+        const Identifier& name,
+        const Location& l);
 
     GenericTypeParameterDefinition* clone() const override;
 
@@ -533,15 +557,21 @@ public:
     }
 
 private:
+    GenericTypeParameterDefinition(const Identifier& name, const Location& l);
+    GenericTypeParameterDefinition(const GenericTypeParameterDefinition& other);
+
     Type* concreteType;
 };
 
 class ForwardDeclarationDefinition: public Definition {
 public:
-    explicit ForwardDeclarationDefinition(const Identifier& name);
-    ForwardDeclarationDefinition(const ForwardDeclarationDefinition& other);
+    static ForwardDeclarationDefinition* create(const Identifier& name);
 
     ForwardDeclarationDefinition* clone() const override;
+
+private:
+    explicit ForwardDeclarationDefinition(const Identifier& name);
+    ForwardDeclarationDefinition(const ForwardDeclarationDefinition& other);
 };
 
 #endif

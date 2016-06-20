@@ -142,6 +142,23 @@ ClassDefinition::ClassDefinition(const ClassDefinition& other) :
 
 ClassDefinition* ClassDefinition::create(
     const Identifier& name,
+    NameBindings* enclosingBindings) {
+
+    GenericTypeParameterList typeParams;
+    ClassDefinition::Properties properties;
+    ClassList parents;
+    Location loc;
+    return new ClassDefinition(name,
+                               typeParams,
+                               nullptr,
+                               parents,
+                               enclosingBindings,
+                               properties,
+                               loc);
+}
+
+ClassDefinition* ClassDefinition::create(
+    const Identifier& name,
     const GenericTypeParameterList& genericTypeParameters,
     const IdentifierList& parentNames,
     NameBindings* enclosingBindings,
@@ -398,12 +415,12 @@ void ClassDefinition::addPrimaryCtorArgsAsDataMembers(
     for (auto varDeclaration: constructorArguments) {
         if (varDeclaration->isDataMember()) {
             auto dataMember =
-                new DataMemberDefinition(varDeclaration->getIdentifier(),
-                                         varDeclaration->getType()->clone(),
-                                         AccessLevel::Public,
-                                         false,
-                                         true,
-                                         varDeclaration->getLocation());
+                DataMemberDefinition::create(varDeclaration->getIdentifier(),
+                                             varDeclaration->getType()->clone(),
+                                             AccessLevel::Public,
+                                             false,
+                                             true,
+                                             varDeclaration->getLocation());
             appendMember(dataMember);
         }
     }
@@ -870,17 +887,6 @@ ClassMemberDefinition::ClassMemberDefinition(
     staticMember(other.staticMember) {}
 
 MethodDefinition::MethodDefinition(
-    const Identifier& name,
-    Type* retType,
-    Definition* e) :
-    MethodDefinition(name,
-                     retType,
-                     AccessLevel::Public,
-                     false,
-                     e,
-                     e->getLocation()) {}
-
-MethodDefinition::MethodDefinition(
     const Identifier& name, 
     Type* retType,
     AccessLevel::Kind access,
@@ -892,7 +898,7 @@ MethodDefinition::MethodDefinition(
                           access,
                           isStatic,
                           l),
-    returnType(retType ? retType : new Type(Type::Void)),
+    returnType(retType ? retType : Type::create(Type::Void)),
     argumentList(),
     body(nullptr),
     lambdaSignature(nullptr),
@@ -933,6 +939,30 @@ void MethodDefinition::copyArgumentList(const ArgumentList& from) {
     for (auto argument: from) {
         addArgument(new VariableDeclaration(*argument));
     }
+}
+
+MethodDefinition* MethodDefinition::create(
+    const Identifier& name,
+    Type* retType,
+    AccessLevel::Kind access,
+    bool isStatic,
+    Definition* e,
+    const Location& l) {
+
+    return new MethodDefinition(name, retType, access, isStatic, e, l);
+}
+
+MethodDefinition* MethodDefinition::create(
+    const Identifier& name,
+    Type* retType,
+    Definition* e) {
+
+    return new MethodDefinition(name,
+                                retType,
+                                AccessLevel::Public,
+                                false,
+                                e,
+                                e->getLocation());
 }
 
 MethodDefinition* MethodDefinition::create(
@@ -1017,7 +1047,7 @@ void MethodDefinition::addArgument(
     Type::BuiltInType type,
     const Identifier& argumentName) {
 
-    addArgument(new VariableDeclaration(new Type(type),
+    addArgument(new VariableDeclaration(Type::create(type),
                                         argumentName,
                                         enclosingDefinition->getLocation()));
 }
@@ -1436,7 +1466,7 @@ void MethodDefinition::setLambdaSignature(
 
     lambdaSignature = s;
     auto lambdaArgument =
-        new VariableDeclaration(new Type(Type::Lambda), "",  getLocation());
+        new VariableDeclaration(Type::create(Type::Lambda), "",  getLocation());
     addArgument(lambdaArgument);
 
     assert(enclosingDefinition->isClass());
@@ -1450,14 +1480,6 @@ void MethodDefinition::setLambdaSignature(
         Tree::lookupAndSetTypeDefinition(argumentType, nameBindings, loc);
     }
 }
-
-DataMemberDefinition::DataMemberDefinition(const Identifier& name, Type* typ) :
-    DataMemberDefinition(name,
-                         typ,
-                         AccessLevel::Public,
-                         false,
-                         false,
-                         Location()) {}
 
 DataMemberDefinition::DataMemberDefinition(
     const Identifier& name, 
@@ -1482,6 +1504,29 @@ DataMemberDefinition::DataMemberDefinition(const DataMemberDefinition& other) :
     expression(other.expression ? other.expression->clone() : nullptr),
     isPrimaryCtorArgument(other.isPrimaryCtorArgument),
     hasBeenTypeCheckedAndTransformed(other.hasBeenTypeCheckedAndTransformed) {}
+
+DataMemberDefinition* DataMemberDefinition::create(
+    const Identifier& name,
+    Type* typ) {
+
+    return create(name, typ, AccessLevel::Public, false, false, Location());
+}
+
+DataMemberDefinition* DataMemberDefinition::create(
+    const Identifier& name,
+    Type* typ,
+    AccessLevel::Kind access,
+    bool isStatic,
+    bool isPrimaryCtorArg,
+    const Location& l) {
+
+    return new DataMemberDefinition(name,
+                                    typ,
+                                    access,
+                                    isStatic,
+                                    isPrimaryCtorArg,
+                                    l);
+}
 
 Definition* DataMemberDefinition::clone() const {
     return new DataMemberDefinition(*this);
@@ -1577,6 +1622,13 @@ GenericTypeParameterDefinition::GenericTypeParameterDefinition(
     Definition(other),
     concreteType(other.concreteType ? other.concreteType->clone() : nullptr) {}
 
+GenericTypeParameterDefinition* GenericTypeParameterDefinition::create(
+    const Identifier& name,
+    const Location& l) {
+
+    return new GenericTypeParameterDefinition(name, l);
+}
+
 GenericTypeParameterDefinition* GenericTypeParameterDefinition::clone() const {
     return new GenericTypeParameterDefinition(*this);
 }
@@ -1588,6 +1640,12 @@ ForwardDeclarationDefinition::ForwardDeclarationDefinition(
 ForwardDeclarationDefinition::ForwardDeclarationDefinition(
     const ForwardDeclarationDefinition& other) :
     Definition(other) {}
+
+ForwardDeclarationDefinition* ForwardDeclarationDefinition::create(
+    const Identifier& name) {
+
+    return new ForwardDeclarationDefinition(name);
+}
 
 ForwardDeclarationDefinition* ForwardDeclarationDefinition::clone() const {
     return new ForwardDeclarationDefinition(*this);

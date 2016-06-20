@@ -309,7 +309,7 @@ BinaryExpression* SimplePattern::generateComparisonExpression(
         // The pattern introduces a new variable. The variable will bind to the
         // value of the match subject.
         declarations.push_back(
-            new VariableDeclarationStatement(new Type(Type::Implicit),
+            new VariableDeclarationStatement(Type::create(Type::Implicit),
                                              namedEntity->getIdentifier(),
                                              subject->clone(),
                                              location));
@@ -425,7 +425,7 @@ BinaryExpression* ArrayPattern::generateNamedEntityElementComparisonExpression(
         auto matchSubjectElementExpression =
             generateArraySubscriptExpression(subject, i, toTheRightOfWildcard);
         declarations.push_back(
-            new VariableDeclarationStatement(new Type(Type::Implicit),
+            new VariableDeclarationStatement(Type::create(Type::Implicit),
                                              namedEntity->getIdentifier(),
                                              matchSubjectElementExpression,
                                              location));
@@ -509,7 +509,7 @@ ArrayPattern::generateMatchSubjectLengthDeclaration(Expression* subject) {
             new NamedEntityExpression(BuiltInTypes::arrayLengthMethodName,
                                       location),
             location);
-    return new VariableDeclarationStatement(new Type(Type::Integer),
+    return new VariableDeclarationStatement(Type::create(Type::Integer),
                                             matchSubjectLengthName,
                                             arrayLengthSelector,
                                             location);
@@ -644,7 +644,7 @@ void ClassDecompositionPattern::generateVariableCreatedByMemberPattern(
         auto matchSubjectMemberExpression =
             generateMatchSubjectMemberSelector(subject, member.nameExpr);
         declarations.push_back(
-            new VariableDeclarationStatement(new Type(Type::Implicit),
+            new VariableDeclarationStatement(Type::create(Type::Implicit),
                                              patternVar->getIdentifier(),
                                              matchSubjectMemberExpression,
                                              patternVar->getLocation()));
@@ -809,7 +809,7 @@ BinaryExpression* TypedPattern::generateComparisonExpression(
     if (auto resultName = typedExpression->getResultName()->dynCast<
                 NamedEntityExpression>()) {
         declarations.push_back(
-            new VariableDeclarationStatement(new Type(Type::Implicit),
+            new VariableDeclarationStatement(Type::create(Type::Implicit),
                                              resultName->getIdentifier(),
                                              castedSubject->clone(),
                                              resultName->getLocation()));

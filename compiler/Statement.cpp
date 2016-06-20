@@ -71,7 +71,10 @@ VariableDeclarationStatement::VariableDeclarationStatement(
 VariableDeclarationStatement::VariableDeclarationStatement(
     const Identifier& i,
     Expression* e) :
-    VariableDeclarationStatement(new Type(Type::Implicit), i, e, Location()) {}
+    VariableDeclarationStatement(Type::create(Type::Implicit),
+                                 i,
+                                 e,
+                                 Location()) {}
 
 VariableDeclarationStatement::VariableDeclarationStatement(
     const VariableDeclarationStatement& other) :
@@ -818,8 +821,9 @@ Type* ReturnStatement::typeCheck(Context& context) {
         expression = expression->transform(context);
         returnType = expression->typeCheck(context);
     } else {
-        returnType = new Type(Type::Void);
+        returnType = Type::create(Type::Void);
     }
+
     if (!Type::areInitializable(returnTypeInSignature, returnType) &&
         !context.getClassDefinition()->isClosure()) {
         Trace::error(

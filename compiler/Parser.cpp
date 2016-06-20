@@ -278,9 +278,10 @@ void Parser::parseGenericTypeParametersDeclaration(
         if (!typeParameterName.isIdentifier()) {
             error("Expected identifier.", typeParameterName);
         }
-        GenericTypeParameterDefinition* typeParameter =
-            new GenericTypeParameterDefinition(typeParameterName.getValue(),
-                                               typeParameterName.getLocation());
+        auto typeParameter =
+            GenericTypeParameterDefinition::create(
+                typeParameterName.getValue(),
+                typeParameterName.getLocation());
         genericTypeParameters.push_back(typeParameter);
     }
 }
@@ -378,17 +379,17 @@ MethodDefinition* Parser::parseMethod(
 
     Identifier methodName(name.getValue());
     removeAliasPrefix(methodName);
-    MethodDefinition* method = new MethodDefinition(methodName,
-                                                    returnType,
-                                                    access,
-                                                    isStatic,
-                                                    tree.getCurrentClass(),
-                                                    name.getLocation());
+    auto method = MethodDefinition::create(methodName,
+                                           returnType,
+                                           access,
+                                           isStatic,
+                                           tree.getCurrentClass(),
+                                           name.getLocation());
     method->setIsGenerated(false);
     method->setIsVirtual(isVirtual);
 
     if (parseBody) {
-        BlockStatement* body = tree.startBlock(location());
+        auto body = tree.startBlock(location());
         method->setBody(body);
         parseMethodArgumentList(method);
         if (method->isConstructor() &&
@@ -414,13 +415,13 @@ DataMemberDefinition* Parser::parseDataMember(
     AccessLevel::Kind access,
     bool isStatic) {
 
-    DataMemberDefinition* dataMember =
-        new DataMemberDefinition(name.getValue(),
-                                 type,
-                                 access,
-                                 isStatic,
-                                 false,
-                                 name.getLocation());
+    auto dataMember =
+        DataMemberDefinition::create(name.getValue(),
+                                     type,
+                                     access,
+                                     isStatic,
+                                     false,
+                                     name.getLocation());
     if (lexer.getCurrentToken().isOperator(Operator::Assignment)) {
         lexer.consumeToken();
         dataMember->setExpression(parseExpression());
@@ -928,7 +929,7 @@ Type* Parser::parseType() {
     Type* type = nullptr;
     const Token& token = lexer.consumeToken();
     if (token.isIdentifier()) {
-        type = new Type(token.getValue());
+        type = Type::create(token.getValue());
     } else if (token.isKeyword()) {
         Keyword::Kind keyword = token.getKeyword();
         switch (keyword) {
@@ -936,7 +937,7 @@ Type* Parser::parseType() {
             case Keyword::Var:
                 if (lexer.getCurrentToken().isKeyword(Keyword::Fun)) {
                     lexer.consumeToken();
-                    type = new Type(Type::Function);
+                    type = Type::create(Type::Function);
                     type->setFunctionSignature(parseFunctionSignature());
                 } else {
                     type = parseTypeName();
@@ -948,7 +949,7 @@ Type* Parser::parseType() {
                 }
                 break;
             case Keyword::Fun:
-                type = new Type(Type::Function);
+                type = Type::create(Type::Function);
                 type->setFunctionSignature(parseFunctionSignature());
                 break;
             default:
@@ -983,7 +984,7 @@ Type* Parser::parseType() {
 Type* Parser::parseTypeName() {
     const Token& token = lexer.getCurrentToken();
     if (token.isKeyword()) {
-        Type* type = Keyword::toType(token.getKeyword());
+        auto type = Keyword::toType(token.getKeyword());
         if (type == nullptr) {
             error("Expected type.", token);
         }
@@ -997,12 +998,12 @@ Type* Parser::parseTypeName() {
             secondToken.isOperator(Operator::OpenBracket) ||
             secondToken.isOperator(Operator::Less)) {
             // The identifer is a type name.
-            Type* type = new Type(token.getValue());
+            auto type = Type::create(token.getValue());
             lexer.consumeToken();
             return type;
         } else {
             // Not a type name. The type is implicit.
-            return new Type(Type::Implicit);
+            return Type::create(Type::Implicit);
         }
     } else {
         error("Expected type.", token);
@@ -1327,7 +1328,7 @@ bool Parser::lambdaExpressionStartsHere() {
             if (lexer.getCurrentToken().isIdentifier() &&
                 (nextToken.isOperator(Operator::Comma) ||
                  nextToken.isOperator(Operator::BitwiseOr))) {
-                type = std::unique_ptr<Type>(new Type(Type::Implicit));
+                type = std::unique_ptr<Type>(Type::create(Type::Implicit));
             } else {
                 type = std::unique_ptr<Type>(parseType());
             }
@@ -1381,7 +1382,7 @@ void Parser::parseLambdaArguments(
         if (lexer.getCurrentToken().isIdentifier() && 
             (nextToken.isOperator(Operator::Comma) ||
              nextToken.isOperator(Operator::BitwiseOr))) {
-            type = new Type(Type::Implicit);            
+            type = Type::create(Type::Implicit);
         } else {
             type = parseType();
         }

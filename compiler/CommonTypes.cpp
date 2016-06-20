@@ -129,7 +129,7 @@ Type* Keyword::toType(Kind keyword) {
         default:
             return nullptr;
     }
-    return new Type(builtInType);
+    return Type::create(builtInType);
 }
 
 bool Operator::isCompoundAssignment(Kind operatorType) {
@@ -218,7 +218,7 @@ void Location::stepLine() {
 
 FunctionSignature::FunctionSignature(Type* rt) :
     arguments(),
-    returnType(rt ? rt : new Type(Type::Void)) {}
+    returnType(rt ? rt : Type::create(Type::Void)) {}
 
 FunctionSignature::FunctionSignature(const FunctionSignature& other) :
     arguments(),

@@ -256,29 +256,20 @@ Tree::Tree() :
 void Tree::insertBuiltInTypesInGlobalNameBindings() {
 
     // Start generating the object class.
-    GenericTypeParameterList typeParameters;
-    ClassDefinition::Properties properties;
-    ClassList parents;
-    ClassDefinition* objectClass = 
-        new ClassDefinition(Keyword::objectString,
-                            typeParameters,
-                            nullptr,
-                            parents,
-                            &globalNameBindings,
-                            properties,
-                            Location());
+    auto objectClass =
+        ClassDefinition::create(Keyword::objectString, &globalNameBindings);
     globalNameBindings.insertClass(Keyword::objectString, objectClass);
 
     objectClass->generateDefaultConstructor();
 
     // Add method:
     // virtual bool equals(object obj)
-    MethodDefinition* equalsMethod =
+    auto equalsMethod =
         MethodDefinition::create(BuiltInTypes::objectEqualsMethodName,
-                                 new Type(Type::Boolean),
+                                 Type::create(Type::Boolean),
                                  false,
                                  objectClass);
-    Type* objectType = new Type(Type::Object);
+    auto objectType = Type::create(Type::Object);
     objectType->setDefinition(objectClass);
     equalsMethod->addArgument(objectType, "obj");
     equalsMethod->setIsVirtual(true);
@@ -286,9 +277,9 @@ void Tree::insertBuiltInTypesInGlobalNameBindings() {
 
     // Add method:
     // virtual int hash()
-    MethodDefinition* hashMethod =
+    auto hashMethod =
         MethodDefinition::create(BuiltInTypes::objectHashMethodName,
-                                 new Type(Type::Boolean),
+                                 Type::create(Type::Boolean),
                                  false,
                                  objectClass);
     hashMethod->setIsVirtual(true);
@@ -335,12 +326,12 @@ void Tree::addEqualsMethod(
 
     // Add method:
     // virtual bool equals([builtInType] obj)
-    MethodDefinition* equalsMethod =
+    auto equalsMethod =
         MethodDefinition::create(BuiltInTypes::objectEqualsMethodName,
-                                 new Type(Type::Boolean),
+                                 Type::create(Type::Boolean),
                                  false,
                                  classDef);
-    equalsMethod->addArgument(new Type(builtInType), "obj");
+    equalsMethod->addArgument(Type::create(builtInType), "obj");
     classDef->appendMember(equalsMethod);
 }
 
@@ -351,27 +342,27 @@ void Tree::generateArrayClass() {
 
     // Add method:
     // int length()
-    MethodDefinition* lengthMethod =
+    auto lengthMethod =
         MethodDefinition::create(BuiltInTypes::arrayLengthMethodName,
-                                 new Type(Type::Integer),
+                                 Type::create(Type::Integer),
                                  false,
                                  arrayClass);
     addClassMember(lengthMethod);
 
     // Add method:
     // int size()
-    MethodDefinition* sizeMethod =
+    auto sizeMethod =
         MethodDefinition::create(BuiltInTypes::arraySizeMethodName,
-                                 new Type(Type::Integer),
+                                 Type::create(Type::Integer),
                                  false,
                                  arrayClass);
     addClassMember(sizeMethod);
 
     // Add method:
     // int capacity()
-    MethodDefinition* capacityMethod =
+    auto capacityMethod =
         MethodDefinition::create(BuiltInTypes::arrayCapacityMethodName,
-                                 new Type(Type::Integer),
+                                 Type::create(Type::Integer),
                                  false,
                                  arrayClass);
     addClassMember(capacityMethod);
@@ -400,7 +391,7 @@ void Tree::generateArrayClass() {
 
     // Add method:
     // append(_ element)
-    MethodDefinition* appendMethod =
+    auto appendMethod =
         MethodDefinition::create(BuiltInTypes::arrayAppendMethodName,
                                  nullptr,
                                  false,
@@ -410,35 +401,35 @@ void Tree::generateArrayClass() {
 
     // Add method:
     // appendAll(_[] array)
-    MethodDefinition* appendAllMethod =
+    auto appendAllMethod =
         MethodDefinition::create(BuiltInTypes::arrayAppendAllMethodName,
                                  nullptr,
                                  false,
                                  arrayClass);
-    Type* arrayType = new Type(Type::Placeholder);
+    auto arrayType = Type::create(Type::Placeholder);
     arrayType->setArray(true);
     appendAllMethod->addArgument(arrayType, "array");
     addClassMember(appendAllMethod);
 
     // Add method:
     // _[] concat(_[] array)
-    Type* concatReturnType = new Type(Type::Placeholder);
+    auto concatReturnType = Type::create(Type::Placeholder);
     concatReturnType->setArray(true);
-    MethodDefinition* concatMethod =
+    auto concatMethod =
         MethodDefinition::create(BuiltInTypes::arrayConcatMethodName,
                                  concatReturnType,
                                  false,
                                  arrayClass);
-    Type* concatArrayType = new Type(Type::Placeholder);
+    auto concatArrayType = Type::create(Type::Placeholder);
     concatArrayType->setArray(true);
     concatMethod->addArgument(concatArrayType, "array");
     addClassMember(concatMethod);
 
     // Add method:
     // _[] slice(int begin, int end)
-    Type* sliceReturnType = new Type(Type::Placeholder);
+    auto sliceReturnType = Type::create(Type::Placeholder);
     sliceReturnType->setArray(true);
-    MethodDefinition* sliceMethod =
+    auto sliceMethod =
         MethodDefinition::create(BuiltInTypes::arraySliceMethodName,
                                  sliceReturnType,
                                  false,
@@ -449,14 +440,14 @@ void Tree::generateArrayClass() {
 
     // Add method:
     // each() (_)
-    MethodDefinition* eachMethod =
+    auto eachMethod =
         MethodDefinition::create(BuiltInTypes::arrayEachMethodName,
-                                 new Type(Type::Void),
+                                 Type::create(Type::Void),
                                  false,
                                  arrayClass);
-    FunctionSignature* eachLambdaSignature =
-        new FunctionSignature(new Type(Type::Void));
-    eachLambdaSignature->addArgument(new Type(Type::Integer));
+    auto eachLambdaSignature =
+        new FunctionSignature(Type::create(Type::Void));
+    eachLambdaSignature->addArgument(Type::create(Type::Integer));
     eachMethod->setLambdaSignature(eachLambdaSignature,
                                    arrayClass->getLocation());
     addClassMember(eachMethod);
@@ -465,7 +456,7 @@ void Tree::generateArrayClass() {
 }
 
 void Tree::generateNoArgsClosureInterface() {
-    Type* closureInterfaceType = new Type(Type::Function);
+    auto closureInterfaceType = Type::create(Type::Function);
     closureInterfaceType->setFunctionSignature(new FunctionSignature(nullptr));
 
     Closure closure(*this);
@@ -483,9 +474,9 @@ void Tree::generateDeferClass() {
                                  nullptr,
                                  false,
                                  deferClass);
-    Type* closureType = new Type(Type::Function);
+    auto closureType = Type::create(Type::Function);
     closureType->setFunctionSignature(new FunctionSignature(nullptr));
-    Type* closureInterfaceType =
+    auto closureInterfaceType =
         Type::create(closureType->getClosureInterfaceName());
     addClosureMethod->addArgument(closureInterfaceType, "closure");
     addClassMember(addClosureMethod);
@@ -635,19 +626,17 @@ void Tree::addClassDataMember(
     Type::BuiltInType type,
     const Identifier& name) {
 
-    DataMemberDefinition* dataMember =
-        new DataMemberDefinition(name, new Type(type));
-    getCurrentClass()->appendMember(dataMember);
+    getCurrentClass()->appendMember(
+        DataMemberDefinition::create(name, Type::create(type)));
 }
 
 void Tree::addClassDataMember(Type* type, const Identifier& name) {
-    DataMemberDefinition* dataMember = new DataMemberDefinition(name, type);
-    getCurrentClass()->appendMember(dataMember);
+    getCurrentClass()->appendMember(DataMemberDefinition::create(name, type));
 }
 
 void Tree::addGlobalDefinition(Definition* definition) {
     globalDefinitions.push_back(definition);
-    if (ClassDefinition* classDef = definition->dynCast<ClassDefinition>()) {
+    if (auto classDef = definition->dynCast<ClassDefinition>()) {
         classDef->generateDefaultConstructorIfNeeded();
     }
 }
@@ -1001,8 +990,8 @@ void Tree::insertGeneratedConcreteType(
     ClassDefinition* generatedClass,
     const TypeList& concreteTypeParameters) {
 
-    if (ClassDefinition* innerClass = findInnerClass(concreteTypeParameters)) {
-        ClassDefinition* outerClass = innerClass->getEnclosingClass();
+    if (auto innerClass = findInnerClass(concreteTypeParameters)) {
+        auto outerClass = innerClass->getEnclosingClass();
         // Insert the generated class after the inner class.
         outerClass->insertMember(innerClass, generatedClass, true);
         runPassesOnGeneratedClass(generatedClass);
@@ -1023,10 +1012,10 @@ void Tree::insertGeneratedConcreteReferenceTypeWithFwdDecl(
     const Type* recursiveType) {
 
     // Add a forward declaration of the generated class.
-    ForwardDeclarationDefinition* forwardDeclaration =
-        new ForwardDeclarationDefinition(generatedClass->getName());
-    ClassDefinition* recursiveClass = recursiveType->getClass();
-    if (ClassDefinition* outerClass = recursiveClass->getEnclosingClass()) {
+    auto forwardDeclaration =
+        ForwardDeclarationDefinition::create(generatedClass->getName());
+    auto recursiveClass = recursiveType->getClass();
+    if (auto outerClass = recursiveClass->getEnclosingClass()) {
         // The recursive class is contained in an outer class. Insert the
         // forward declaration before the recursive class in the outer class.
         outerClass->insertMember(recursiveClass, forwardDeclaration);
@@ -1059,11 +1048,11 @@ void Tree::insertGeneratedConcreteValueTypeWithFwdDecl(
     const Type* recursiveType) {
 
     // Add a forward declaration of the recursive class.
-    ForwardDeclarationDefinition* forwardDeclaration =
-        new ForwardDeclarationDefinition(
+    auto forwardDeclaration =
+        ForwardDeclarationDefinition::create(
             recursiveType->getFullConstructedName());
-    ClassDefinition* recursiveClass = recursiveType->getClass();
-    if (ClassDefinition* outerClass = recursiveClass->getEnclosingClass()) {
+    auto recursiveClass = recursiveType->getClass();
+    if (auto outerClass = recursiveClass->getEnclosingClass()) {
         // The recursive class is contained in an outer class. Insert its
         // forward declaration and the generatedclass in the outer class, both
         // before the recursive class.
@@ -1142,7 +1131,7 @@ Type* Tree::convertToClosureInterfaceInCurrentTree(Type* type) {
         return nullptr;
     }
 
-    Definition* closureInterfaceDef =
+    auto closureInterfaceDef =
         globalNameBindings.lookupType(type->getClosureInterfaceName());
     if (closureInterfaceDef == nullptr) {
         Closure closure(*this);
@@ -1152,7 +1141,7 @@ Type* Tree::convertToClosureInterfaceInCurrentTree(Type* type) {
         closureInterfaceDef = closureInterfaceClass;
     }
 
-    Type* closureInterfaceType =
+    auto closureInterfaceType =
         Type::create(closureInterfaceDef->cast<ClassDefinition>()->getName());
     closureInterfaceType->setDefinition(closureInterfaceDef);
     return closureInterfaceType;

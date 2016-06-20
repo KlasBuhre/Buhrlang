@@ -236,9 +236,9 @@ MethodDefinition* Closure::generateCallMethodSignature(
 
     auto closureSignature = closureType->getFunctionSignature();
     auto methodSignature =
-        new MethodDefinition(CommonNames::callMethodName,
-                             closureSignature->getReturnType(),
-                             tree.getCurrentClass());
+        MethodDefinition::create(CommonNames::callMethodName,
+                                 closureSignature->getReturnType(),
+                                 tree.getCurrentClass());
 
     int index = 0;
     for (auto argumentType: closureSignature->getArguments()) {
@@ -334,12 +334,13 @@ ClassDefinition* Closure::startGeneratingClass(
     }
     tree.getCurrentClass()->generateConstructor();
 
-    auto callMethodDef = new MethodDefinition(CommonNames::callMethodName,
-                                              new Type(Type::Implicit),
-                                              AccessLevel::Public,
-                                              false,
-                                              tree.getCurrentClass(),
-                                              function->getLocation());
+    auto callMethodDef =
+        MethodDefinition::create(CommonNames::callMethodName,
+                                 Type::create(Type::Implicit),
+                                 AccessLevel::Public,
+                                 false,
+                                 tree.getCurrentClass(),
+                                 function->getLocation());
     callMethodDef->setIsClosure(true);
     callMethodDef->setBody(function->getBody());
     callMethodDef->addArguments(function->getArgumentList());
@@ -350,7 +351,7 @@ ClassDefinition* Closure::startGeneratingClass(
 }
 
 Type* Closure::getClosureInterfaceType(MethodDefinition* callMethod) {
-    auto closureType = new Type(Type::Function);
+    auto closureType = Type::create(Type::Function);
 
     auto closureSignature =
         new FunctionSignature(callMethod->getReturnType()->clone());

@@ -97,7 +97,9 @@ Expression* LiteralExpression::generateDefault(
 CharacterLiteralExpression::CharacterLiteralExpression(
     char c,
     const Location& loc) :
-    LiteralExpression(LiteralExpression::Character, new Type(Type::Char), loc),
+    LiteralExpression(LiteralExpression::Character,
+                      Type::create(Type::Char),
+                      loc),
     value(c) {}
 
 Expression* CharacterLiteralExpression::clone() const {
@@ -105,7 +107,9 @@ Expression* CharacterLiteralExpression::clone() const {
 }
 
 IntegerLiteralExpression::IntegerLiteralExpression(int i, const Location& loc) :
-    LiteralExpression(LiteralExpression::Integer, new Type(Type::Integer), loc),
+    LiteralExpression(LiteralExpression::Integer,
+                      Type::create(Type::Integer),
+                      loc),
     value(i) {}
 
 IntegerLiteralExpression::IntegerLiteralExpression(int i) :
@@ -116,7 +120,7 @@ Expression* IntegerLiteralExpression::clone() const {
 }
 
 FloatLiteralExpression::FloatLiteralExpression(float f, const Location& loc) :
-    LiteralExpression(LiteralExpression::Float, new Type(Type::Float), loc),
+    LiteralExpression(LiteralExpression::Float, Type::create(Type::Float), loc),
     value(f) {}
 
 FloatLiteralExpression::FloatLiteralExpression(float f) :
@@ -129,7 +133,7 @@ Expression* FloatLiteralExpression::clone() const {
 StringLiteralExpression::StringLiteralExpression(
     const std::string& s,
     const Location& loc) :
-    LiteralExpression(LiteralExpression::String, new Type(Type::Char), loc),
+    LiteralExpression(LiteralExpression::String, Type::create(Type::Char), loc),
     value(s) {
 
     type->setArray(true);
@@ -157,7 +161,7 @@ Expression* StringLiteralExpression::createCharArrayExpression(
     Context& context) {
     const Location& location = getLocation();
     auto charArrayLiteral =
-        new ArrayLiteralExpression(new Type(Type::Char), location);
+        new ArrayLiteralExpression(Type::create(Type::Char), location);
     for (auto charVal: value) {
         charArrayLiteral->addElement(new CharacterLiteralExpression(charVal,
                                                                     location));
@@ -168,7 +172,7 @@ Expression* StringLiteralExpression::createCharArrayExpression(
 BooleanLiteralExpression::BooleanLiteralExpression(
     bool b,
     const Location& loc) :
-    LiteralExpression(LiteralExpression::Boolean, new Type(Type::Boolean), loc),
+    LiteralExpression(LiteralExpression::Boolean, Type::create(Type::Boolean), loc),
     value(b) {}
 
 Expression* BooleanLiteralExpression::clone() const {
@@ -176,7 +180,9 @@ Expression* BooleanLiteralExpression::clone() const {
 }
 
 ArrayLiteralExpression::ArrayLiteralExpression(const Location& loc) :
-    LiteralExpression(LiteralExpression::Array, new Type(Type::Implicit), loc),
+    LiteralExpression(LiteralExpression::Array,
+                      Type::create(Type::Implicit),
+                      loc),
     elements() {}
 
 ArrayLiteralExpression::ArrayLiteralExpression(Type* t, const Location& loc) : 
@@ -706,7 +712,7 @@ void MemberSelectorExpression::generateThisPointerDeclaration(
         thisPointerDeclaration->setInitExpression(modifiedInitExpression);
     } else {
         thisPointerDeclaration =
-            new VariableDeclarationStatement(new Type(Type::Implicit),
+            new VariableDeclarationStatement(Type::create(Type::Implicit),
                                              thisPointerIdentifier,
                                              left,
                                              location);
@@ -1096,9 +1102,9 @@ Type* MethodCallExpression::inferConcreteType(
             // data. This variant constructor is in a concrete class named
             // [EnumName]<_>. The class [EnumName]<_> is implicitly convertable
             // to [EnumName].
-            Type* convertableEnumType = Type::create(candidateClassName);
+            auto convertableEnumType = Type::create(candidateClassName);
             convertableEnumType->addGenericTypeParameter(
-                new Type(Type::Placeholder));
+                Type::create(Type::Placeholder));
             return context.lookupConcreteType(convertableEnumType,
                                               getLocation());
         }
@@ -1490,7 +1496,7 @@ WrappedStatementExpression* MethodCallExpression::transformIntoForStatement(
         context.getBlock(), 
         location);
 
-    Type* indexVariableType = new Type(Type::Integer);
+    Type* indexVariableType = Type::create(Type::Integer);
     indexVariableType->setConstant(false);
     VariableDeclarationStatement* indexDeclaration =
         new VariableDeclarationStatement(
@@ -1502,7 +1508,7 @@ WrappedStatementExpression* MethodCallExpression::transformIntoForStatement(
 
     VariableDeclarationStatement* arrayLengthDeclaration =
         new VariableDeclarationStatement(
-            new Type(Type::Implicit),
+            Type::create(Type::Implicit),
             arrayLengthName,
             new MemberSelectorExpression(
                 new NamedEntityExpression(arrayReferenceName, location),
@@ -1985,7 +1991,7 @@ bool TypeCastExpression::isCastBetweenObjectAndInterface(const Type* fromType) {
 NullExpression::NullExpression(const Location& l) :
     Expression(Expression::Null, l) {
 
-    type = new Type(Type::Null);
+    type = Type::create(Type::Null);
 }
 
 Expression* NullExpression::clone() const {
@@ -2010,7 +2016,7 @@ Type* ThisExpression::typeCheck(Context& context) {
         Trace::error("Cannot access 'this' from a static context.", this);
     }
     Definition* definition = context.getClassDefinition();
-    type = new Type(definition->getName());
+    type = Type::create(definition->getName());
     type->setDefinition(definition);
     return type;
 }
@@ -2173,9 +2179,9 @@ Type* BinaryExpression::resultingType(Type* leftType) {
         case Operator::LessOrEqual:
         case Operator::LogicalAnd:
         case Operator::LogicalOr:
-            return new Type(Type::Boolean);
+            return Type::create(Type::Boolean);
         case Operator::Assignment:
-            return new Type(Type::Void);
+            return Type::create(Type::Void);
         default:
             return leftType;
     }
@@ -2377,7 +2383,7 @@ Type* UnaryExpression::typeCheck(Context& context) {
             if (!type->isBoolean()) {
                 Trace::error("Operator requires boolean type operand.", this);
             }
-            type = new Type(Type::Boolean);
+            type = Type::create(Type::Boolean);
             break;
         default:
             Trace::error("Operator is incompatible with a unary expression.",
@@ -2401,7 +2407,7 @@ LambdaExpression::LambdaExpression(BlockStatement* b, const Location& l) :
     block(b),
     signature(nullptr) {
 
-    type = new Type(Type::Lambda);
+    type = Type::create(Type::Lambda);
     Tree::lookupAndSetTypeDefinition(type, l);
 }
 

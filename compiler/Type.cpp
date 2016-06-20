@@ -15,14 +15,7 @@ Type::Type(const Identifier& n) :
     functionSignature(nullptr),
     constant(true),
     reference(true), 
-    array(false) {
-
-    if (name.compare(Keyword::stringString) == 0) {
-        builtInType = String;
-    } else if (name.compare(Keyword::objectString) == 0) {
-        builtInType = Object;
-    }
-}
+    array(false) {}
 
 Type::Type(BuiltInType t) : 
     builtInType(t), 
@@ -105,27 +98,31 @@ Type* Type::getAsMutable() const {
     return const_cast<Type*>(this);
 }
 
+Type* Type::create(BuiltInType t) {
+    return new Type(t);
+}
+
 Type* Type::create(const Identifier& name) {
     if (name.compare("void") == 0) {
-        return new Type(Void);
+        return Type::create(Void);
     } else if (name.compare(Keyword::varString) == 0) {
-        return new Type(Implicit);
+        return Type::create(Implicit);
     } else if (name.compare(Keyword::byteString) == 0) {
-        return new Type(Byte);
+        return Type::create(Byte);
     } else if (name.compare(Keyword::charString) == 0) {
-        return new Type(Char);
+        return Type::create(Char);
     } else if (name.compare(Keyword::intString) == 0) {
-        return new Type(Integer);
+        return Type::create(Integer);
     } else if (name.compare(Keyword::longString) == 0) {
-        return new Type(Long);
+        return Type::create(Long);
     } else if (name.compare(Keyword::floatString) == 0) {
-        return new Type(Float);
+        return Type::create(Float);
     } else if (name.compare(Keyword::boolString) == 0) {
-        return new Type(Boolean);
+        return Type::create(Boolean);
     } else if (name.compare(Keyword::stringString) == 0) {
-        return new Type(String);
+        return Type::create(String);
     } else if (name.compare(Keyword::objectString) == 0) {
-        return new Type(Object);
+        return Type::create(Object);
     } else {
         return new Type(name);
     } 
@@ -135,7 +132,7 @@ Type* Type::createArrayElementType(const Type* arrayType) {
     if (!arrayType->isArray()) {
         return nullptr;
     }
-    Type* elementType = arrayType->clone();
+    auto elementType = arrayType->clone();
     elementType->setArray(false);
     if (!isReferenceType(elementType->getBuiltInType())) {
         elementType->setReference(false);
@@ -648,7 +645,7 @@ bool Type::isInitializableByExpression(
             expression->dynCast<IntegerLiteralExpression>()) {
         if (integerLiteral->getValue() < 256) {
             // Implicitly convert to byte.
-            right = new Type(Type::Byte);
+            right = Type::create(Type::Byte);
         }
     }
     return areInitializable(left, right);

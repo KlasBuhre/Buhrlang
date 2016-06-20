@@ -42,9 +42,9 @@ void CloneGenerator::generate() {
 // object _clone() {}
 //
 void CloneGenerator::generateEmptyCloneMethod(ClassDefinition *classDef) {
-    MethodDefinition* cloneMethod =
+    auto cloneMethod =
         MethodDefinition::create(CommonNames::cloneMethodName,
-                                 new Type(Type::Object),
+                                 Type::create(Type::Object),
                                  false,
                                  classDef);
     classDef->appendMember(cloneMethod);
@@ -282,12 +282,11 @@ void CloneGenerator::generateArrayForEachLoop(
 
     // Generate:
     // other.memberArray.each |element| {
-    MethodCallExpression* eachCall =
-        new MethodCallExpression(BuiltInTypes::arrayEachMethodName);
-    BlockStatement* lambdaBody = tree.startBlock();
-    LambdaExpression* lambda = new LambdaExpression(lambdaBody);
-    VariableDeclarationStatement* lambdaArgument =
-        new VariableDeclarationStatement(new Type(Type::Implicit),
+    auto eachCall = new MethodCallExpression(BuiltInTypes::arrayEachMethodName);
+    auto lambdaBody = tree.startBlock();
+    auto lambda = new LambdaExpression(lambdaBody);
+    auto lambdaArgument =
+        new VariableDeclarationStatement(Type::create(Type::Implicit),
                                          elementVariableName,
                                          nullptr,
                                          Location());

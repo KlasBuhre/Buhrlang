@@ -30,10 +30,6 @@ public:
         Enumeration
     };
 
-    explicit Type(BuiltInType t);
-    explicit Type(const Identifier& n);
-    Type(const Type& other);
-
     Type* clone() const;
     Type* getAsMutable() const;
 
@@ -41,6 +37,7 @@ public:
     bool operator != (const Type& other) const;    
     std::string toString() const;
 
+    static Type* create(BuiltInType t);
     static Type* create(const Identifier& name);
     static Type* createArrayElementType(const Type* arrayType);
     static bool isReferenceType(BuiltInType builtInType);
@@ -184,6 +181,10 @@ public:
     }
 
 private:
+    explicit Type(BuiltInType t);
+    explicit Type(const Identifier& n);
+    Type(const Type& other);
+
     static bool areConvertable(const Type* left, const Type* right);
     static bool areBuiltInsImplicitlyConvertable(
         BuiltInType from,

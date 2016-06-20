@@ -39,9 +39,9 @@ namespace {
         BlockStatement* body) {
 
         auto methodSignature =
-            new MethodDefinition(BuiltInTypes::processWaitMethodName,
-                                 nullptr,
-                                 classDef);
+            MethodDefinition::create(BuiltInTypes::processWaitMethodName,
+                                     nullptr,
+                                     classDef);
         methodSignature->setBody(body);
         return methodSignature;
     }
@@ -52,9 +52,9 @@ namespace {
         const Identifier& processInterfaceName) {
 
         auto methodSignature =
-            new MethodDefinition("get" + processInterfaceName + "_Proxy",
-                                 Type::create(processInterfaceName),
-                                 classDef);
+            MethodDefinition::create("get" + processInterfaceName + "_Proxy",
+                                     Type::create(processInterfaceName),
+                                     classDef);
         methodSignature->setBody(body);
         return methodSignature;
     }
@@ -178,10 +178,10 @@ void ProcessGenerator::generateCallInterface() {
 MethodDefinition* ProcessGenerator::generateCallMethodSignature(
     BlockStatement* body) {
 
-    MethodDefinition* methodSignature =
-        new MethodDefinition(callMethodName,
-                             nullptr,
-                             tree.getCurrentClass());
+    auto methodSignature =
+        MethodDefinition::create(callMethodName,
+                                 nullptr,
+                                 tree.getCurrentClass());
     methodSignature->setBody(body);
     methodSignature->addArgument(messageTypeName, messageVariableName);
     methodSignature->addArgument(inputClassName, processInstanceVariableName);
@@ -300,9 +300,9 @@ MethodDefinition* ProcessGenerator::generateCallConstructorSignature(
     MethodDefinition* remoteMethodSignature) {
 
     auto methodSignature =
-        new MethodDefinition(Keyword::initString,
-                             nullptr,
-                             tree.getCurrentClass());
+        MethodDefinition::create(Keyword::initString,
+                                 nullptr,
+                                 tree.getCurrentClass());
     methodSignature->setBody(body);
 
     if (!remoteMethodSignature->getReturnType()->isVoid()) {
@@ -438,12 +438,12 @@ void ProcessGenerator::generateInterfaceIdClass(bool generatedAsNestedClass) {
 void ProcessGenerator::generateInterfaceId(const Identifier& name, int id) {
     Location loc;
     auto dataMember =
-        new DataMemberDefinition(name,
-                                 new Type(Type::Integer),
-                                 AccessLevel::Public,
-                                 true,
-                                 false,
-                                 loc);
+        DataMemberDefinition::create(name,
+                                     Type::create(Type::Integer),
+                                     AccessLevel::Public,
+                                     true,
+                                     false,
+                                     loc);
     dataMember->setExpression(new IntegerLiteralExpression(id));
     tree.addClassMember(dataMember);
 }
@@ -580,10 +580,10 @@ void ProcessGenerator::generateInterfaceMatchCases(MatchExpression* match) {
 MethodDefinition* ProcessGenerator::generateHandleMessageMethodSignature(
     BlockStatement* body) {
 
-    MethodDefinition* methodSignature =
-        new MethodDefinition(handleMessageMethodName, 
-                             nullptr,
-                             tree.getCurrentClass());
+    auto methodSignature =
+        MethodDefinition::create(handleMessageMethodName,
+                                 nullptr,
+                                 tree.getCurrentClass());
     methodSignature->setBody(body);
     methodSignature->addArgument(messageTypeName, messageVariableName);
     return methodSignature;
@@ -698,10 +698,11 @@ void ProcessGenerator::generateMessageHandlerFactoryClass() {
     ClassDefinition::Properties properties;
     tree.startGeneratedClass(factoryClassName, properties, parents);
 
-    MethodDefinition* createMessageHandlerMethod =
-        new MethodDefinition(createMessageHandlerMethodName,
-                             Type::create(CommonNames::messageHandlerTypeName),
-                             tree.getCurrentClass());
+    auto createMessageHandlerMethod =
+        MethodDefinition::create(
+            createMessageHandlerMethodName,
+            Type::create(CommonNames::messageHandlerTypeName),
+            tree.getCurrentClass());
     createMessageHandlerMethod->setBody(tree.startBlock());
     HeapAllocationExpression* allocation =
         new HeapAllocationExpression(
@@ -831,10 +832,10 @@ MethodDefinition* ProcessGenerator::generateProxyConstructorMethodSignature(
     BlockStatement* body,
     bool includeProcessName) {
 
-    MethodDefinition* methodSignature =
-        new MethodDefinition(Keyword::initString,
-                             nullptr,
-                             tree.getCurrentClass());
+    auto methodSignature =
+        MethodDefinition::create(Keyword::initString,
+                                 nullptr,
+                                 tree.getCurrentClass());
     methodSignature->setBody(body);
     if (includeProcessName) {
         methodSignature->addArgument(Type::String, nameVariableName);
@@ -868,10 +869,10 @@ MethodDefinition*
 ProcessGenerator::generateProxyConstructorMethodSignatureWithPid(
     BlockStatement* body) {
 
-    MethodDefinition* methodSignature =
-        new MethodDefinition(Keyword::initString,
-                             nullptr,
-                             tree.getCurrentClass());
+    auto methodSignature =
+        MethodDefinition::create(Keyword::initString,
+                                 nullptr,
+                                 tree.getCurrentClass());
     methodSignature->setBody(body);
     methodSignature->addArgument(Type::Integer, argVariableName);
 
@@ -919,9 +920,9 @@ MethodDefinition* ProcessGenerator::generateProxyRemoteMethodSignature(
     BlockStatement* body) {
 
     auto methodSignature =
-        new MethodDefinition(remoteMethodSignature->getName(),
-                             remoteMethodSignature->getReturnType()->clone(),
-                             tree.getCurrentClass());
+        MethodDefinition::create(remoteMethodSignature->getName(),
+                                 remoteMethodSignature->getReturnType()->clone(),
+                                 tree.getCurrentClass());
     methodSignature->setBody(body);
 
     for (auto argument: remoteMethodSignature->getArgumentList()) {

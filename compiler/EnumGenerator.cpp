@@ -133,7 +133,7 @@ void EnumGenerator::startClassGeneration(
                     properties,
                     location);
 
-    Type* tagVariableType = new Type(Type::Integer);
+    auto tagVariableType = Type::create(Type::Integer);
     tagVariableType->setConstant(false);
     tree.addClassDataMember(tagVariableType, CommonNames::enumTagVariableName);
 }
@@ -224,13 +224,13 @@ void EnumGenerator::generateVariantStaticTag(
     int tagValue,
     const Location& location) {
 
-    DataMemberDefinition* staticTag =
-        new DataMemberDefinition(Symbol::makeEnumVariantTagName(variantName),
-                                 new Type(Type::Integer),
-                                 AccessLevel::Public,
-                                 true,
-                                 false,
-                                 location);
+    auto staticTag =
+        DataMemberDefinition::create(Symbol::makeEnumVariantTagName(variantName),
+                                     Type::create(Type::Integer),
+                                     AccessLevel::Public,
+                                     true,
+                                     false,
+                                     location);
     staticTag->setExpression(new IntegerLiteralExpression(tagValue, location));
     tree.addClassMember(staticTag);
 }
@@ -348,13 +348,13 @@ MethodDefinition* EnumGenerator::generateVariantConstructorSignature(
     BlockStatement* body,
     const Location& location) {
 
-    MethodDefinition* constructorSignature =
-        new MethodDefinition(variantName,
-                             fullEnumType->clone(),
-                             AccessLevel::Public,
-                             true,
-                             tree.getCurrentClass(),
-                             location);
+    auto constructorSignature =
+        MethodDefinition::create(variantName,
+                                 fullEnumType->clone(),
+                                 AccessLevel::Public,
+                                 true,
+                                 tree.getCurrentClass(),
+                                 location);
     constructorSignature->setBody(body);
     constructorSignature->addArguments(variantData);
     constructorSignature->setIsEnumConstructor(true);
@@ -424,10 +424,11 @@ void EnumGenerator::generateDeepCopyMethod() {
     auto otherTagSelector =
         new MemberSelectorExpression(otherVariableName,
                                      CommonNames::enumTagVariableName);
-    tree.addStatement(new VariableDeclarationStatement(new Type(Type::Integer),
-                                                       otherTagVariableName,
-                                                       otherTagSelector,
-                                                       location));
+    tree.addStatement(
+        new VariableDeclarationStatement(Type::create(Type::Integer),
+                                         otherTagVariableName,
+                                         otherTagSelector,
+                                         location));
     tree.addStatement(
         new BinaryExpression(Operator::Assignment,
                              new MemberSelectorExpression(
@@ -464,13 +465,13 @@ MethodDefinition* EnumGenerator::generateDeepCopyMethodSignature(
     BlockStatement* body,
     const Location& location) {
 
-    MethodDefinition* signature =
-        new MethodDefinition(CommonNames::deepCopyMethodName,
-                             fullEnumType->clone(),
-                             AccessLevel::Public,
-                             true,
-                             tree.getCurrentClass(),
-                             location);
+    auto* signature =
+        MethodDefinition::create(CommonNames::deepCopyMethodName,
+                                 fullEnumType->clone(),
+                                 AccessLevel::Public,
+                                 true,
+                                 tree.getCurrentClass(),
+                                 location);
     signature->setBody(body);
     signature->addArgument(fullEnumType->clone(), otherVariableName);
     signature->setIsEnumCopyConstructor(true);
@@ -538,7 +539,8 @@ MatchCase* EnumGenerator::generateVariantMatchCase(
 //
 ClassDefinition* EnumGenerator::generateConvertableEnum() {
     auto convertableEnumType = Type::create(fullEnumType->getName());
-    convertableEnumType->addGenericTypeParameter(new Type(Type::Placeholder));
+    convertableEnumType->addGenericTypeParameter(
+        Type::create(Type::Placeholder));
 
     EnumGenerator enumGenerator(convertableEnumType,
                                 enumClass->isMessage(),
@@ -568,14 +570,15 @@ ClassDefinition* EnumGenerator::generateConvertableEnum() {
 void EnumGenerator::generateImplicitConversion() {
     const Location& location = tree.getCurrentClass()->getLocation();
 
-    MethodDefinition* method =
-       new MethodDefinition(Keyword::initString,
-                            nullptr,
-                            tree.getCurrentClass());
+    auto method =
+       MethodDefinition::create(Keyword::initString,
+                                nullptr,
+                                tree.getCurrentClass());
     method->setBody(tree.startBlock());
 
-    Type* convertableEnumType = Type::create(fullEnumType->getName());
-    convertableEnumType->addGenericTypeParameter(new Type(Type::Placeholder));
+    auto convertableEnumType = Type::create(fullEnumType->getName());
+    convertableEnumType->addGenericTypeParameter(
+        Type::create(Type::Placeholder));
     VariableDeclaration* argument =
         new VariableDeclaration(convertableEnumType,
                                 otherVariableName,
