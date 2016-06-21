@@ -911,15 +911,17 @@ void Parser::parseVariableDeclarationStatement() {
 
     VariableDeclarationStatement* varDecl = nullptr;
     if (patternExpression != nullptr) {
-        varDecl = new VariableDeclarationStatement(type,
-                                                   patternExpression,
-                                                   initExpression,
-                                                   identifier.getLocation());
+        varDecl =
+            VariableDeclarationStatement::create(type,
+                                                 patternExpression,
+                                                 initExpression,
+                                                 identifier.getLocation());
     } else {
-        varDecl = new VariableDeclarationStatement(type,
-                                                   identifier.getValue(),
-                                                   initExpression,
-                                                   identifier.getLocation());
+        varDecl =
+            VariableDeclarationStatement::create(type,
+                                                 identifier.getValue(),
+                                                 initExpression,
+                                                 identifier.getLocation());
     }
     varDecl->setAddToNameBindingsWhenTypeChecked(true);
     tree.addStatement(varDecl);
@@ -1393,8 +1395,8 @@ void Parser::parseLambdaArguments(
         }
 
         if (lambda != nullptr) {
-            VariableDeclarationStatement* argument =
-                new VariableDeclarationStatement(
+            auto argument =
+                VariableDeclarationStatement::create(
                     type,
                     identifier.getValue(),
                     nullptr,
@@ -1530,7 +1532,7 @@ ConstructorCallStatement* Parser::parseConstructorCall() {
     parseExpressionList(constructorCall->getArguments(),
                         Operator::OpenParentheses,
                         Operator::CloseParentheses);
-    return new ConstructorCallStatement(constructorCall);
+    return ConstructorCallStatement::create(constructorCall);
 }
 
 Expression* Parser::parseArrayIndexExpression(bool isIndexOptional) {
@@ -1673,8 +1675,8 @@ void Parser::parseIfStatement() {
     if (lexer.getCurrentToken().isKeyword(Keyword::Let)) {
         parseOptionalBinding(ifToken.getLocation());
     } else {
-        Expression* expression = parseExpression();
-        BlockStatement* block = parseBlock();
+        auto expression = parseExpression();
+        auto block = parseBlock();
         BlockStatement* elseBlock = nullptr;
 
         const Token& token = lexer.getCurrentToken();
@@ -1683,10 +1685,10 @@ void Parser::parseIfStatement() {
             elseBlock = parseBlock();
         }
 
-        IfStatement* ifStatement = new IfStatement(expression,
-                                                   block,
-                                                   elseBlock,
-                                                   ifToken.getLocation());
+        auto ifStatement = IfStatement::create(expression,
+                                               block,
+                                               elseBlock,
+                                               ifToken.getLocation());
         tree.addStatement(ifStatement);
     }
 }
@@ -1731,10 +1733,10 @@ void Parser::parseWhileStatement() {
     if (!lexer.getCurrentToken().isOperator(Operator::OpenBrace)) {
         expression = parseExpression();
     }
-    BlockStatement* block = parseBlock();
+    auto block = parseBlock();
 
-    WhileStatement* whileStatement = 
-        new WhileStatement(expression, block, whileToken.getLocation()); 
+    auto whileStatement =
+        WhileStatement::create(expression, block, whileToken.getLocation());
     tree.addStatement(whileStatement);
 }
 
@@ -1759,12 +1761,12 @@ void Parser::parseForStatement() {
         iterExpression = parseExpression();
     }
 
-    BlockStatement* loopBlock = parseBlock();
+    auto loopBlock = parseBlock();
 
-    ForStatement* forStatement = new ForStatement(conditionExpression,
-                                                  iterExpression,
-                                                  loopBlock,
-                                                  forToken.getLocation());
+    auto forStatement = ForStatement::create(conditionExpression,
+                                             iterExpression,
+                                             loopBlock,
+                                             forToken.getLocation());
     tree.addStatement(forStatement);
     tree.addStatement(tree.finishBlock());
 }
@@ -1780,8 +1782,7 @@ void Parser::parseBreakStatement() {
     const Token& breakToken = lexer.consumeToken();
     assert(breakToken.isKeyword(Keyword::Break));
 
-    BreakStatement* breakStatement =
-        new BreakStatement(breakToken.getLocation());
+    auto breakStatement = BreakStatement::create(breakToken.getLocation());
     tree.addStatement(breakStatement);
 }
 
@@ -1789,8 +1790,8 @@ void Parser::parseContinueStatement() {
     const Token& continueToken = lexer.consumeToken();
     assert(continueToken.isKeyword(Keyword::Continue));
 
-    ContinueStatement* continueStatement =
-        new ContinueStatement(continueToken.getLocation());
+    auto continueStatement =
+        ContinueStatement::create(continueToken.getLocation());
     tree.addStatement(continueStatement);
 }
 
@@ -1806,8 +1807,8 @@ void Parser::parseReturnStatement() {
         expression = parseExpression();
     }
 
-    ReturnStatement* returnStatement = 
-        new ReturnStatement(expression, returnToken.getLocation()); 
+    auto returnStatement =
+        ReturnStatement::create(expression, returnToken.getLocation());
     tree.addStatement(returnStatement);
 }
 
@@ -1815,9 +1816,9 @@ void Parser::parseDeferStatement() {
     const Token& deferToken = lexer.consumeToken();
     assert(deferToken.isKeyword(Keyword::Defer));
 
-    BlockStatement* block = parseBlock();
-    DeferStatement* deferStatement =
-        new DeferStatement(block, deferToken.getLocation());
+    auto block = parseBlock();
+    auto deferStatement =
+        DeferStatement::create(block, deferToken.getLocation());
     tree.addStatement(deferStatement);
 }
 
@@ -1830,8 +1831,8 @@ void Parser::parseJumpStatement() {
         error("Expected label identifier.", identifier);
     }
 
-    JumpStatement* jumpStatement =
-        new JumpStatement(identifier.getValue(), jumpToken.getLocation());
+    auto jumpStatement =
+        JumpStatement::create(identifier.getValue(), jumpToken.getLocation());
     tree.addStatement(jumpStatement);
 }
 
@@ -1840,8 +1841,8 @@ void Parser::parseLabelStatement() {
     assert(identifier.isIdentifier());
     assert(lexer.consumeToken().isOperator(Operator::Colon));
 
-    LabelStatement* labelStatement =
-        new LabelStatement(identifier.getValue(), identifier.getLocation());
+    auto labelStatement =
+        LabelStatement::create(identifier.getValue(), identifier.getLocation());
     tree.addStatement(labelStatement);
 }
 

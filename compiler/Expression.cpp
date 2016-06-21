@@ -712,10 +712,10 @@ void MemberSelectorExpression::generateThisPointerDeclaration(
         thisPointerDeclaration->setInitExpression(modifiedInitExpression);
     } else {
         thisPointerDeclaration =
-            new VariableDeclarationStatement(Type::create(Type::Implicit),
-                                             thisPointerIdentifier,
-                                             left,
-                                             location);
+            VariableDeclarationStatement::create(Type::create(Type::Implicit),
+                                                 thisPointerIdentifier,
+                                                 left,
+                                                 location);
         block->insertStatementAtFront(thisPointerDeclaration);
     }
 }
@@ -1417,11 +1417,12 @@ void MethodCallExpression::addArgumentsToInlinedMethodBody(
     while (j != arguments.end()) {
         VariableDeclaration* signatureArgument = *i;
         Expression* argumentExpression = *j;
-        VariableDeclarationStatement* argumentDeclaration =
-            new VariableDeclarationStatement(signatureArgument->getType(),
-                                             signatureArgument->getIdentifier(),
-                                             argumentExpression,
-                                             location);
+        auto argumentDeclaration =
+            VariableDeclarationStatement::create(
+                signatureArgument->getType(),
+                signatureArgument->getIdentifier(),
+                argumentExpression,
+                location);
 
         // Since the inlined method takes a lambda, the arguments names have
         // already been changed into being unique during an earlier pass.
@@ -1491,23 +1492,23 @@ WrappedStatementExpression* MethodCallExpression::transformIntoForStatement(
 
     const Location& location = getLocation();
 
-    BlockStatement* outerBlock = new BlockStatement(
-        context.getClassDefinition(), 
-        context.getBlock(), 
-        location);
+    auto outerBlock =
+        BlockStatement::create(context.getClassDefinition(),
+                               context.getBlock(),
+                               location);
 
-    Type* indexVariableType = Type::create(Type::Integer);
+    auto indexVariableType = Type::create(Type::Integer);
     indexVariableType->setConstant(false);
-    VariableDeclarationStatement* indexDeclaration =
-        new VariableDeclarationStatement(
+    auto indexDeclaration =
+        VariableDeclarationStatement::create(
             indexVariableType,
             indexVaraibleName,
             new IntegerLiteralExpression(0, location),
             location);
     outerBlock->addStatement(indexDeclaration);
 
-    VariableDeclarationStatement* arrayLengthDeclaration =
-        new VariableDeclarationStatement(
+    auto arrayLengthDeclaration =
+        VariableDeclarationStatement::create(
             Type::create(Type::Implicit),
             arrayLengthName,
             new MemberSelectorExpression(
@@ -1524,15 +1525,15 @@ WrappedStatementExpression* MethodCallExpression::transformIntoForStatement(
         new NamedEntityExpression(arrayLengthName, location),
         location);
 
-    BlockStatement* forBlock = new BlockStatement(
-        context.getClassDefinition(), 
-        outerBlock, 
-        location);
+    auto forBlock =
+        BlockStatement::create(context.getClassDefinition(),
+                               outerBlock,
+                               location);
 
-    BlockStatement* lambdaBlock = addLamdaArgumentsToLambdaBlock(
-        forBlock,
-        indexVaraibleName, 
-        arrayReferenceName);
+    auto lambdaBlock =
+        addLamdaArgumentsToLambdaBlock(forBlock,
+                                       indexVaraibleName,
+                                       arrayReferenceName);
     forBlock->insertStatementAtFront(lambdaBlock);
 
     UnaryExpression* increaseIndex =
@@ -1542,10 +1543,10 @@ WrappedStatementExpression* MethodCallExpression::transformIntoForStatement(
                             false,
                             location);
 
-    ForStatement* forStatement = new ForStatement(forCondition,
-                                                  increaseIndex,
-                                                  forBlock,
-                                                  location);
+    auto forStatement = ForStatement::create(forCondition,
+                                             increaseIndex,
+                                             forBlock,
+                                             location);
     outerBlock->addStatement(forStatement);
 
     WrappedStatementExpression* wrappedBlockStatement = 
@@ -2543,7 +2544,7 @@ BlockStatement* YieldExpression::inlineLambdaExpression(
 
     const Location& location = lambdaExpression->getLocation();
 
-    BlockStatement* clonedLambdaBody = lambdaExpression->getBlock()->clone();
+    auto clonedLambdaBody = lambdaExpression->getBlock()->clone();
     clonedLambdaBody->setEnclosingBlock(context.getBlock());
 
     const VariableDeclarationStatementList& lambdaArguments =
@@ -2553,11 +2554,11 @@ BlockStatement* YieldExpression::inlineLambdaExpression(
     while (i != lambdaArguments.cend()) {
         VariableDeclarationStatement* lambdaArgument = *i;
         Expression* yieldArgumentExpression = *j;
-        VariableDeclarationStatement* argumentDeclaration =
-            new VariableDeclarationStatement(lambdaArgument->getType(),
-                                             lambdaArgument->getIdentifier(),
-                                             yieldArgumentExpression,
-                                             location);
+        auto argumentDeclaration =
+            VariableDeclarationStatement::create(lambdaArgument->getType(),
+                                                 lambdaArgument->getIdentifier(),
+                                                 yieldArgumentExpression,
+                                                 location);
         clonedLambdaBody->insertStatementAtFront(argumentDeclaration);
         i++;
         j++;
@@ -2766,7 +2767,9 @@ void MatchCase::setResultExpression(
     ClassDefinition* currentClass,
     BlockStatement* currentBlock) {
 
-    resultBlock = new BlockStatement(currentClass, currentBlock, getLocation());
+    resultBlock = BlockStatement::create(currentClass,
+                                         currentBlock,
+                                         getLocation());
     resultBlock->addStatement(resultExpr);
 }
 
@@ -2838,7 +2841,7 @@ Type* MatchCase::generateCaseBlock(
     const Identifier& matchResultTmpName,
     const Identifier& matchEndLabelName) {
 
-    Expression* expression = generateComparisonExpression(subject, context);
+    auto expression = generateComparisonExpression(subject, context);
     bool anyTemporaries = generateTemporariesCreatedByPatterns(caseBlock);
 
     if (isExhaustive && !anyTemporaries) {
@@ -2849,18 +2852,18 @@ Type* MatchCase::generateCaseBlock(
     }
 
     const Location& location = getLocation();
-    BlockStatement* caseResultBlock =
-        new BlockStatement(context.getClassDefinition(),
-                           caseBlock,
-                           location);
-    Type* caseResultType = generateCaseResultBlock(caseResultBlock,
-                                                   context,
-                                                   matchResultTmpName,
-                                                   matchEndLabelName);
-    IfStatement* ifStatement = new IfStatement(expression,
-                                               caseResultBlock,
-                                               nullptr,
-                                               location);
+    auto caseResultBlock =
+        BlockStatement::create(context.getClassDefinition(),
+                               caseBlock,
+                               location);
+    auto caseResultType = generateCaseResultBlock(caseResultBlock,
+                                                  context,
+                                                  matchResultTmpName,
+                                                  matchEndLabelName);
+    auto ifStatement = IfStatement::create(expression,
+                                           caseResultBlock,
+                                           nullptr,
+                                           location);
     caseBlock->addStatement(ifStatement);
     return caseResultType;
 }
@@ -2903,8 +2906,8 @@ Type* MatchCase::generateCaseResultBlock(
     }
 
     if (!isExhaustive && !matchEndLabelName.empty()) {
-        caseResultBlock->addStatement(new JumpStatement(matchEndLabelName,
-                                                        getLocation()));
+        caseResultBlock->addStatement(JumpStatement::create(matchEndLabelName,
+                                                            getLocation()));
     }
     return caseResultType;
 }
@@ -2916,14 +2919,15 @@ BlockStatement* MatchCase::chooseCaseResultBlock(
     if (patternGuard == nullptr) {
         return outerBlock;
     } else {
-        BlockStatement* caseResultBlock =
-             new BlockStatement(context.getClassDefinition(),
-                                outerBlock,
-                                getLocation());
-        outerBlock->addStatement(new IfStatement(patternGuard,
-                                                 caseResultBlock,
-                                                 nullptr,
-                                                 patternGuard->getLocation()));
+        auto caseResultBlock =
+            BlockStatement::create(context.getClassDefinition(),
+                                   outerBlock,
+                                   getLocation());
+        outerBlock->addStatement(
+            IfStatement::create(patternGuard,
+                                caseResultBlock,
+                                nullptr,
+                                patternGuard->getLocation()));
         return caseResultBlock;
     }
 }
@@ -3018,11 +3022,11 @@ Expression* MatchExpression::transform(Context& context) {
     } else {
         // The MatchExpression returns a value so transform it into a
         // LocalVariableExpression that references the match result.
-        VariableDeclarationStatement* resultTmpDeclaration =
-            new VariableDeclarationStatement(type,
-                                             resultTmpName,
-                                             nullptr,
-                                             location);
+        auto resultTmpDeclaration =
+            VariableDeclarationStatement::create(type,
+                                                 resultTmpName,
+                                                 nullptr,
+                                                 location);
 
         // Temporarily remove the write-protection from the result temp variable
         // so that results can be assigned in the match logic.
@@ -3051,9 +3055,9 @@ BlockStatement* MatchExpression::generateMatchLogic(
     const Location& location = getLocation();
 
     auto matchLogicBlock =
-        new BlockStatement(context.getClassDefinition(),
-                           context.getBlock(),
-                           location);
+        BlockStatement::create(context.getClassDefinition(),
+                               context.getBlock(),
+                               location);
 
     auto subjectRefExpr = generateSubjectTemporary(matchLogicBlock);
 
@@ -3067,9 +3071,9 @@ BlockStatement* MatchExpression::generateMatchLogic(
 
     for (auto matchCase: cases) {
         auto caseBlock =
-            new BlockStatement(context.getClassDefinition(),
-                               matchLogicBlock,
-                               location);
+            BlockStatement::create(context.getClassDefinition(),
+                                   matchLogicBlock,
+                                   location);
         auto caseResultType =
             matchCase->generateCaseBlock(caseBlock,
                                          context,
@@ -3081,7 +3085,8 @@ BlockStatement* MatchExpression::generateMatchLogic(
     }
 
     if (!matchEndLabelName.empty()) {
-        auto matchEndLabel = new LabelStatement(matchEndLabelName, location);
+        auto matchEndLabel =
+            LabelStatement::create(matchEndLabelName, location);
         matchLogicBlock->addStatement(matchEndLabel);
     }
 
@@ -3098,10 +3103,10 @@ Expression* MatchExpression::generateSubjectTemporary(
         const Location& location = subject->getLocation();
         auto subjectType = subject->getType();
         auto subjectTmpDeclaration =
-            new VariableDeclarationStatement(subjectType,
-                                             CommonNames::matchSubjectName,
-                                             subject,
-                                             location);
+            VariableDeclarationStatement::create(subjectType,
+                                                 CommonNames::matchSubjectName,
+                                                 subject,
+                                                 location);
         matchLogicBlock->addStatement(subjectTmpDeclaration);
         subjectRefExpr =
             new LocalVariableExpression(subjectType,

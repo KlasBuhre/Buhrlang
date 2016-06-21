@@ -7,7 +7,7 @@
 
 namespace {
     Type* handleReturnType(MethodDefinition* callMethod) {
-        BlockStatement* body = callMethod->getBody();
+        auto body = callMethod->getBody();
         const BlockStatement::StatementList& statements = body->getStatements();
 
         unsigned nrOfStatements = statements.size();
@@ -15,22 +15,21 @@ namespace {
             return &Type::voidType();
         }
 
-        Statement* lastStatement = statements.back();
-        if (ReturnStatement* returnStatement =
-                lastStatement->dynCast<ReturnStatement>()) {
+        auto lastStatement = statements.back();
+        if (auto returnStatement = lastStatement->dynCast<ReturnStatement>()) {
             return returnStatement->getExpression()->getType();
         }
 
         if (nrOfStatements == 1) {
-            if (Expression* expression = lastStatement->dynCast<Expression>()) {
+            if (auto expression = lastStatement->dynCast<Expression>()) {
                 // If the AnonymousFunctionExpression consists of a single
                 // non-void expression then that expression is implicitly
                 //returned.
-                Type* expressionType = expression->getType();
+                auto expressionType = expression->getType();
                 if (!expressionType->isVoid()) {
-                    ReturnStatement* returnStatement =
-                        new ReturnStatement(expression,
-                                            expression->getLocation());
+                    auto returnStatement =
+                        ReturnStatement::create(expression,
+                                                expression->getLocation());
                     body->replaceLastStatement(returnStatement);
                     return expressionType;
                 }

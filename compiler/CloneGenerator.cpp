@@ -66,7 +66,7 @@ void CloneGenerator::generateCloneMethod() {
         new MethodCallExpression(inputClass->getName());
     constructorCall->addArgument(new ThisExpression());
     tree.addStatement(
-        new ReturnStatement(new HeapAllocationExpression(constructorCall)));
+        ReturnStatement::create(new HeapAllocationExpression(constructorCall)));
 
     tree.finishBlock();
 }
@@ -151,7 +151,7 @@ void CloneGenerator::generateBaseClassConstructorCall() {
     MethodCallExpression* constructorCall =
         new MethodCallExpression(baseClass->getName());
     constructorCall->addArgument(CommonNames::otherVariableName);
-    tree.addStatement(new ConstructorCallStatement(constructorCall));
+    tree.addStatement(ConstructorCallStatement::create(constructorCall));
 }
 
 // Generate the following expression:
@@ -286,10 +286,10 @@ void CloneGenerator::generateArrayForEachLoop(
     auto lambdaBody = tree.startBlock();
     auto lambda = new LambdaExpression(lambdaBody);
     auto lambdaArgument =
-        new VariableDeclarationStatement(Type::create(Type::Implicit),
-                                         elementVariableName,
-                                         nullptr,
-                                         Location());
+        VariableDeclarationStatement::create(Type::create(Type::Implicit),
+                                             elementVariableName,
+                                             nullptr,
+                                             Location());
     lambda->addArgument(lambdaArgument);
 
     MethodCallExpression* appendCall =

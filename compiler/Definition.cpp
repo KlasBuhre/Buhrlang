@@ -979,7 +979,7 @@ MethodDefinition* MethodDefinition::create(
                              isStatic,
                              classDefinition,
                              location);
-    auto body = new BlockStatement(classDefinition, nullptr, location);
+    auto body = BlockStatement::create(classDefinition, nullptr, location);
     emptyMethod->setBody(body);
     return emptyMethod;
 }
@@ -1293,7 +1293,8 @@ void MethodDefinition::generateBaseClassConstructorCall(
 
     MethodCallExpression* constructorCall = 
         new MethodCallExpression(baseClassName, getLocation());
-    body->insertStatementAtFront(new ConstructorCallStatement(constructorCall));
+    body->insertStatementAtFront(
+        ConstructorCallStatement::create(constructorCall));
 }
 
 void MethodDefinition::generateMemberInitializationsFromConstructorArgumets(

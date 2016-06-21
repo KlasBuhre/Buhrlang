@@ -25,8 +25,6 @@ public:
         Jump
     };
 
-    Statement(Kind k, const Location& l);
-
     virtual Statement* clone() const = 0;
     virtual Type* typeCheck(Context& context) = 0;
     virtual bool mayFallThrough() const;
@@ -40,37 +38,40 @@ public:
         return kind == ExpressionStatement;
     }
 
+protected:
+    Statement(Kind k, const Location& l);
+
 private:
     Kind kind;
 };
 
 class VariableDeclarationStatement: public Statement {
 public:
-    VariableDeclarationStatement(
+    static VariableDeclarationStatement* create(
+        const Identifier& i,
+        Expression* e);
+    static VariableDeclarationStatement* create(
         Type* t,
         const Identifier& i,
         Expression* e,
         const Location& l);
-    VariableDeclarationStatement(
+    static VariableDeclarationStatement* create(
         Type* t,
         Expression* p,
         Expression* e,
         const Location& l);
-    VariableDeclarationStatement(const Identifier& i, Expression* e);
-    VariableDeclarationStatement(const VariableDeclarationStatement& other);
-
-    VariableDeclarationStatement* clone() const override;
-    Type* typeCheck(Context& context) override;
-    Traverse::Result traverse(Visitor& visitor) override;
-
-    void lookupType(const Context& context);
-
     static Identifier generateTemporaryName(const Identifier& name);
     static VariableDeclarationStatement* generateTemporary(
         Type* t,
         const Identifier& name,
         Expression* init,
         const Location& loc);
+
+    VariableDeclarationStatement* clone() const override;
+    Type* typeCheck(Context& context) override;
+    Traverse::Result traverse(Visitor& visitor) override;
+
+    void lookupType(const Context& context);
 
     void setInitExpression(Expression* e) {
         initExpression = e;
@@ -109,6 +110,13 @@ public:
     }
 
 private:
+    VariableDeclarationStatement(
+        Type* t,
+        const Identifier& i,
+        Expression* e,
+        const Location& l);
+    VariableDeclarationStatement(const VariableDeclarationStatement& other);
+
     void typeCheckAndTransformInitExpression(Context& context);
     void generateDeclarationsFromPattern(Context& context);
     Expression* generateInitTemporary(Context& context);
@@ -129,11 +137,10 @@ class ConstructorCallStatement;
 
 class BlockStatement: public Statement {
 public:
-    BlockStatement(
+    static BlockStatement* create(
         ClassDefinition* classDef,
         BlockStatement* enclosing,
         const Location& l);
-    BlockStatement(const BlockStatement& other);
 
     BlockStatement* clone() const override;
     Type* typeCheck(Context& context) override;
@@ -174,6 +181,12 @@ public:
     }
 
 private:
+    BlockStatement(
+        ClassDefinition* classDef,
+        BlockStatement* enclosing,
+        const Location& l);
+    BlockStatement(const BlockStatement& other);
+
     void initialStatementCheck(Statement* statement);
     void addLabel(const LabelStatement* label);
 
@@ -187,7 +200,7 @@ private:
 
 class IfStatement: public Statement {
 public:
-    IfStatement(
+    static IfStatement* create(
         Expression* e,
         BlockStatement* b,
         BlockStatement* eb,
@@ -211,6 +224,12 @@ public:
     }
 
 private:
+    IfStatement(
+        Expression* e,
+        BlockStatement* b,
+        BlockStatement* eb,
+        const Location& l);
+
     Expression* expression;
     BlockStatement* block;
     BlockStatement* elseBlock;
@@ -218,7 +237,10 @@ private:
 
 class WhileStatement: public Statement {
 public:
-    WhileStatement(Expression* e, BlockStatement* b, const Location& l);
+    static WhileStatement* create(
+        Expression* e,
+        BlockStatement* b,
+        const Location& l);
 
     Statement* clone() const override;
     Type* typeCheck(Context& context) override;
@@ -234,13 +256,15 @@ public:
     }
 
 private:
+    WhileStatement(Expression* e, BlockStatement* b, const Location& l);
+
     Expression* expression;
     BlockStatement* block;
 };
 
 class ForStatement: public Statement {
 public:
-    ForStatement(
+    static ForStatement* create(
         Expression* cond,
         Expression* iter,
         BlockStatement* b,
@@ -264,6 +288,12 @@ public:
     }
 
 private:
+    ForStatement(
+        Expression* cond,
+        Expression* iter,
+        BlockStatement* b,
+        const Location& l);
+
     Expression* conditionExpression;
     Expression* iterExpression;
     BlockStatement* block;
@@ -271,27 +301,32 @@ private:
 
 class BreakStatement: public Statement {
 public:
-    explicit BreakStatement(const Location& l);
+    static BreakStatement* create(const Location& l);
 
     Statement* clone() const override;
     Type* typeCheck(Context& context) override;
     bool mayFallThrough() const override;
+
+private:
+    explicit BreakStatement(const Location& l);
 };
 
 class ContinueStatement: public Statement {
 public:
-    explicit ContinueStatement(const Location& l);
+    static ContinueStatement* create(const Location& l);
 
     Statement* clone() const override;
     Type* typeCheck(Context& context) override;
     bool mayFallThrough() const override;
+
+private:
+    explicit ContinueStatement(const Location& l);
 };
 
 class ReturnStatement: public Statement {
 public:
-    ReturnStatement(Expression* e, const Location& l);
-    explicit ReturnStatement(Expression* e);
-    ReturnStatement(const ReturnStatement& other);
+    static ReturnStatement* create(Expression* e, const Location& l);
+    static ReturnStatement* create(Expression* e);
 
     Statement* clone() const override;
     Type* typeCheck(Context& context) override;
@@ -303,20 +338,25 @@ public:
     }
 
 private:
+    ReturnStatement(Expression* e, const Location& l);
+    ReturnStatement(const ReturnStatement& other);
+
     Expression* expression;
     MethodDefinition* originalMethod;
 };
 
 class DeferStatement: public Statement {
 public:
-    DeferStatement(BlockStatement* b, const Location& l);
-    DeferStatement(const DeferStatement& other);
+    static DeferStatement* create(BlockStatement* b, const Location& l);
 
     Statement* clone() const override;
     Type* typeCheck(Context& context) override;
     Traverse::Result traverse(Visitor& visitor) override;
 
 private:
+    DeferStatement(BlockStatement* b, const Location& l);
+    DeferStatement(const DeferStatement& other);
+
     BlockStatement* block;
 };
 
@@ -324,7 +364,7 @@ class MethodCallExpression;
 
 class ConstructorCallStatement: public Statement {
 public:
-    explicit ConstructorCallStatement(MethodCallExpression* c);
+    static ConstructorCallStatement* create(MethodCallExpression* c);
 
     Statement* clone() const override;
     Type* typeCheck(Context& context) override;
@@ -339,6 +379,8 @@ public:
     }
 
 private:
+    explicit ConstructorCallStatement(MethodCallExpression* c);
+
     MethodCallExpression* constructorCall;
     bool isBaseClassCtorCall;
     bool isTypeChecked;
@@ -346,7 +388,7 @@ private:
 
 class LabelStatement: public Statement {
 public:
-    LabelStatement(const Identifier& n, const Location& l);
+    static LabelStatement* create(const Identifier& n, const Location& l);
 
     Statement* clone() const override;
     Type* typeCheck(Context&) override;
@@ -356,12 +398,14 @@ public:
     }
 
 private:
+    LabelStatement(const Identifier& n, const Location& l);
+
     Identifier name;
 };
 
 class JumpStatement: public Statement {
 public:
-    JumpStatement(const Identifier& n, const Location& l);
+    static JumpStatement* create(const Identifier& n, const Location& l);
 
     Statement* clone() const override;
     Type* typeCheck(Context& context) override;
@@ -372,6 +416,8 @@ public:
     }
 
 private:
+    JumpStatement(const Identifier& n, const Location& l);
+
     Identifier labelName;
 };
 

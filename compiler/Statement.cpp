@@ -56,27 +56,6 @@ VariableDeclarationStatement::VariableDeclarationStatement(
     hasLookedUpType(false) {}
 
 VariableDeclarationStatement::VariableDeclarationStatement(
-    Type* t,
-    Expression* p,
-    Expression* e,
-    const Location& l) :
-    Statement(Statement::VarDeclaration, l),
-    declaration(t, "", l),
-    patternExpression(p),
-    initExpression(e),
-    isNameUnique(false),
-    addToNameBindingsWhenTypeChecked(false),
-    hasLookedUpType(false) {}
-
-VariableDeclarationStatement::VariableDeclarationStatement(
-    const Identifier& i,
-    Expression* e) :
-    VariableDeclarationStatement(Type::create(Type::Implicit),
-                                 i,
-                                 e,
-                                 Location()) {}
-
-VariableDeclarationStatement::VariableDeclarationStatement(
     const VariableDeclarationStatement& other) :
     Statement(other),
     declaration(other.declaration),
@@ -87,6 +66,36 @@ VariableDeclarationStatement::VariableDeclarationStatement(
     isNameUnique(other.isNameUnique),
     addToNameBindingsWhenTypeChecked(other.addToNameBindingsWhenTypeChecked),
     hasLookedUpType(other.hasLookedUpType) {}
+
+VariableDeclarationStatement* VariableDeclarationStatement::create(
+    const Identifier& i,
+    Expression* e) {
+
+    return new VariableDeclarationStatement(Type::create(Type::Implicit),
+                                            i,
+                                            e,
+                                            Location());
+}
+
+VariableDeclarationStatement* VariableDeclarationStatement::create(
+    Type* t,
+    const Identifier& i,
+    Expression* e,
+    const Location& l) {
+
+    return new VariableDeclarationStatement(t, i, e, l);
+}
+
+VariableDeclarationStatement* VariableDeclarationStatement::create(
+    Type* t,
+    Expression* p,
+    Expression* e,
+    const Location& l) {
+
+    auto decl = new VariableDeclarationStatement(t, "", e, l);
+    decl->patternExpression = p;
+    return decl;
+}
 
 VariableDeclarationStatement* VariableDeclarationStatement::clone() const {
     return new VariableDeclarationStatement(*this);
@@ -238,12 +247,12 @@ Expression* VariableDeclarationStatement::generateInitTemporary(
 
         Identifier initTmpName =
             generateTemporaryName(CommonNames::matchSubjectName);
-        VariableDeclarationStatement* initTmpDeclaration =
-            new VariableDeclarationStatement(initExpressionType,
-                                             initTmpName,
-                                             initExpression,
-                                             location);
-        BlockStatement* currentBlock = context.getBlock();
+        auto initTmpDeclaration =
+            VariableDeclarationStatement::create(initExpressionType,
+                                                 initTmpName,
+                                                 initExpression,
+                                                 location);
+        auto currentBlock = context.getBlock();
         currentBlock->insertBeforeCurrentStatement(initTmpDeclaration);
         initTmpDeclaration->typeCheck(context);
 
@@ -332,6 +341,14 @@ BlockStatement::BlockStatement(const BlockStatement& other) :
     enclosingBlock(nullptr) {
 
     copyStatements(other);
+}
+
+BlockStatement* BlockStatement::create(
+    ClassDefinition* classDef,
+    BlockStatement* enclosing,
+    const Location& l) {
+
+    return new BlockStatement(classDef, enclosing, l);
 }
 
 void BlockStatement::copyStatements(const BlockStatement& from) {
@@ -565,6 +582,15 @@ IfStatement::IfStatement(
     block(b),
     elseBlock(eb) {}
 
+IfStatement* IfStatement::create(
+    Expression* e,
+    BlockStatement* b,
+    BlockStatement* eb,
+    const Location& l) {
+
+    return new IfStatement(e, b, eb, l);
+}
+
 Statement* IfStatement::clone() const {
     return new IfStatement(expression->clone(),
                            block->clone(),
@@ -620,6 +646,14 @@ WhileStatement::WhileStatement(
     Statement(Statement::While, l), 
     expression(e ? e : new BooleanLiteralExpression(true, getLocation())),
     block(b) {}
+
+WhileStatement* WhileStatement::create(
+    Expression* e,
+    BlockStatement* b,
+    const Location& l) {
+
+    return new WhileStatement(e, b, l);
+}
 
 Statement* WhileStatement::clone() const {
     return new WhileStatement(expression->clone(),
@@ -677,6 +711,15 @@ ForStatement::ForStatement(
     conditionExpression(cond),
     iterExpression(iter),
     block(b) {}
+
+ForStatement* ForStatement::create(
+    Expression* cond,
+    Expression* iter,
+    BlockStatement* b,
+    const Location& l) {
+
+    return new ForStatement(cond, iter, b, l);
+}
 
 Statement* ForStatement::clone() const {
     return new ForStatement(conditionExpression ? conditionExpression->clone() :
@@ -739,6 +782,10 @@ Traverse::Result ForStatement::traverse(Visitor& visitor) {
 BreakStatement::BreakStatement(const Location& l) : 
     Statement(Statement::Break, l) {}
 
+BreakStatement* BreakStatement::create(const Location& l) {
+    return new BreakStatement(l);
+}
+
 Statement* BreakStatement::clone() const {
     return new BreakStatement(getLocation());
 }
@@ -756,6 +803,10 @@ bool BreakStatement::mayFallThrough() const {
 
 ContinueStatement::ContinueStatement(const Location& l) :
     Statement(Statement::Continue, l) {}
+
+ContinueStatement* ContinueStatement::create(const Location& l) {
+    return new ContinueStatement(l);
+}
 
 Statement* ContinueStatement::clone() const {
     return new ContinueStatement(getLocation());
@@ -778,13 +829,18 @@ ReturnStatement::ReturnStatement(Expression* e, const Location& l) :
     expression(e),
     originalMethod(nullptr) {}
 
-ReturnStatement::ReturnStatement(Expression* e) :
-    ReturnStatement(e, Location()) {}
-
 ReturnStatement::ReturnStatement(const ReturnStatement& other) :
     Statement(other), 
     expression(other.expression ? other.expression->clone() : nullptr),
     originalMethod(other.originalMethod) {}
+
+ReturnStatement* ReturnStatement::create(Expression* e, const Location& l) {
+    return new ReturnStatement(e, l);
+}
+
+ReturnStatement* ReturnStatement::create(Expression* e) {
+    return new ReturnStatement(e, Location());
+}
 
 Statement* ReturnStatement::clone() const {
     return new ReturnStatement(*this);
@@ -857,6 +913,10 @@ DeferStatement::DeferStatement(BlockStatement* b, const Location& l) :
     Statement(Statement::Defer, l),
     block(b) {}
 
+DeferStatement* DeferStatement::create(BlockStatement* b, const Location& l) {
+    return new DeferStatement(b, l);
+}
+
 Statement* DeferStatement::clone() const {
     return new DeferStatement(block->clone(), getLocation());
 }
@@ -868,11 +928,11 @@ Type* DeferStatement::typeCheck(Context& context) {
 
         // A defer object is stored on the stack, not the heap.
         deferType->setReference(false);
-        VariableDeclarationStatement* deferDeclaration =
-            new VariableDeclarationStatement(deferType,
-                                             deferVariableName,
-                                             nullptr,
-                                             outerBlock->getLocation());
+        auto deferDeclaration =
+            VariableDeclarationStatement::create(deferType,
+                                                 deferVariableName,
+                                                 nullptr,
+                                                 outerBlock->getLocation());
         outerBlock->insertStatementAtFront(deferDeclaration);
         deferDeclaration->typeCheck(context);
     }
@@ -911,6 +971,12 @@ ConstructorCallStatement::ConstructorCallStatement(
     constructorCall(c),
     isBaseClassCtorCall(constructorCall->getName() != Keyword::initString),
     isTypeChecked(false) {}
+
+ConstructorCallStatement* ConstructorCallStatement::create(
+    MethodCallExpression* c) {
+
+    return new ConstructorCallStatement(c);
+}
 
 Statement* ConstructorCallStatement::clone() const {
     return new ConstructorCallStatement(constructorCall->clone());
@@ -962,6 +1028,10 @@ LabelStatement::LabelStatement(
     Statement(Statement::Label, l),
     name(n) {}
 
+LabelStatement* LabelStatement::create(const Identifier& n, const Location& l) {
+    return new LabelStatement(n, l);
+}
+
 Statement* LabelStatement::clone() const {
     return new LabelStatement(name, getLocation());
 }
@@ -976,12 +1046,16 @@ JumpStatement::JumpStatement(
     Statement(Statement::Jump, l),
     labelName(n) {}
 
+JumpStatement* JumpStatement::create(const Identifier& n, const Location& l) {
+    return new JumpStatement(n, l);
+}
+
 Statement* JumpStatement::clone() const {
     return new JumpStatement(labelName, getLocation());
 }
 
 Type* JumpStatement::typeCheck(Context& context) {
-    Binding* binding = context.lookup(labelName);
+    auto binding = context.lookup(labelName);
     if (binding == nullptr) {
         Trace::error("Unknown identifier: " + labelName, this);
     }

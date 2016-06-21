@@ -380,7 +380,9 @@ VariableDeclarationStatement* ProcessGenerator::generateRetValDeclaration(
         initExpression = new HeapAllocationExpression(boxType,
                                                       boxConstructorCall);
     }
-    return new VariableDeclarationStatement(retvalVariableName, initExpression);
+
+    return VariableDeclarationStatement::create(retvalVariableName,
+                                                initExpression);
 }
 
 // Generate the following expression:
@@ -651,7 +653,7 @@ void ProcessGenerator::generateMessageHandlerGetInterfaceProxyMethod(
         new MemberSelectorExpression(interfaceIdClassName,
                                      interfaceName + "Id"));
     tree.addStatement(
-        new ReturnStatement(new HeapAllocationExpression(constructorCall)));
+        ReturnStatement::create(new HeapAllocationExpression(constructorCall)));
 
     finishNonAbstractMethod(getProxyMethod);
 }
@@ -673,7 +675,7 @@ void ProcessGenerator::generateMessageHandlerGetProcessProxyMethod() {
     constructorCall->addArgument(
         new MemberSelectorExpression(processTypeName, getPidMethodName));
     tree.addStatement(
-        new ReturnStatement(new HeapAllocationExpression(constructorCall)));
+        ReturnStatement::create(new HeapAllocationExpression(constructorCall)));
 
     finishNonAbstractMethod(getProxyMethod);
 }
@@ -707,7 +709,7 @@ void ProcessGenerator::generateMessageHandlerFactoryClass() {
     HeapAllocationExpression* allocation =
         new HeapAllocationExpression(
             new MethodCallExpression(messageHandlerClassName));
-    tree.addStatement(new ReturnStatement(allocation));
+    tree.addStatement(ReturnStatement::create(allocation));
     finishNonAbstractMethod(createMessageHandlerMethod);
 
     finishClass();
@@ -973,7 +975,7 @@ Statement* ProcessGenerator::generateMessageDeclaration(
     }
     messageClassConstructorCall->addArgument(
         new HeapAllocationExpression(callClassConstructorCall));
-    return new VariableDeclarationStatement(
+    return VariableDeclarationStatement::create(
         messageVariableName,
         new HeapAllocationExpression(messageClassConstructorCall));
 }
@@ -1032,7 +1034,8 @@ Statement* ProcessGenerator::generateMethodResultReturnStatement(
             typeCast,
             new NamedEntityExpression(valueVariableName));
     }
-    return new ReturnStatement(returnedExpression);
+
+    return ReturnStatement::create(returnedExpression);
 }
 
 // Generate the following method:
@@ -1044,12 +1047,12 @@ Statement* ProcessGenerator::generateMethodResultReturnStatement(
 void ProcessGenerator::generateProxyGetProxyMethod(
     const Identifier& processOrInterfaceName) {
 
-    MethodDefinition* getProxyMethod = createGetProxyMethodSignature(
+    auto getProxyMethod = createGetProxyMethodSignature(
         tree.getCurrentClass(),
         tree.startBlock(),
         processOrInterfaceName);
 
-    tree.addStatement(new ReturnStatement(new ThisExpression()));
+    tree.addStatement(ReturnStatement::create(new ThisExpression()));
 
     finishNonAbstractMethod(getProxyMethod);
 }

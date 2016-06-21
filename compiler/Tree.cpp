@@ -469,7 +469,7 @@ void Tree::generateDeferClass() {
     ClassDefinition* deferClass = getCurrentClass();
 
     // addClosure(fun () closure)
-    MethodDefinition* addClosureMethod =
+    auto addClosureMethod =
         MethodDefinition::create(CommonNames::addClosureMethodName,
                                  nullptr,
                                  false,
@@ -491,15 +491,14 @@ BlockStatement* Tree::startBlock() {
 }
 
 BlockStatement* Tree::startBlock(const Location& location) {
-    BlockStatement* newblock = new BlockStatement(getCurrentClass(),
-                                                  getCurrentBlock(),
-                                                  location);
+    auto newblock =
+        BlockStatement::create(getCurrentClass(), getCurrentBlock(), location);
     openBlocks.push_back(newblock);
     return newblock;
 }
 
 BlockStatement* Tree::finishBlock() {
-    BlockStatement* block = openBlocks.back();
+    auto block = openBlocks.back();
     openBlocks.pop_back();
     return block;
 }
@@ -555,17 +554,17 @@ ClassDefinition* Tree::startClass(
     const Location& location) {
 
     NameBindings* containingNameBindings = &globalNameBindings;
-    ClassDefinition* containingClass = getCurrentClass();
+    auto containingClass = getCurrentClass();
     if (containingClass != nullptr) {
         containingNameBindings = &(containingClass->getNameBindings());
     }
 
-    ClassDefinition* newClass = ClassDefinition::create(name,
-                                                        genericTypeParameters,
-                                                        parents,
-                                                        containingNameBindings,
-                                                        properties,
-                                                        location);
+    auto newClass = ClassDefinition::create(name,
+                                            genericTypeParameters,
+                                            parents,
+                                            containingNameBindings,
+                                            properties,
+                                            location);
     if (containingClass != nullptr) {
         newClass->setIsImported(containingClass->isImported());
     }

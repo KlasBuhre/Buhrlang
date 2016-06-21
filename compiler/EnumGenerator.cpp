@@ -281,10 +281,11 @@ void EnumGenerator::generateVariantConstructor(
                                             variantData,
                                             tree.startBlock(),
                                             location);
-    tree.addStatement(new VariableDeclarationStatement(fullEnumType->clone(),
-                                                       retvalVariableName,
-                                                       nullptr,
-                                                       location));
+    tree.addStatement(
+        VariableDeclarationStatement::create(fullEnumType->clone(),
+                                             retvalVariableName,
+                                             nullptr,
+                                             location));
     tree.addStatement(
         new BinaryExpression(Operator::Assignment,
                              new MemberSelectorExpression(
@@ -300,8 +301,8 @@ void EnumGenerator::generateVariantConstructor(
                             variantData,
                             location);
     tree.addStatement(
-        new ReturnStatement(new NamedEntityExpression(retvalVariableName,
-                                                      location),
+        ReturnStatement::create(new NamedEntityExpression(retvalVariableName,
+                                                          location),
                             location));
     tree.finishBlock();
     tree.addClassMember(variantConstructor);
@@ -372,10 +373,11 @@ void EnumGenerator::generateEmptyDeepCopyMethod() {
 
     MethodDefinition* deepCopyMethod =
         generateDeepCopyMethodSignature(tree.startBlock(), location);
-    tree.addStatement(new VariableDeclarationStatement(fullEnumType->clone(),
-                                                       retvalVariableName,
-                                                       nullptr,
-                                                       location));
+    tree.addStatement(
+        VariableDeclarationStatement::create(fullEnumType->clone(),
+                                             retvalVariableName,
+                                             nullptr,
+                                             location));
     tree.finishBlock();
     tree.addClassMember(deepCopyMethod);
 }
@@ -425,10 +427,10 @@ void EnumGenerator::generateDeepCopyMethod() {
         new MemberSelectorExpression(otherVariableName,
                                      CommonNames::enumTagVariableName);
     tree.addStatement(
-        new VariableDeclarationStatement(Type::create(Type::Integer),
-                                         otherTagVariableName,
-                                         otherTagSelector,
-                                         location));
+        VariableDeclarationStatement::create(Type::create(Type::Integer),
+                                             otherTagVariableName,
+                                             otherTagSelector,
+                                             location));
     tree.addStatement(
         new BinaryExpression(Operator::Assignment,
                              new MemberSelectorExpression(
@@ -451,7 +453,7 @@ void EnumGenerator::generateDeepCopyMethod() {
     match->addCase(unknownCase);
     tree.addStatement(match);
 
-    tree.addStatement(new ReturnStatement(new NamedEntityExpression(
+    tree.addStatement(ReturnStatement::create(new NamedEntityExpression(
                                               retvalVariableName)));
     tree.finishBlock();
     tree.finishClass();

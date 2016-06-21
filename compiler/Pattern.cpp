@@ -309,10 +309,10 @@ BinaryExpression* SimplePattern::generateComparisonExpression(
         // The pattern introduces a new variable. The variable will bind to the
         // value of the match subject.
         declarations.push_back(
-            new VariableDeclarationStatement(Type::create(Type::Implicit),
-                                             namedEntity->getIdentifier(),
-                                             subject->clone(),
-                                             location));
+            VariableDeclarationStatement::create(Type::create(Type::Implicit),
+                                                 namedEntity->getIdentifier(),
+                                                 subject->clone(),
+                                                 location));
     }
 
     return new BinaryExpression(Operator::Equal,
@@ -425,10 +425,10 @@ BinaryExpression* ArrayPattern::generateNamedEntityElementComparisonExpression(
         auto matchSubjectElementExpression =
             generateArraySubscriptExpression(subject, i, toTheRightOfWildcard);
         declarations.push_back(
-            new VariableDeclarationStatement(Type::create(Type::Implicit),
-                                             namedEntity->getIdentifier(),
-                                             matchSubjectElementExpression,
-                                             location));
+            VariableDeclarationStatement::create(Type::create(Type::Implicit),
+                                                 namedEntity->getIdentifier(),
+                                                 matchSubjectElementExpression,
+                                                 location));
         return nullptr;
     }
 
@@ -509,10 +509,10 @@ ArrayPattern::generateMatchSubjectLengthDeclaration(Expression* subject) {
             new NamedEntityExpression(BuiltInTypes::arrayLengthMethodName,
                                       location),
             location);
-    return new VariableDeclarationStatement(Type::create(Type::Integer),
-                                            matchSubjectLengthName,
-                                            arrayLengthSelector,
-                                            location);
+    return VariableDeclarationStatement::create(Type::create(Type::Integer),
+                                                matchSubjectLengthName,
+                                                arrayLengthSelector,
+                                                location);
 }
 
 ClassDecompositionPattern::ClassDecompositionPattern(
@@ -644,10 +644,10 @@ void ClassDecompositionPattern::generateVariableCreatedByMemberPattern(
         auto matchSubjectMemberExpression =
             generateMatchSubjectMemberSelector(subject, member.nameExpr);
         declarations.push_back(
-            new VariableDeclarationStatement(Type::create(Type::Implicit),
-                                             patternVar->getIdentifier(),
-                                             matchSubjectMemberExpression,
-                                             patternVar->getLocation()));
+            VariableDeclarationStatement::create(Type::create(Type::Implicit),
+                                                 patternVar->getIdentifier(),
+                                                 matchSubjectMemberExpression,
+                                                 patternVar->getLocation()));
     }
 }
 
@@ -711,10 +711,11 @@ BinaryExpression* ClassDecompositionPattern::generateTypeComparisonExpression(
                           originalSubject->generateVariableName());
     Type* castedSubjectType = classDecompositionType->clone();
     castedSubjectType->setConstant(false);
-    temporaries.push_back(new VariableDeclarationStatement(castedSubjectType,
-                                                           castedSubjectName,
-                                                           nullptr,
-                                                           location));
+    temporaries.push_back(
+        VariableDeclarationStatement::create(castedSubjectType,
+                                             castedSubjectName,
+                                             nullptr,
+                                             location));
     auto typeCast =
         new TypeCastExpression(castedSubjectType,
                                originalSubject->clone(),
@@ -796,10 +797,11 @@ BinaryExpression* TypedPattern::generateComparisonExpression(
                           subject->generateVariableName());
     auto castedSubjectType = targetType->clone();
     castedSubjectType->setConstant(false);
-    temporaries.push_back(new VariableDeclarationStatement(castedSubjectType,
-                                                           castedSubjectName,
-                                                           nullptr,
-                                                           location));
+    temporaries.push_back(
+        VariableDeclarationStatement::create(castedSubjectType,
+                                             castedSubjectName,
+                                             nullptr,
+                                             location));
     auto typeCast =
         new TypeCastExpression(castedSubjectType, subject->clone(), location);
     auto castedSubject =
@@ -809,10 +811,10 @@ BinaryExpression* TypedPattern::generateComparisonExpression(
     if (auto resultName = typedExpression->getResultName()->dynCast<
                 NamedEntityExpression>()) {
         declarations.push_back(
-            new VariableDeclarationStatement(Type::create(Type::Implicit),
-                                             resultName->getIdentifier(),
-                                             castedSubject->clone(),
-                                             resultName->getLocation()));
+            VariableDeclarationStatement::create(Type::create(Type::Implicit),
+                                                 resultName->getIdentifier(),
+                                                 castedSubject->clone(),
+                                                 resultName->getLocation()));
     }
     return new BinaryExpression(
         Operator::NotEqual,
