@@ -33,13 +33,13 @@ namespace {
         VariableDeclaration* variantDataMember,
         const Identifier& enumVariantDataName) {
 
-        MemberSelectorExpression* variantDataMemberSelector =
-            new MemberSelectorExpression(
-                new NamedEntityExpression(otherVariableName),
-                new MemberSelectorExpression(
+        auto variantDataMemberSelector =
+            MemberSelectorExpression::create(
+                NamedEntityExpression::create(otherVariableName),
+                MemberSelectorExpression::create(
                     enumVariantDataName,
                     variantDataMember->getIdentifier()));
-        Type* variantDataType = variantDataMember->getType();
+        auto variantDataType = variantDataMember->getType();
         if (variantDataType->isPrimitive()) {
             return variantDataMemberSelector;
         } else {
@@ -47,14 +47,15 @@ namespace {
             if (variantDataType->isReference()) {
                 return new TypeCastExpression(
                     variantDataType->clone(),
-                    new MemberSelectorExpression(variantDataMemberSelector,
-                        new NamedEntityExpression(
+                    MemberSelectorExpression::create(
+                        variantDataMemberSelector,
+                        NamedEntityExpression::create(
                             CommonNames::cloneMethodName)));
             } else {
                 MethodCallExpression* deepCopyCall =
                     new MethodCallExpression(CommonNames::deepCopyMethodName);
                 deepCopyCall->addArgument(variantDataMemberSelector);
-                return new MemberSelectorExpression(
+                return MemberSelectorExpression::create(
                     variantDataType->getFullConstructedName(),
                     deepCopyCall);
             }
@@ -231,7 +232,8 @@ void EnumGenerator::generateVariantStaticTag(
                                      true,
                                      false,
                                      location);
-    staticTag->setExpression(new IntegerLiteralExpression(tagValue, location));
+    staticTag->setExpression(
+        IntegerLiteralExpression::create(tagValue, location));
     tree.addClassMember(staticTag);
 }
 
@@ -276,7 +278,7 @@ void EnumGenerator::generateVariantConstructor(
     const ArgumentList& variantData,
     const Location& location) {
 
-    MethodDefinition* variantConstructor =
+    auto variantConstructor =
         generateVariantConstructorSignature(variantName,
                                             variantData,
                                             tree.startBlock(),
@@ -287,23 +289,25 @@ void EnumGenerator::generateVariantConstructor(
                                              nullptr,
                                              location));
     tree.addStatement(
-        new BinaryExpression(Operator::Assignment,
-                             new MemberSelectorExpression(
-                                 retvalVariableName,
-                                 CommonNames::enumTagVariableName,
-                                 location),
-                             new NamedEntityExpression(
-                                 Symbol::makeEnumVariantTagName(variantName),
-                                 location),
-                             location));
+        BinaryExpression::create(
+            Operator::Assignment,
+            MemberSelectorExpression::create(
+                retvalVariableName,
+                CommonNames::enumTagVariableName,
+                location),
+            NamedEntityExpression::create(
+                Symbol::makeEnumVariantTagName(variantName),
+                location),
+            location));
 
     generateInitializations(Symbol::makeEnumVariantDataName(variantName),
                             variantData,
                             location);
     tree.addStatement(
-        ReturnStatement::create(new NamedEntityExpression(retvalVariableName,
-                                                          location),
-                            location));
+        ReturnStatement::create(
+            NamedEntityExpression::create(retvalVariableName,
+                                          location),
+            location));
     tree.finishBlock();
     tree.addClassMember(variantConstructor);
 }
@@ -321,21 +325,21 @@ void EnumGenerator::generateInitializations(
 
     for (auto variantDataMember: variantData) {
         auto lhs =
-            new MemberSelectorExpression(
-                new NamedEntityExpression(retvalVariableName, location),
-                new MemberSelectorExpression(
-                    new NamedEntityExpression(variantDataName, location),
-                    new NamedEntityExpression(
+            MemberSelectorExpression::create(
+                NamedEntityExpression::create(retvalVariableName, location),
+                MemberSelectorExpression::create(
+                    NamedEntityExpression::create(variantDataName, location),
+                    NamedEntityExpression::create(
                         variantDataMember->getIdentifier(),
                         location),
                     location));
         tree.addStatement(
-            new BinaryExpression(Operator::Assignment,
-                                 lhs,
-                                 new NamedEntityExpression(
-                                     variantDataMember->getIdentifier(),
-                                     location),
-                                 location));
+            BinaryExpression::create(Operator::Assignment,
+                                     lhs,
+                                     NamedEntityExpression::create(
+                                         variantDataMember->getIdentifier(),
+                                         location),
+                                     location));
     }
 }
 
@@ -424,22 +428,24 @@ void EnumGenerator::generateDeepCopyMethod() {
 
     const Location& location = tree.getCurrentClass()->getLocation();
     auto otherTagSelector =
-        new MemberSelectorExpression(otherVariableName,
-                                     CommonNames::enumTagVariableName);
+        MemberSelectorExpression::create(otherVariableName,
+                                         CommonNames::enumTagVariableName);
     tree.addStatement(
         VariableDeclarationStatement::create(Type::create(Type::Integer),
                                              otherTagVariableName,
                                              otherTagSelector,
                                              location));
     tree.addStatement(
-        new BinaryExpression(Operator::Assignment,
-                             new MemberSelectorExpression(
-                                 retvalVariableName,
-                                 CommonNames::enumTagVariableName),
-                             new NamedEntityExpression(otherTagVariableName)));
+        BinaryExpression::create(Operator::Assignment,
+                                 MemberSelectorExpression::create(
+                                     retvalVariableName,
+                                     CommonNames::enumTagVariableName),
+                                 NamedEntityExpression::create(
+                                    otherTagVariableName)));
 
     auto match =
-        new MatchExpression(new NamedEntityExpression(otherTagVariableName));
+        new MatchExpression(
+            NamedEntityExpression::create(otherTagVariableName));
     const DefinitionList& members = tree.getCurrentClass()->getMembers();
     for (auto member: members) {
         if (auto method = member->dynCast<MethodDefinition>()) {
@@ -453,8 +459,8 @@ void EnumGenerator::generateDeepCopyMethod() {
     match->addCase(unknownCase);
     tree.addStatement(match);
 
-    tree.addStatement(ReturnStatement::create(new NamedEntityExpression(
-                                              retvalVariableName)));
+    tree.addStatement(ReturnStatement::create(
+        NamedEntityExpression::create(retvalVariableName)));
     tree.finishBlock();
     tree.finishClass();
 }
@@ -500,21 +506,23 @@ MatchCase* EnumGenerator::generateVariantMatchCase(
     auto matchCase = new MatchCase();
     const Identifier& variantName = variantConstructor->getName();
     matchCase->addPatternExpression(
-        new NamedEntityExpression(Symbol::makeEnumVariantTagName(variantName)));
+        NamedEntityExpression::create(
+            Symbol::makeEnumVariantTagName(variantName)));
     matchCase->setResultBlock(tree.startBlock());
 
     Identifier enumVariantDataName(
         Symbol::makeEnumVariantDataName(variantName));
     for (auto variantDataMember: variantConstructor->getArgumentList()) {
         auto* lhs =
-            new MemberSelectorExpression(
-                new NamedEntityExpression(retvalVariableName),
-                new MemberSelectorExpression(
+            MemberSelectorExpression::create(
+                NamedEntityExpression::create(retvalVariableName),
+                MemberSelectorExpression::create(
                     enumVariantDataName,
                     variantDataMember->getIdentifier()));
         auto rhs = generateVariantDataMemberInitRhs(variantDataMember,
                                                     enumVariantDataName);
-        tree.addStatement(new BinaryExpression(Operator::Assignment, lhs, rhs));
+        tree.addStatement(
+            BinaryExpression::create(Operator::Assignment, lhs, rhs));
     }
 
     tree.finishBlock();
@@ -588,15 +596,15 @@ void EnumGenerator::generateImplicitConversion() {
     method->addArgument(argument);
 
     tree.addStatement(
-        new BinaryExpression(Operator::Assignment,
-                             new NamedEntityExpression(
-                                 CommonNames::enumTagVariableName,
-                                 location),
-                             new MemberSelectorExpression(
-                                 otherVariableName,
-                                 CommonNames::enumTagVariableName,
-                                 location),
-                             location));
+        BinaryExpression::create(Operator::Assignment,
+                                 NamedEntityExpression::create(
+                                     CommonNames::enumTagVariableName,
+                                     location),
+                                 MemberSelectorExpression::create(
+                                     otherVariableName,
+                                     CommonNames::enumTagVariableName,
+                                     location),
+                                 location));
 
     tree.finishBlock();
     tree.addClassMember(method);

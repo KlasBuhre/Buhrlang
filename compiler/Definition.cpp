@@ -1311,14 +1311,16 @@ void MethodDefinition::generateMemberInitializationsFromConstructorArgumets(
             Identifier argumentName(varDeclarationName + "_Arg");
             addArgument(varDeclarationType, argumentName);
 
-            Expression* left = new NamedEntityExpression(varDeclarationName,
-                                                         location);
-            Expression* right = new NamedEntityExpression(argumentName,
-                                                          location);
+            auto left = NamedEntityExpression::create(varDeclarationName,
+                                                      location);
+            auto right = NamedEntityExpression::create(argumentName,
+                                                       location);
 
             // Add member initialization to constructor.
-            Expression* init = new
-                BinaryExpression(Operator::Assignment, left, right, location);
+            auto init = BinaryExpression::create(Operator::Assignment,
+                                                 left,
+                                                 right,
+                                                 location);
             body->insertStatementAfterFront(init);
         } else {
             // The variable is purely an argument and not a data member.
@@ -1337,7 +1339,7 @@ void MethodDefinition::generateMemberInitializations(
             continue;
         }
 
-        Type* dataMemberType = dataMember->getType();
+        auto dataMemberType = dataMember->getType();
         Expression* left = new DataMemberExpression(dataMember, location);
         Expression* right = dataMember->getExpression();
         if (right == nullptr) {
@@ -1345,14 +1347,16 @@ void MethodDefinition::generateMemberInitializations(
             Identifier argumentName(dataMember->getName() + "_Arg");
             addArgument(dataMemberType, argumentName);
 
-            right = new NamedEntityExpression(argumentName, location);
+            right = NamedEntityExpression::create(argumentName, location);
         } else {
             right = right->clone();
         }
 
         // Add member initialization to constructor.
-        Expression* init = new
-            BinaryExpression(Operator::Assignment, left, right, location);
+        auto init = BinaryExpression::create(Operator::Assignment,
+                                             left,
+                                             right,
+                                             location);
         body->insertStatementAfterFront(init);
     }
 }
@@ -1360,8 +1364,7 @@ void MethodDefinition::generateMemberInitializations(
 void MethodDefinition::generateMemberDefaultInitializations(
     const DataMemberList& dataMembers) {
 
-    ConstructorCallStatement* constructorCall =
-        body->getFirstStatementAsConstructorCall();
+    auto constructorCall = body->getFirstStatementAsConstructorCall();
     if (constructorCall != nullptr &&
         !constructorCall->isBaseClassConstructorCall()) {
         // The first statement in the constructor is a call to another
@@ -1393,8 +1396,10 @@ void MethodDefinition::generateMemberDefaultInitializations(
         }
 
         if (right != nullptr) {
-            Expression* init = new
-                BinaryExpression(Operator::Assignment, left, right, location);
+            auto init = BinaryExpression::create(Operator::Assignment,
+                                                 left,
+                                                 right,
+                                                 location);
             if (isPrimaryCtor) {
                 // Add the member initialization after the primary ctor argument
                 // initializations.

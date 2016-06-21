@@ -38,9 +38,9 @@ namespace {
         Expression* subject,
         Expression* memberName) {
 
-        return new MemberSelectorExpression(subject->clone(),
-                                            memberName,
-                                            memberName->getLocation());
+        return MemberSelectorExpression::create(subject->clone(),
+                                                memberName,
+                                                memberName->getLocation());
     }
 
     MethodCallExpression* getConstructorCall(Expression* e, Context& context) {
@@ -88,8 +88,8 @@ namespace {
             Expression* patternExpr = *i;
             DataMemberDefinition* dataMember = *j;
             auto memberName =
-                new NamedEntityExpression(dataMember->getName(),
-                                          patternExpr->getLocation());
+                NamedEntityExpression::create(dataMember->getName(),
+                                              patternExpr->getLocation());
             if (auto constructorCall =
                     getConstructorCall(patternExpr, context)) {
                 patternExpr = createClassDecompositionExpr(constructorCall,
@@ -144,10 +144,10 @@ namespace {
             auto patternExpr = *i;
             auto dataMember = *j;
             auto memberSelector =
-                new MemberSelectorExpression(Symbol::makeEnumVariantDataName(
-                                                 enumVariantName),
-                                             dataMember->getName(),
-                                             patternExpr->getLocation());
+                MemberSelectorExpression::create(
+                    Symbol::makeEnumVariantDataName(enumVariantName),
+                    dataMember->getName(),
+                    patternExpr->getLocation());
             if (auto constructorCall =
                     getConstructorCall(patternExpr, context)) {
                 patternExpr = createClassDecompositionExpr(constructorCall,
@@ -315,10 +315,10 @@ BinaryExpression* SimplePattern::generateComparisonExpression(
                                                  location));
     }
 
-    return new BinaryExpression(Operator::Equal,
-                                subject->clone(),
-                                expression,
-                                location);
+    return BinaryExpression::create(Operator::Equal,
+                                    subject->clone(),
+                                    expression,
+                                    location);
 }
 
 ArrayPattern::ArrayPattern(ArrayLiteralExpression* e) : array(e) {}
@@ -362,10 +362,10 @@ BinaryExpression* ArrayPattern::generateComparisonExpression(
                                                 context,
                                                 toTheRightOfWildcard);
         if (elementComparison != nullptr) {
-            comparison = new BinaryExpression(Operator::LogicalAnd,
-                                              comparison,
-                                              elementComparison,
-                                              element->getLocation());
+            comparison = BinaryExpression::create(Operator::LogicalAnd,
+                                                  comparison,
+                                                  elementComparison,
+                                                  element->getLocation());
         }
 
         if (element->isWildcard()) {
@@ -396,7 +396,7 @@ BinaryExpression* ArrayPattern::generateElementComparisonExpression(
         case Expression::Wildcard:
             break;
         default:
-            elementComparison = new BinaryExpression(
+            elementComparison = BinaryExpression::create(
                 Operator::Equal,
                 generateArraySubscriptExpression(subject,
                                                  i,
@@ -432,7 +432,7 @@ BinaryExpression* ArrayPattern::generateNamedEntityElementComparisonExpression(
         return nullptr;
     }
 
-    return new BinaryExpression(
+    return BinaryExpression::create(
         Operator::Equal,
         generateArraySubscriptExpression(subject, i, toTheRightOfWildcard),
         element,
@@ -450,18 +450,18 @@ ArraySubscriptExpression* ArrayPattern::generateArraySubscriptExpression(
     const ExpressionList& elements = array->getElements();
     if (toTheRightOfWildcard) {
         int reverseIndex = std::distance(i, elements.end());
-        indexExpression =
-            new BinaryExpression(Operator::Subtraction,
-                                 new NamedEntityExpression(
-                                     matchSubjectLengthName,
-                                     location),
-                                 new IntegerLiteralExpression(reverseIndex,
-                                                              location),
-                                 location);
+        indexExpression = BinaryExpression::create(
+            Operator::Subtraction,
+            NamedEntityExpression::create(
+                matchSubjectLengthName,
+                location),
+            IntegerLiteralExpression::create(reverseIndex,
+                                             location),
+            location);
     } else {
         indexExpression =
-            new IntegerLiteralExpression(std::distance(elements.begin(), i),
-                                         location);
+            IntegerLiteralExpression::create(std::distance(elements.begin(), i),
+                                             location);
     }
     return new ArraySubscriptExpression(subject->clone(), indexExpression);
 }
@@ -491,23 +491,24 @@ BinaryExpression* ArrayPattern::generateLengthComparisonExpression() {
     }
 
     const Location& location = array->getLocation();
-    return
-        new BinaryExpression(op,
-                             new NamedEntityExpression(matchSubjectLengthName,
-                                                       location),
-                             new IntegerLiteralExpression(numberOfElements,
-                                                          location),
-                             location);
+    return BinaryExpression::create(
+        op,
+        NamedEntityExpression::create(
+            matchSubjectLengthName,
+            location),
+        IntegerLiteralExpression::create(numberOfElements,
+                                         location),
+        location);
 }
 
 VariableDeclarationStatement*
 ArrayPattern::generateMatchSubjectLengthDeclaration(Expression* subject) {
     const Location& location = subject->getLocation();
     auto arrayLengthSelector =
-        new MemberSelectorExpression(
+        MemberSelectorExpression::create(
             subject->clone(),
-            new NamedEntityExpression(BuiltInTypes::arrayLengthMethodName,
-                                      location),
+            NamedEntityExpression::create(BuiltInTypes::arrayLengthMethodName,
+                                          location),
             location);
     return VariableDeclarationStatement::create(Type::create(Type::Integer),
                                                 matchSubjectLengthName,
@@ -614,10 +615,10 @@ BinaryExpression* ClassDecompositionPattern::generateComparisonExpression(
                 comparison = memberComparison;
             } else {
                 comparison =
-                    new BinaryExpression(Operator::LogicalAnd,
-                                         comparison,
-                                         memberComparison,
-                                         member.patternExpr->getLocation());
+                    BinaryExpression::create(Operator::LogicalAnd,
+                                             comparison,
+                                             memberComparison,
+                                             member.patternExpr->getLocation());
             }
         }
     }
@@ -677,10 +678,11 @@ BinaryExpression* ClassDecompositionPattern::generateMemberComparisonExpression(
                 context);
         cloneVariableDeclarations(*classDecompositionPattern);
     } else {
-        comparisonExpression = new BinaryExpression(Operator::Equal,
-                                                    subjectMemberSelector,
-                                                    patternExpr,
-                                                    patternExpr->getLocation());
+        comparisonExpression =
+            BinaryExpression::create(Operator::Equal,
+                                     subjectMemberSelector,
+                                     patternExpr,
+                                     patternExpr->getLocation());
     }
     return comparisonExpression;
 }
@@ -720,16 +722,16 @@ BinaryExpression* ClassDecompositionPattern::generateTypeComparisonExpression(
         new TypeCastExpression(castedSubjectType,
                                originalSubject->clone(),
                                location);
-    auto castedSubject = new LocalVariableExpression(castedSubjectType,
-                                                            castedSubjectName,
-                                                            location);
+    auto castedSubject = LocalVariableExpression::create(castedSubjectType,
+                                                         castedSubjectName,
+                                                         location);
     *subject = castedSubject;
-    return new BinaryExpression(
+    return BinaryExpression::create(
         Operator::NotEqual,
-        new BinaryExpression(Operator::AssignmentExpression,
-                             castedSubject->clone(),
-                             typeCast,
-                             location),
+        BinaryExpression::create(Operator::AssignmentExpression,
+                                 castedSubject->clone(),
+                                 typeCast,
+                                 location),
         new NullExpression(location),
         location);
 }
@@ -743,23 +745,23 @@ ClassDecompositionPattern::generateEnumVariantTagComparisonExpression(
     const Identifier& enumName = subject->getType()->getFullConstructedName();
 
     auto tagMember =
-        new MemberSelectorExpression(subject->clone(),
-                                     new NamedEntityExpression(
-                                         CommonNames::enumTagVariableName,
-                                         location),
-                                     location);
+        MemberSelectorExpression::create(subject->clone(),
+                                         NamedEntityExpression::create(
+                                             CommonNames::enumTagVariableName,
+                                             location),
+                                         location);
     auto tagConstant =
-        new MemberSelectorExpression(new NamedEntityExpression(enumName,
-                                                               location),
-                                     new NamedEntityExpression(
-                                         Symbol::makeEnumVariantTagName(
-                                             enumVariantName),
-                                         location),
-                                     location);
-    return new BinaryExpression(Operator::Equal,
-                                tagMember,
-                                tagConstant,
-                                location);
+        MemberSelectorExpression::create(NamedEntityExpression::create(enumName,
+                                                                   location),
+                                         NamedEntityExpression::create(
+                                             Symbol::makeEnumVariantTagName(
+                                                 enumVariantName),
+                                             location),
+                                         location);
+    return BinaryExpression::create(Operator::Equal,
+                                    tagMember,
+                                    tagConstant,
+                                    location);
 }
 
 TypedPattern::TypedPattern(TypedExpression* e) : typedExpression(e) {}
@@ -805,9 +807,9 @@ BinaryExpression* TypedPattern::generateComparisonExpression(
     auto typeCast =
         new TypeCastExpression(castedSubjectType, subject->clone(), location);
     auto castedSubject =
-        new LocalVariableExpression(castedSubjectType,
-                                    castedSubjectName,
-                                    location);
+        LocalVariableExpression::create(castedSubjectType,
+                                        castedSubjectName,
+                                        location);
     if (auto resultName = typedExpression->getResultName()->dynCast<
                 NamedEntityExpression>()) {
         declarations.push_back(
@@ -816,12 +818,12 @@ BinaryExpression* TypedPattern::generateComparisonExpression(
                                                  castedSubject->clone(),
                                                  resultName->getLocation()));
     }
-    return new BinaryExpression(
+    return BinaryExpression::create(
         Operator::NotEqual,
-        new BinaryExpression(Operator::AssignmentExpression,
-                             castedSubject->clone(),
-                             typeCast,
-                             location),
+        BinaryExpression::create(Operator::AssignmentExpression,
+                                 castedSubject->clone(),
+                                 typeCast,
+                                 location),
         new NullExpression(location),
         location);
 }

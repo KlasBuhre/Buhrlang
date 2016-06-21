@@ -162,13 +162,13 @@ void CloneGenerator::generatePrimitiveMemberInit(
     const DataMemberDefinition* dataMember) {
 
     const Identifier& memberName = dataMember->getName();
-    MemberSelectorExpression* otherMember =
-        new MemberSelectorExpression(CommonNames::otherVariableName,
-                                     memberName);
-    BinaryExpression* initExpression =
-        new BinaryExpression(Operator::Assignment,
-                             new NamedEntityExpression(memberName),
-                             otherMember);
+    auto otherMember =
+        MemberSelectorExpression::create(CommonNames::otherVariableName,
+                                         memberName);
+    auto initExpression =
+        BinaryExpression::create(Operator::Assignment,
+                                 NamedEntityExpression::create(memberName),
+                                 otherMember);
     tree.addStatement(initExpression);
 }
 
@@ -185,16 +185,16 @@ void CloneGenerator::generateEnumMemberInit(
     MethodCallExpression* deepCopyCall =
         new MethodCallExpression(CommonNames::deepCopyMethodName);
     deepCopyCall->addArgument(
-        new MemberSelectorExpression(CommonNames::otherVariableName,
-                                     memberName));
-    MemberSelectorExpression* rhs =
-        new MemberSelectorExpression(
+        MemberSelectorExpression::create(CommonNames::otherVariableName,
+                                         memberName));
+    auto rhs =
+        MemberSelectorExpression::create(
             dataMember->getType()->getFullConstructedName(),
             deepCopyCall);
-    BinaryExpression* initExpression =
-        new BinaryExpression(Operator::Assignment,
-                             new NamedEntityExpression(memberName),
-                             rhs);
+    auto initExpression =
+        BinaryExpression::create(Operator::Assignment,
+                                 NamedEntityExpression::create(memberName),
+                                 rhs);
     tree.addStatement(initExpression);
 }
 
@@ -226,18 +226,18 @@ void CloneGenerator::generateArrayMemberInit(
     ArrayAllocationExpression* allocation =
         new ArrayAllocationExpression(
            dataMemberType->clone(),
-           new MemberSelectorExpression(
-               new NamedEntityExpression(CommonNames::otherVariableName),
-               new MemberSelectorExpression(
+           MemberSelectorExpression::create(
+               NamedEntityExpression::create(CommonNames::otherVariableName),
+               MemberSelectorExpression::create(
                    memberName,
                    BuiltInTypes::arraySizeMethodName)));
-    BinaryExpression* memberArrayInit =
-        new BinaryExpression(Operator::Assignment,
-                             new NamedEntityExpression(memberName),
-                             allocation);
+    auto memberArrayInit =
+        BinaryExpression::create(Operator::Assignment,
+                                 NamedEntityExpression::create(memberName),
+                                 allocation);
     tree.addStatement(memberArrayInit);
 
-    Type* arrayElementType = Type::createArrayElementType(dataMemberType);
+    auto arrayElementType = Type::createArrayElementType(dataMemberType);
     if (arrayElementType->isPrimitive()) {
         // Generate:
         // memberArray.appendAll(other.memberArray)
@@ -260,9 +260,10 @@ void CloneGenerator::generateArrayAppendAllCall(const Identifier& memberName) {
     MethodCallExpression* appendAllCall =
         new MethodCallExpression(BuiltInTypes::arrayAppendAllMethodName);
     appendAllCall->addArgument(
-        new MemberSelectorExpression(CommonNames::otherVariableName,
-                                     memberName));
-    tree.addStatement(new MemberSelectorExpression(memberName, appendAllCall));
+        MemberSelectorExpression::create(CommonNames::otherVariableName,
+                                         memberName));
+    tree.addStatement(
+        MemberSelectorExpression::create(memberName, appendAllCall));
 }
 
 // Generate the following code:
@@ -301,7 +302,7 @@ void CloneGenerator::generateArrayForEachLoop(
             new MethodCallExpression(CommonNames::deepCopyMethodName);
         deepCopyCall->addArgument(elementVariableName);
         appendCall->addArgument(
-            new MemberSelectorExpression(
+            MemberSelectorExpression::create(
                 arrayElementType->getFullConstructedName(),
                 deepCopyCall));
     } else {
@@ -309,22 +310,22 @@ void CloneGenerator::generateArrayForEachLoop(
         // memberArray.append((ArrayType) element._clone)
         TypeCastExpression* cloneCall =
             new TypeCastExpression(arrayElementType,
-                                   new MemberSelectorExpression(
+                                   MemberSelectorExpression::create(
                                        elementVariableName,
                                        CommonNames::cloneMethodName));
         appendCall->addArgument(cloneCall);
     }
-    tree.addStatement(new MemberSelectorExpression(memberName, appendCall));
+    tree.addStatement(MemberSelectorExpression::create(memberName, appendCall));
 
     tree.finishBlock();
     eachCall->setLambda(lambda);
 
-    MemberSelectorExpression* eachCallMemberSelector =
-        new MemberSelectorExpression(
-            new NamedEntityExpression(CommonNames::otherVariableName),
-                                      new MemberSelectorExpression(
-                                          new NamedEntityExpression(memberName),
-                                          eachCall));
+    auto eachCallMemberSelector =
+        MemberSelectorExpression::create(
+            NamedEntityExpression::create(CommonNames::otherVariableName),
+            MemberSelectorExpression::create(
+                NamedEntityExpression::create(memberName),
+                eachCall));
     tree.addStatement(eachCallMemberSelector);
 }
 
@@ -338,16 +339,16 @@ void CloneGenerator::generateReferenceMemberInit(
     checkNonPrimitiveMember(dataMember);
 
     const Identifier& memberName = dataMember->getName();
-    MemberSelectorExpression* clonedMember =
-        new MemberSelectorExpression(
-            new NamedEntityExpression(CommonNames::otherVariableName),
-            new MemberSelectorExpression(memberName,
-                                         CommonNames::cloneMethodName));
+    auto clonedMember =
+        MemberSelectorExpression::create(
+            NamedEntityExpression::create(CommonNames::otherVariableName),
+            MemberSelectorExpression::create(memberName,
+                                             CommonNames::cloneMethodName));
     TypeCastExpression* rhs =
         new TypeCastExpression(dataMember->getType()->clone(), clonedMember);
-    BinaryExpression* initExpression =
-        new BinaryExpression(Operator::Assignment,
-                             new NamedEntityExpression(memberName),
-                             rhs);
+    auto initExpression =
+        BinaryExpression::create(Operator::Assignment,
+                                 NamedEntityExpression::create(memberName),
+                                 rhs);
     tree.addStatement(initExpression);
 }

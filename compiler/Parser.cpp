@@ -1052,7 +1052,7 @@ Expression* Parser::parseExpression(
     bool patternAllowed,
     Operator::Precedence leftPrecedence) {
 
-    Expression* left = parseSubexpression(patternAllowed);
+    auto left = parseSubexpression(patternAllowed);
 
     while (true) {
         const Token& currentToken = lexer.getCurrentToken();
@@ -1075,24 +1075,24 @@ Expression* Parser::parseExpression(
         }
 
         lexer.consumeToken();
-        Expression* right = parseExpression(false,
-                                            patternAllowed,
-                                            rightPrecedence);
-        left = new BinaryExpression(op,
-                                    left,
-                                    right,
-                                    currentToken.getLocation());
+        auto right = parseExpression(false, patternAllowed, rightPrecedence);
+        left = BinaryExpression::create(op,
+                                        left,
+                                        right,
+                                        currentToken.getLocation());
     }
 }
 
 Expression* Parser::parseSubexpression(bool patternAllowed) {
-    Expression* left = parseSimpleExpression(patternAllowed);
+    auto left = parseSimpleExpression(patternAllowed);
 
     while (lexer.getCurrentToken().isOperator(Operator::Dot)) {
         const Token& token = lexer.consumeToken();
 
-        Expression* right = parseSimpleExpression(patternAllowed);
-        left = new MemberSelectorExpression(left, right, token.getLocation());
+        auto right = parseSimpleExpression(patternAllowed);
+        left = MemberSelectorExpression::create(left,
+                                                right,
+                                                token.getLocation());
     }
 
     return left;
@@ -1121,7 +1121,7 @@ Expression* Parser::parseSimpleExpression(bool patternAllowed) {
                     break;
                 case Operator::OpenBracket:
                     expression = parseArraySubscriptExpression(
-                        new NamedEntityExpression(value, location));
+                        NamedEntityExpression::create(value, location));
                     break;
                 default:
                     expression = parseUnknownExpression(token, patternAllowed);
@@ -1129,19 +1129,20 @@ Expression* Parser::parseSimpleExpression(bool patternAllowed) {
             }
             break;
         case Token::Char:
-            expression = new CharacterLiteralExpression(token.getCharacter(),
-                                                        location);
+            expression =
+                CharacterLiteralExpression::create(token.getCharacter(),
+                                                   location);
             break;
         case Token::Integer:
-            expression = new IntegerLiteralExpression(atoi(value.c_str()),
-                                                      location);
+            expression = IntegerLiteralExpression::create(atoi(value.c_str()),
+                                                          location);
             break;
         case Token::Float:
-            expression = new FloatLiteralExpression(atof(value.c_str()),
-                                                    location);
+            expression = FloatLiteralExpression::create(atof(value.c_str()),
+                                                        location);
             break;
         case Token::String:
-            expression = new StringLiteralExpression(value, location);
+            expression = StringLiteralExpression::create(value, location);
             break;
         case Token::Keyword: 
             switch (token.getKeyword()) {
@@ -1228,10 +1229,10 @@ Expression* Parser::parseUnaryExpression(
         prefix = false;
         lexer.consumeToken();
     }
-    return new UnaryExpression(operatorToken.getOperator(),
-                               operand,
-                               prefix,
-                               operatorToken.getLocation());
+    return UnaryExpression::create(operatorToken.getOperator(),
+                                   operand,
+                                   prefix,
+                                   operatorToken.getLocation());
 }
 
 Expression* Parser::parseBooleanLiteralExpression(const Token& consumedToken) {
@@ -1247,12 +1248,13 @@ Expression* Parser::parseBooleanLiteralExpression(const Token& consumedToken) {
             assert(0);
             break;
     }
-    return new BooleanLiteralExpression(boolValue, consumedToken.getLocation());
+
+    return BooleanLiteralExpression::create(boolValue,
+                                            consumedToken.getLocation());
 }
 
 Expression* Parser::parseArrayLiteralExpression() {
-    ArrayLiteralExpression* arrayLiteral =
-        new ArrayLiteralExpression(location());
+    auto arrayLiteral = ArrayLiteralExpression::create(location());
 
     lexer.stepBack();
     parseExpressionList(arrayLiteral->getElements(),
@@ -1449,7 +1451,7 @@ Expression* Parser::parseUnknownExpression(
     } else if (currentToken.isOperator(Operator::OpenBrace) && patternAllowed) {
         return parseClassDecompositionExpression(previousTokenValue, loc);
     } else {
-        return new NamedEntityExpression(previousTokenValue, loc);
+        return NamedEntityExpression::create(previousTokenValue, loc);
     }
 }
 
@@ -1574,7 +1576,7 @@ NamedEntityExpression* Parser::parseNamedEntityExpression() {
         error("Expected identifier.", name);
     }
 
-    return new NamedEntityExpression(name.getValue(), name.getLocation());
+    return NamedEntityExpression::create(name.getValue(), name.getLocation());
 }
 
 Expression* Parser::parseMatchExpression(const Location& location) {

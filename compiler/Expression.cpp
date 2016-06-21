@@ -74,19 +74,19 @@ Expression* LiteralExpression::generateDefault(
     switch (type->getBuiltInType()) {
         case Type::Byte:
         case Type::Integer:
-            expression = new IntegerLiteralExpression(0, location);
+            expression = IntegerLiteralExpression::create(0, location);
             break;
         case Type::Float:
-            expression = new FloatLiteralExpression(0, location);
+            expression = FloatLiteralExpression::create(0, location);
             break;
         case Type::Char:
-            expression = new CharacterLiteralExpression(0, location);
+            expression = CharacterLiteralExpression::create(0, location);
             break;
         case Type::String:
-            expression = new StringLiteralExpression("", location);
+            expression = StringLiteralExpression::create("", location);
             break;
         case Type::Boolean:  
-            expression = new BooleanLiteralExpression(false, location);
+            expression = BooleanLiteralExpression::create(false, location);
             break;
         default:
             break;
@@ -102,6 +102,13 @@ CharacterLiteralExpression::CharacterLiteralExpression(
                       loc),
     value(c) {}
 
+CharacterLiteralExpression* CharacterLiteralExpression::create(
+    char c,
+    const Location& loc) {
+
+    return new CharacterLiteralExpression(c, loc);
+}
+
 Expression* CharacterLiteralExpression::clone() const {
     return new CharacterLiteralExpression(value, getLocation());
 }
@@ -112,8 +119,16 @@ IntegerLiteralExpression::IntegerLiteralExpression(int i, const Location& loc) :
                       loc),
     value(i) {}
 
-IntegerLiteralExpression::IntegerLiteralExpression(int i) :
-    IntegerLiteralExpression(i, Location()) {}
+IntegerLiteralExpression* IntegerLiteralExpression::create(
+    int i,
+    const Location& loc) {
+
+    return new IntegerLiteralExpression(i, loc);
+}
+
+IntegerLiteralExpression* IntegerLiteralExpression::create(int i) {
+    return new IntegerLiteralExpression(i, Location());
+}
 
 Expression* IntegerLiteralExpression::clone() const {
     return new IntegerLiteralExpression(value, getLocation());
@@ -123,8 +138,12 @@ FloatLiteralExpression::FloatLiteralExpression(float f, const Location& loc) :
     LiteralExpression(LiteralExpression::Float, Type::create(Type::Float), loc),
     value(f) {}
 
-FloatLiteralExpression::FloatLiteralExpression(float f) :
-    FloatLiteralExpression(f, Location()) {}
+FloatLiteralExpression* FloatLiteralExpression::create(
+    float f,
+    const Location& loc) {
+
+    return new FloatLiteralExpression(f, loc);
+}
 
 Expression* FloatLiteralExpression::clone() const {
     return new FloatLiteralExpression(value, getLocation());
@@ -137,6 +156,13 @@ StringLiteralExpression::StringLiteralExpression(
     value(s) {
 
     type->setArray(true);
+}
+
+StringLiteralExpression* StringLiteralExpression::create(
+    const std::string& s,
+    const Location& loc) {
+
+    return new StringLiteralExpression(s, loc);
 }
 
 Expression* StringLiteralExpression::clone() const {
@@ -159,12 +185,13 @@ Expression* StringLiteralExpression::transform(Context& context) {
 
 Expression* StringLiteralExpression::createCharArrayExpression(
     Context& context) {
+
     const Location& location = getLocation();
     auto charArrayLiteral =
-        new ArrayLiteralExpression(Type::create(Type::Char), location);
+        ArrayLiteralExpression::create(Type::create(Type::Char), location);
     for (auto charVal: value) {
-        charArrayLiteral->addElement(new CharacterLiteralExpression(charVal,
-                                                                    location));
+        charArrayLiteral->addElement(
+            CharacterLiteralExpression::create(charVal, location));
     }
     return charArrayLiteral->transform(context);
 }
@@ -175,15 +202,16 @@ BooleanLiteralExpression::BooleanLiteralExpression(
     LiteralExpression(LiteralExpression::Boolean, Type::create(Type::Boolean), loc),
     value(b) {}
 
+BooleanLiteralExpression* BooleanLiteralExpression::create(
+    bool b,
+    const Location& loc) {
+
+    return new BooleanLiteralExpression(b, loc);
+}
+
 Expression* BooleanLiteralExpression::clone() const {
     return new BooleanLiteralExpression(value, getLocation());
 }
-
-ArrayLiteralExpression::ArrayLiteralExpression(const Location& loc) :
-    LiteralExpression(LiteralExpression::Array,
-                      Type::create(Type::Implicit),
-                      loc),
-    elements() {}
 
 ArrayLiteralExpression::ArrayLiteralExpression(Type* t, const Location& loc) : 
 LiteralExpression(LiteralExpression::Array, t, loc),
@@ -197,6 +225,17 @@ ArrayLiteralExpression::ArrayLiteralExpression(
     Utils::cloneList(elements, other.elements);
 }
 
+ArrayLiteralExpression* ArrayLiteralExpression::create(const Location& loc) {
+    return new ArrayLiteralExpression(Type::create(Type::Implicit), loc);
+}
+
+ArrayLiteralExpression* ArrayLiteralExpression::create(
+    Type* t,
+    const Location& loc) {
+
+    return new ArrayLiteralExpression(t, loc);
+}
+
 ArrayLiteralExpression* ArrayLiteralExpression::clone() const {
     return new ArrayLiteralExpression(*this);
 }
@@ -204,8 +243,8 @@ ArrayLiteralExpression* ArrayLiteralExpression::clone() const {
 Expression* ArrayLiteralExpression::transform(Context& context) {
     checkElements(context);
 
-    IntegerLiteralExpression* capacity =
-        new IntegerLiteralExpression(elements.size(), getLocation());
+    auto capacity =
+        IntegerLiteralExpression::create(elements.size(), getLocation());
     ArrayAllocationExpression* arrayAllocation = 
         new ArrayAllocationExpression(type, capacity, getLocation());
     arrayAllocation->setInitExpression(this);
@@ -246,15 +285,23 @@ void ArrayLiteralExpression::checkElements(Context& context) {
     }
 }
 
-NamedEntityExpression::NamedEntityExpression(const Identifier& i) :
-    NamedEntityExpression(i, Location()) {}
-
 NamedEntityExpression::NamedEntityExpression(
     const Identifier& i,
     const Location& loc) :
     Expression(Expression::NamedEntity, loc),
     identifier(i),
     binding(nullptr) {}
+
+NamedEntityExpression* NamedEntityExpression::create(const Identifier& i) {
+    return new NamedEntityExpression(i, Location());
+}
+
+NamedEntityExpression* NamedEntityExpression::create(
+    const Identifier& i,
+    const Location& loc) {
+
+    return new NamedEntityExpression(i, loc);
+}
 
 NamedEntityExpression* NamedEntityExpression::clone() const {
     return new NamedEntityExpression(identifier, getLocation());
@@ -280,7 +327,9 @@ Expression* NamedEntityExpression::transform(Context& context) {
         case Binding::LocalObject: {
             Type* type = binding->getLocalObject()->getType();
             resolvedExpression =
-                new LocalVariableExpression(type, identifier, getLocation());
+                LocalVariableExpression::create(type,
+                                                identifier,
+                                                getLocation());
             break;
         }
         case Binding::DataMember: {
@@ -291,10 +340,9 @@ Expression* NamedEntityExpression::transform(Context& context) {
             break;
         }
         case Binding::Class: {
-            ClassDefinition* classDef =
-                binding->getDefinition()->cast<ClassDefinition>();
-            resolvedExpression = new ClassNameExpression(classDef,
-                                                         getLocation());
+            auto classDef = binding->getDefinition()->cast<ClassDefinition>();
+            resolvedExpression = ClassNameExpression::create(classDef,
+                                                             getLocation());
             break;
         }
         case Binding::Method:
@@ -384,7 +432,9 @@ bool NamedEntityExpression::isReferencingName(Expression* name) {
 }
 
 LocalVariableExpression::LocalVariableExpression(
-    Type* t, const Identifier& i, const Location& loc) : 
+    Type* t,
+    const Identifier& i,
+    const Location& loc) :
     Expression(Expression::LocalVariable, loc),
     identifier(i),
     hasTransformed(false) {
@@ -397,6 +447,14 @@ LocalVariableExpression::LocalVariableExpression(
     Expression(other),
     identifier(other.identifier),
     hasTransformed(other.hasTransformed) {}
+
+LocalVariableExpression* LocalVariableExpression::create(
+    Type* t,
+    const Identifier& i,
+    const Location& loc) {
+
+    return new LocalVariableExpression(t, i, loc);
+}
 
 Expression* LocalVariableExpression::clone() const {
     return new LocalVariableExpression(*this);
@@ -444,6 +502,13 @@ ClassNameExpression::ClassNameExpression(const ClassNameExpression& other) :
     classDefinition(other.classDefinition),
     hasTransformed(other.hasTransformed) {}
 
+ClassNameExpression* ClassNameExpression::create(
+    ClassDefinition* c,
+    const Location& loc) {
+
+    return new ClassNameExpression(c, loc);
+}
+
 Expression* ClassNameExpression::clone() const {
     return new ClassNameExpression(*this);
 }
@@ -453,14 +518,13 @@ Expression* ClassNameExpression::transform(Context& context) {
         return this;
     }
 
-    if (ClassDefinition* outerClass = classDefinition->getEnclosingClass()) {
+    if (auto outerClass = classDefinition->getEnclosingClass()) {
         // The referenced class is contained in an outer class.
         if (outerClass != context.getClassDefinition()) {
             const Location& loc = getLocation();
-            ClassNameExpression* className =
-                new ClassNameExpression(outerClass, loc);
-            MemberSelectorExpression* memberSelector =
-                new MemberSelectorExpression(className, this, loc);
+            auto className = ClassNameExpression::create(outerClass, loc);
+            auto memberSelector =
+                MemberSelectorExpression::create(className, this, loc);
             hasTransformed = true;
             return memberSelector->transform(context);
         }
@@ -477,32 +541,46 @@ MemberSelectorExpression::MemberSelectorExpression(
     left(l),
     right(r) {}
 
-MemberSelectorExpression::MemberSelectorExpression(
+MemberSelectorExpression* MemberSelectorExpression::create(
     Expression* l,
-    Expression* r) :
-    MemberSelectorExpression(l, r, Location()) {}
+    Expression* r,
+    const Location& loc) {
 
-MemberSelectorExpression::MemberSelectorExpression(
+    return new MemberSelectorExpression(l, r, loc);
+}
+
+MemberSelectorExpression* MemberSelectorExpression::create(
+    Expression* l,
+    Expression* r) {
+
+    return create(l, r, Location());
+}
+
+MemberSelectorExpression* MemberSelectorExpression::create(
     const Identifier& l,
-    Expression* r) :
-    MemberSelectorExpression(new NamedEntityExpression(l, Location()),
-                             r,
-                             Location()) {}
+    Expression* r) {
 
-MemberSelectorExpression::MemberSelectorExpression(
+    return create(NamedEntityExpression::create(l, Location()), r, Location());
+}
+
+MemberSelectorExpression* MemberSelectorExpression::create(
     const Identifier& l,
-    const Identifier& r) :
-    MemberSelectorExpression(new NamedEntityExpression(l, Location()),
-                             new NamedEntityExpression(r, Location()),
-                             Location()) {}
+    const Identifier& r) {
 
-MemberSelectorExpression::MemberSelectorExpression(
+    return create(NamedEntityExpression::create(l, Location()),
+                  NamedEntityExpression::create(r, Location()),
+                  Location());
+}
+
+MemberSelectorExpression* MemberSelectorExpression::create(
     const Identifier& l,
     const Identifier& r,
-    const Location& loc) :
-    MemberSelectorExpression(new NamedEntityExpression(l, Location()),
-                             new NamedEntityExpression(r, Location()),
-                             loc) {}
+    const Location& loc) {
+
+    return create(NamedEntityExpression::create(l, Location()),
+                  NamedEntityExpression::create(r, Location()),
+                  loc);
+}
 
 Expression* MemberSelectorExpression::clone() const {
     return new MemberSelectorExpression(left->clone(),
@@ -705,10 +783,12 @@ void MemberSelectorExpression::generateThisPointerDeclaration(
         // First statement in the block is a 'this' pointer declaration. Modify
         // the init expression in the declaration to include the left side of
         // this MemberSelectorExpression.
-        Expression* initExpression =
+        auto initExpression =
             thisPointerDeclaration->getInitExpression();
-        Expression* modifiedInitExpression = 
-            new MemberSelectorExpression(left, initExpression, getLocation());
+        auto modifiedInitExpression =
+            MemberSelectorExpression::create(left,
+                                             initExpression,
+                                             getLocation());
         thisPointerDeclaration->setInitExpression(modifiedInitExpression);
     } else {
         thisPointerDeclaration =
@@ -732,8 +812,8 @@ Expression* MemberSelectorExpression::transformPrimitiveTypeMethodCall(
         const ExpressionList& arguments = call->getArguments();
         assert(arguments.size() == 1);
         Expression* argument = arguments.front();
-        Expression* comparison =
-            new BinaryExpression(Operator::Equal, left, argument, loc);
+        auto comparison =
+            BinaryExpression::create(Operator::Equal, left, argument, loc);
         return comparison->transform(context);
     }
 
@@ -820,16 +900,18 @@ Expression* MemberExpression::transformIntoMemberSelector(Context& context) {
         // The MemberExpression refences a static member. Transform this
         // DataMemberExpression into a MemberSelectorExpression of this kind:
         // 'ClassName.member'.
-        left = new NamedEntityExpression(memberClass->getFullName(), location);
+        left = NamedEntityExpression::create(memberClass->getFullName(),
+                                             location);
     } else {
         // The MemberExpression refences a non-static member and the 'this'
         // pointer is not implicit. Transform this DataMemberExpression into a
         // MemberSelectorExpression in order to explicitly reference the member
         // through the 'this' pointer: 'this.member'.
-        left = new NamedEntityExpression(thisPointerName, location);
+        left = NamedEntityExpression::create(thisPointerName, location);
     }
-    MemberSelectorExpression* memberSelector =
-        new MemberSelectorExpression(left, this, location);
+
+    auto memberSelector =
+        MemberSelectorExpression::create(left, this, location);
     hasTransformedIntoMemberSelector = true;
     return memberSelector->transform(context);
 }
@@ -907,9 +989,9 @@ Type* DataMemberExpression::typeCheck(Context& context) {
 Expression* DataMemberExpression::transformIntoConstructorArgumentReference(
     Context& context) {
 
-    Expression* argument =
-        new NamedEntityExpression(memberDefinition->getName() + "_Arg",
-                                  getLocation());
+    auto argument =
+        NamedEntityExpression::create(memberDefinition->getName() + "_Arg",
+                                      getLocation());
     return argument->transform(context);
 }
 
@@ -954,7 +1036,7 @@ MethodCallExpression* MethodCallExpression::clone() const {
 }
 
 void MethodCallExpression::addArgument(const Identifier& argument) {
-    arguments.push_back(new NamedEntityExpression(argument, Location()));
+    arguments.push_back(NamedEntityExpression::create(argument, Location()));
 }
 
 MethodDefinition* MethodCallExpression::getEnumCtorMethodDefinition() const {
@@ -1219,11 +1301,10 @@ Expression* MethodCallExpression::transformIntoClosureCallMethod(
     Context& context) {
 
     const Location& location = getLocation();
-    NamedEntityExpression* left =
-        new NamedEntityExpression(name, location);
+    auto left = NamedEntityExpression::create(name, location);
     name = CommonNames::callMethodName;
-    MemberSelectorExpression* memberSelector =
-        new MemberSelectorExpression(left, this, location);
+    auto memberSelector =
+        MemberSelectorExpression::create(left, this, location);
     return memberSelector->transform(context);
 }
 
@@ -1503,7 +1584,7 @@ WrappedStatementExpression* MethodCallExpression::transformIntoForStatement(
         VariableDeclarationStatement::create(
             indexVariableType,
             indexVaraibleName,
-            new IntegerLiteralExpression(0, location),
+            IntegerLiteralExpression::create(0, location),
             location);
     outerBlock->addStatement(indexDeclaration);
 
@@ -1511,18 +1592,18 @@ WrappedStatementExpression* MethodCallExpression::transformIntoForStatement(
         VariableDeclarationStatement::create(
             Type::create(Type::Implicit),
             arrayLengthName,
-            new MemberSelectorExpression(
-                new NamedEntityExpression(arrayReferenceName, location),
+            MemberSelectorExpression::create(
+                NamedEntityExpression::create(arrayReferenceName, location),
                 new MethodCallExpression(BuiltInTypes::arrayLengthMethodName,
                                          location),
                 location),
             location);
     outerBlock->addStatement(arrayLengthDeclaration);
 
-    BinaryExpression* forCondition = new BinaryExpression(
+    auto forCondition = BinaryExpression::create(
         Operator::Less,
-        new NamedEntityExpression(indexVaraibleName, location),
-        new NamedEntityExpression(arrayLengthName, location),
+        NamedEntityExpression::create(indexVaraibleName, location),
+        NamedEntityExpression::create(arrayLengthName, location),
         location);
 
     auto forBlock =
@@ -1536,12 +1617,12 @@ WrappedStatementExpression* MethodCallExpression::transformIntoForStatement(
                                        arrayReferenceName);
     forBlock->insertStatementAtFront(lambdaBlock);
 
-    UnaryExpression* increaseIndex =
-        new UnaryExpression(Operator::Increment,
-                            new NamedEntityExpression(indexVaraibleName,
-                                                      location),
-                            false,
-                            location);
+    auto increaseIndex =
+        UnaryExpression::create(Operator::Increment,
+                                NamedEntityExpression::create(indexVaraibleName,
+                                                              location),
+                                false,
+                                location);
 
     auto forStatement = ForStatement::create(forCondition,
                                              increaseIndex,
@@ -1569,9 +1650,9 @@ BlockStatement* MethodCallExpression::addLamdaArgumentsToLambdaBlock(
         lambda->getArguments();
     VariableDeclarationStatement* elementArgument = *lambdaArguments.begin();
 
-    ArraySubscriptExpression* arraySubscript = new ArraySubscriptExpression(
-        new NamedEntityExpression(arrayName, location), 
-        new NamedEntityExpression(indexVaraibleName, location));
+    auto arraySubscript = new ArraySubscriptExpression(
+        NamedEntityExpression::create(arrayName, location),
+        NamedEntityExpression::create(indexVaraibleName, location));
 
     elementArgument->setInitExpression(arraySubscript);
     lambdaBlock->insertStatementAtFront(elementArgument);
@@ -1894,10 +1975,10 @@ MemberSelectorExpression* ArraySubscriptExpression::createSliceMethodCall(
     sliceCall->addArgument(range->getLeft());
     sliceCall->addArgument(range->getRight());
 
-    MemberSelectorExpression* memberSelector =
-        new MemberSelectorExpression(arrayNameExpression,
-                                     sliceCall,
-                                     getLocation());
+    auto memberSelector =
+        MemberSelectorExpression::create(arrayNameExpression,
+                                         sliceCall,
+                                         getLocation());
     return MemberSelectorExpression::transformMemberSelector(memberSelector,
                                                              context);
 }
@@ -2032,11 +2113,22 @@ BinaryExpression::BinaryExpression(
     left(l),
     right(r) {}
 
-BinaryExpression::BinaryExpression(
+BinaryExpression* BinaryExpression::create(
     Operator::Kind oper,
     Expression* l,
-    Expression* r) :
-    BinaryExpression(oper, l, r, Location()) {}
+    Expression* r,
+    const Location& loc) {
+
+    return new BinaryExpression(oper, l, r, loc);
+}
+
+BinaryExpression* BinaryExpression::create(
+    Operator::Kind oper,
+    Expression* l,
+    Expression* r) {
+
+    return create(oper, l, r, Location());
+}
 
 Expression* BinaryExpression::clone() const {
     return new BinaryExpression(op,
@@ -2302,8 +2394,8 @@ MemberSelectorExpression* BinaryExpression::createStringOperation(
                                                                getLocation());
     operation->addArgument(right);
 
-    MemberSelectorExpression* memberSelector =
-        new MemberSelectorExpression(left, operation, getLocation());
+    auto memberSelector =
+        MemberSelectorExpression::create(left, operation, getLocation());
     return MemberSelectorExpression::transformMemberSelector(memberSelector,
                                                              context);
 }
@@ -2327,19 +2419,22 @@ MemberSelectorExpression* BinaryExpression::createArrayOperation(
                                                                getLocation());
     operation->addArgument(right);
 
-    MemberSelectorExpression* memberSelector =
-        new MemberSelectorExpression(left, operation, getLocation());
+    auto memberSelector =
+        MemberSelectorExpression::create(left, operation, getLocation());
     return MemberSelectorExpression::transformMemberSelector(memberSelector,
                                                              context);
 }
 
 BinaryExpression* BinaryExpression::decomposeCompoundAssignment() {
-    BinaryExpression* bin =
-        new BinaryExpression(Operator::getDecomposedArithmeticOperator(op),
-                             left,
-                             right,
-                             getLocation());
-    return new BinaryExpression(Operator::Assignment, left, bin, getLocation());
+    auto bin =
+        BinaryExpression::create(Operator::getDecomposedArithmeticOperator(op),
+                                 left,
+                                 right,
+                                 getLocation());
+    return BinaryExpression::create(Operator::Assignment,
+                                    left,
+                                    bin,
+                                    getLocation());
 }
 
 UnaryExpression::UnaryExpression(
@@ -2351,6 +2446,15 @@ UnaryExpression::UnaryExpression(
     op(oper),
     operand(o),
     prefix(p) {}
+
+UnaryExpression* UnaryExpression::create(
+    Operator::Kind oper,
+    Expression* o,
+    bool p,
+    const Location& loc) {
+
+    return new UnaryExpression(oper, o, p, loc);
+}
 
 Expression* UnaryExpression::clone() const {
     return new UnaryExpression(op, operand->clone(), prefix, getLocation());
@@ -2531,10 +2635,11 @@ YieldExpression::inlineLambdaExpressionWithReturnValue(
 
     inlinedLambda->returnLastExpression(lambdaRetvalTmpDeclaration);
     currentBlock->insertBeforeCurrentStatement(inlinedLambda);
-    LocalVariableExpression* lambdaRetvalTmp =
-        new LocalVariableExpression(lambdaRetvalTmpType,
-                                    lambdaRetvalTmpDeclaration->getIdentifier(),
-                                    location);
+    auto lambdaRetvalTmp =
+        LocalVariableExpression::create(
+            lambdaRetvalTmpType,
+            lambdaRetvalTmpDeclaration->getIdentifier(),
+            location);
     return lambdaRetvalTmp;
 }
 
@@ -2648,7 +2753,8 @@ Expression* AnonymousFunctionExpression::transform(Context& context) {
     auto constructorCall = new MethodCallExpression(closureInfo.className, loc);
     for (auto nonLocalVarDecl: closureInfo.nonLocalVars) {
         constructorCall->addArgument(
-            new NamedEntityExpression(nonLocalVarDecl->getIdentifier(), loc));
+            NamedEntityExpression::create(nonLocalVarDecl->getIdentifier(),
+                                          loc));
     }
 
     return new TypeCastExpression(closureInfo.closureInterfaceType,
@@ -2802,12 +2908,12 @@ BinaryExpression* MatchCase::generateComparisonExpression(
 
     auto i = patterns.cbegin();
     Pattern* pattern = *i;
-    BinaryExpression* binExpression =
+    auto binExpression =
         pattern->generateComparisonExpression(subject, context);
     i++;
     while (i != patterns.cend()) {
         pattern = *i;
-        binExpression = new BinaryExpression(
+        binExpression = BinaryExpression::create(
             Operator::LogicalOr,
             binExpression,
             pattern->generateComparisonExpression(subject, context),
@@ -2892,12 +2998,12 @@ Type* MatchCase::generateCaseResultBlock(
         if (!caseResultType->isVoid()) {
             const Location& resultLocation = lastExpression->getLocation();
             caseResultBlock->replaceLastStatement(
-                new BinaryExpression(Operator::Assignment,
-                                     new NamedEntityExpression(
-                                        matchResultTmpName,
-                                        resultLocation),
-                                     lastExpression,
-                                     resultLocation));
+                BinaryExpression::create(Operator::Assignment,
+                                         NamedEntityExpression::create(
+                                            matchResultTmpName,
+                                            resultLocation),
+                                         lastExpression,
+                                         resultLocation));
         }
     }
 
@@ -3040,10 +3146,10 @@ Expression* MatchExpression::transform(Context& context) {
         type->setConstant(true);
         currentBlock->insertBeforeCurrentStatement(matchLogic);
 
-        LocalVariableExpression* resultTemporary =
-            new LocalVariableExpression(type,
-                                        resultTmpName,
-                                        location);
+        auto resultTemporary =
+            LocalVariableExpression::create(type,
+                                            resultTmpName,
+                                            location);
         return resultTemporary;
     }
 }
@@ -3109,9 +3215,9 @@ Expression* MatchExpression::generateSubjectTemporary(
                                                  location);
         matchLogicBlock->addStatement(subjectTmpDeclaration);
         subjectRefExpr =
-            new LocalVariableExpression(subjectType,
-                                        CommonNames::matchSubjectName,
-                                        location);
+            LocalVariableExpression::create(subjectType,
+                                            CommonNames::matchSubjectName,
+                                            location);
     }
     return subjectRefExpr;
 }

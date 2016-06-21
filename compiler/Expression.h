@@ -35,9 +35,6 @@ public:
         WrappedStatement
     };
 
-    Expression(Kind k, const Location& l);
-    Expression(const Expression& other);
-
     virtual Expression* clone() const = 0;
     virtual Expression* transform(Context&);
     virtual bool isVariable() const;
@@ -77,6 +74,9 @@ public:
         const Location& location);
 
 protected:
+    Expression(Kind k, const Location& l);
+    Expression(const Expression& other);
+
     Type* type;
 
 private:
@@ -97,15 +97,13 @@ public:
         Array
     };
 
-    LiteralExpression(Kind k, Type* t, const Location& loc);
-
     static Expression* generateDefault(Type* type, const Location& location);
 
     const Type* getType() const {
         return type;
     }
 
-    virtual Type* typeCheck(Context&) {
+    Type* typeCheck(Context&) override {
         return type;
     }
 
@@ -113,13 +111,16 @@ public:
         return kind;
     }
 
+protected:
+    LiteralExpression(Kind k, Type* t, const Location& loc);
+
 private:
     Kind kind;
 };
 
 class CharacterLiteralExpression: public LiteralExpression {
 public:
-    CharacterLiteralExpression(char c, const Location& loc);
+    static CharacterLiteralExpression* create(char c, const Location& loc);
 
     Expression* clone() const override;
 
@@ -128,13 +129,15 @@ public:
     }
 
 private:
+    CharacterLiteralExpression(char c, const Location& loc);
+
     char value;
 };
 
 class IntegerLiteralExpression: public LiteralExpression {
 public:
-    IntegerLiteralExpression(int i, const Location& loc);
-    explicit IntegerLiteralExpression(int i);
+    static IntegerLiteralExpression* create(int i, const Location& loc);
+    static IntegerLiteralExpression* create(int i);
 
     Expression* clone() const override;
 
@@ -143,13 +146,14 @@ public:
     }
 
 private:
+    IntegerLiteralExpression(int i, const Location& loc);
+
     int value;
 };
 
 class FloatLiteralExpression: public LiteralExpression {
 public:
-    FloatLiteralExpression(float f, const Location& loc);
-    explicit FloatLiteralExpression(float i);
+    static FloatLiteralExpression* create(float f, const Location& loc);
 
     Expression* clone() const override;
 
@@ -158,12 +162,16 @@ public:
     }
 
 private:
+    FloatLiteralExpression(float f, const Location& loc);
+
     float value;
 };
 
 class StringLiteralExpression: public LiteralExpression {
 public:
-    StringLiteralExpression(const std::string& s, const Location& loc);
+    static StringLiteralExpression* create(
+        const std::string& s,
+        const Location& loc);
 
     Expression* clone() const override;
     Expression* transform(Context& context) override;
@@ -173,6 +181,7 @@ public:
     }
 
 private:
+    StringLiteralExpression(const std::string& s, const Location& loc);
     Expression* createCharArrayExpression(Context& context);
 
     std::string value;
@@ -180,7 +189,7 @@ private:
 
 class BooleanLiteralExpression: public LiteralExpression {
 public:
-    BooleanLiteralExpression(bool b, const Location& loc);
+    static BooleanLiteralExpression* create(bool b, const Location& loc);
 
     Expression* clone() const override;
 
@@ -189,14 +198,15 @@ public:
     }
 
 private:
+    BooleanLiteralExpression(bool b, const Location& loc);
+
     bool value;
 };
 
 class ArrayLiteralExpression: public LiteralExpression {
 public:
-    explicit ArrayLiteralExpression(const Location& loc);
-    ArrayLiteralExpression(Type* t, const Location& loc);
-    ArrayLiteralExpression(const ArrayLiteralExpression& other);
+    static ArrayLiteralExpression* create(const Location& loc);
+    static ArrayLiteralExpression* create(Type* t, const Location& loc);
 
     ArrayLiteralExpression* clone() const override;
     Expression* transform(Context& context) override;
@@ -215,6 +225,9 @@ public:
     }
 
 private:
+    ArrayLiteralExpression(Type* t, const Location& loc);
+    ArrayLiteralExpression(const ArrayLiteralExpression& other);
+
     void checkElements(Context& context);
 
     ExpressionList elements;
@@ -222,8 +235,10 @@ private:
 
 class NamedEntityExpression: public Expression {
 public:
-    explicit NamedEntityExpression(const Identifier& i);
-    NamedEntityExpression(const Identifier& i, const Location& loc);
+    static NamedEntityExpression* create(const Identifier& i);
+    static NamedEntityExpression* create(
+        const Identifier& i,
+        const Location& loc);
 
     NamedEntityExpression* clone() const override;
     Type* typeCheck(Context& context) override;
@@ -246,14 +261,18 @@ public:
     }
 
 private:
+    NamedEntityExpression(const Identifier& i, const Location& loc);
+
     Identifier identifier;
     Binding* binding;
 };
 
 class LocalVariableExpression: public Expression {
 public:
-    LocalVariableExpression(Type* t, const Identifier& i, const Location& loc);
-    LocalVariableExpression(const LocalVariableExpression& other);
+    static LocalVariableExpression* create(
+        Type* t,
+        const Identifier& i,
+        const Location& loc);
 
     Expression* clone() const override;
     Expression* transform(Context& context) override;
@@ -266,14 +285,16 @@ public:
     }
 
 private:
+    LocalVariableExpression(Type* t, const Identifier& i, const Location& loc);
+    LocalVariableExpression(const LocalVariableExpression& other);
+
     Identifier identifier;
     bool hasTransformed;
 };
 
 class ClassNameExpression: public Expression {
 public:
-    ClassNameExpression(ClassDefinition* c, const Location& loc);
-    ClassNameExpression(const ClassNameExpression& other);
+    static ClassNameExpression* create(ClassDefinition* c, const Location& loc);
 
     Expression* clone() const override;
     Expression* transform(Context& context) override;
@@ -287,6 +308,9 @@ public:
     }
 
 private:
+    ClassNameExpression(ClassDefinition* c, const Location& loc);
+    ClassNameExpression(const ClassNameExpression& other);
+
     ClassDefinition* classDefinition;
     bool hasTransformed;
 };
@@ -296,11 +320,16 @@ class TemporaryExpression;
 
 class MemberSelectorExpression: public Expression {
 public:
-    MemberSelectorExpression(Expression* l, Expression* r, const Location& loc);
-    MemberSelectorExpression(Expression* l, Expression* r);
-    MemberSelectorExpression(const Identifier& l, Expression* r);
-    MemberSelectorExpression(const Identifier& l, const Identifier& r);
-    MemberSelectorExpression(
+    static MemberSelectorExpression* create(
+        Expression* l,
+        Expression* r,
+        const Location& loc);
+    static MemberSelectorExpression* create(Expression* l, Expression* r);
+    static MemberSelectorExpression* create(const Identifier& l, Expression* r);
+    static MemberSelectorExpression* create(
+        const Identifier& l,
+        const Identifier& r);
+    static MemberSelectorExpression* create(
         const Identifier& l,
         const Identifier& r,
         const Location& loc);
@@ -327,6 +356,8 @@ public:
     }
 
 private:
+    MemberSelectorExpression(Expression* l, Expression* r, const Location& loc);
+
     NameBindings* bindingScopeOfLeft(Context& context);
     WrappedStatementExpression* transformIntoBlockStatement(
         WrappedStatementExpression* wrappedBlockStatement);
@@ -343,12 +374,15 @@ private:
 
 class BinaryExpression: public Expression {
 public:
-    BinaryExpression(
+    static BinaryExpression* create(
         Operator::Kind oper,
         Expression* l,
         Expression* r,
         const Location& loc);
-    BinaryExpression(Operator::Kind oper, Expression* l, Expression* r);
+    static BinaryExpression* create(
+        Operator::Kind oper,
+        Expression* l,
+        Expression* r);
 
     Expression* clone() const override;
     Type* typeCheck(Context& context) override;
@@ -368,6 +402,12 @@ public:
     }
 
 private:
+    BinaryExpression(
+        Operator::Kind oper,
+        Expression* l,
+        Expression* r,
+        const Location& loc);
+
     void checkAssignment(
         const Type* leftType,
         const Type* rightType,
@@ -390,7 +430,7 @@ private:
 
 class UnaryExpression: public Expression {
 public:
-    UnaryExpression(
+    static UnaryExpression* create(
         Operator::Kind oper,
         Expression* o,
         bool p,
@@ -413,6 +453,12 @@ public:
     }
 
 private:
+    UnaryExpression(
+        Operator::Kind oper,
+        Expression* o,
+        bool p,
+        const Location& loc);
+
     Operator::Kind op;
     Expression* operand;
     bool prefix;

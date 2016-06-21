@@ -19,13 +19,13 @@ namespace {
 
         Location returnExpressionLocation(returnExpression->getLocation());
         auto retvalTmp =
-            new LocalVariableExpression(returnType,
-                                        retvalTmpIdentifier,
+            LocalVariableExpression::create(returnType,
+                                            retvalTmpIdentifier,
+                                            returnExpressionLocation);
+        return BinaryExpression::create(Operator::Assignment,
+                                        retvalTmp,
+                                        returnExpression,
                                         returnExpressionLocation);
-        return new BinaryExpression(Operator::Assignment,
-                                    retvalTmp,
-                                    returnExpression,
-                                    returnExpressionLocation);
     }
 }
 
@@ -257,9 +257,9 @@ Expression* VariableDeclarationStatement::generateInitTemporary(
         initTmpDeclaration->typeCheck(context);
 
         initRefExpr =
-            new LocalVariableExpression(initExpressionType,
-                                        initTmpName,
-                                        location);
+            LocalVariableExpression::create(initExpressionType,
+                                            initTmpName,
+                                            location);
     }
     return initRefExpr;
 }
@@ -644,7 +644,7 @@ WhileStatement::WhileStatement(
     BlockStatement* b,
     const Location& l) :
     Statement(Statement::While, l), 
-    expression(e ? e : new BooleanLiteralExpression(true, getLocation())),
+    expression(e ? e : BooleanLiteralExpression::create(true, getLocation())),
     block(b) {}
 
 WhileStatement* WhileStatement::create(
@@ -941,11 +941,11 @@ Type* DeferStatement::typeCheck(Context& context) {
     MethodCallExpression* addClosureCall =
         new MethodCallExpression(CommonNames::addClosureMethodName, loc);
     addClosureCall->addArgument(new AnonymousFunctionExpression(block, loc));
-    MemberSelectorExpression* memberSelector =
-        new MemberSelectorExpression(new NamedEntityExpression(
-                                         deferVariableName),
-                                     addClosureCall,
-                                     loc);
+    auto memberSelector =
+        MemberSelectorExpression::create(NamedEntityExpression::create(
+                                             deferVariableName),
+                                         addClosureCall,
+                                         loc);
 
     memberSelector =
         MemberSelectorExpression::transformMemberSelector(memberSelector,
