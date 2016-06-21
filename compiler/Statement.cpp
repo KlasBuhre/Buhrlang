@@ -679,9 +679,8 @@ Type* WhileStatement::typeCheck(Context& context) {
 }
 
 bool WhileStatement::mayFallThrough() const {
-    if (LiteralExpression* literal = expression->dynCast<LiteralExpression>()) {
-        if (BooleanLiteralExpression* boolLiteral =
-                literal->dynCast<BooleanLiteralExpression>()) {
+    if (auto literal = expression->dynCast<LiteralExpression>()) {
+        if (auto boolLiteral = literal->dynCast<BooleanLiteralExpression>()) {
             if (boolLiteral->getValue() == true) {
                 // TODO: check if the block contains a break. If not, we cannot
                 // fall through to the next statement.
@@ -938,9 +937,10 @@ Type* DeferStatement::typeCheck(Context& context) {
     }
 
     const Location& loc = getLocation();
-    MethodCallExpression* addClosureCall =
-        new MethodCallExpression(CommonNames::addClosureMethodName, loc);
-    addClosureCall->addArgument(new AnonymousFunctionExpression(block, loc));
+    auto addClosureCall =
+        MethodCallExpression::create(CommonNames::addClosureMethodName, loc);
+    addClosureCall->addArgument(
+        AnonymousFunctionExpression::create(block, loc));
     auto memberSelector =
         MemberSelectorExpression::create(NamedEntityExpression::create(
                                              deferVariableName),

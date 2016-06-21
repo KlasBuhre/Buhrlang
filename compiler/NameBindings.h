@@ -28,7 +28,13 @@ public:
     Binding(ReferencedEntity e, VariableDeclaration* o);
     Binding(ReferencedEntity e, Definition* d);
     Binding(ReferencedEntity e, MethodDefinition* d);
-    Binding(const Binding& other);
+
+    static Binding* create(ReferencedEntity e);
+    static Binding* create(ReferencedEntity e, VariableDeclaration* o);
+    static Binding* create(ReferencedEntity e, Definition* d);
+    static Binding* create(ReferencedEntity e, MethodDefinition* d);
+
+    Binding* clone() const;
 
     bool isReferencingType() const;
     Type* getVariableType() const;
@@ -56,6 +62,8 @@ public:
     }
 
 private:
+    Binding(const Binding& other);
+
     ReferencedEntity referencedEntity;
     Definition* definition;
     VariableDeclaration* localObject;

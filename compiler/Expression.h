@@ -466,9 +466,8 @@ private:
 
 class LambdaExpression: public Expression {
 public:
-    LambdaExpression(BlockStatement* b, const Location& l);
-    explicit LambdaExpression(BlockStatement* b);
-    LambdaExpression(const LambdaExpression& other);
+    static LambdaExpression* create(BlockStatement* b, const Location& l);
+    static LambdaExpression* create(BlockStatement* b);
 
     LambdaExpression* clone() const override;
     Type* typeCheck(Context& context) override;
@@ -493,6 +492,9 @@ public:
     }
 
 private:
+    LambdaExpression(BlockStatement* b, const Location& l);
+    LambdaExpression(const LambdaExpression& other);
+
     VariableDeclarationStatementList arguments;
     BlockStatement* block;
     FunctionSignature* signature;
@@ -500,8 +502,7 @@ private:
 
 class YieldExpression: public Expression {
 public:
-    explicit YieldExpression(const Location& l);
-    YieldExpression(const YieldExpression& other);
+    static YieldExpression* create(const Location& l);
 
     Expression* clone() const override;
     Expression* transform(Context& context) override;
@@ -513,6 +514,9 @@ public:
     }
 
 private:
+    explicit YieldExpression(const Location& l);
+    YieldExpression(const YieldExpression& other);
+
     LocalVariableExpression* inlineLambdaExpressionWithReturnValue(
         LambdaExpression* lambdaExpression,
         Context& context);
@@ -525,8 +529,9 @@ private:
 
 class AnonymousFunctionExpression: public Expression {
 public:
-    AnonymousFunctionExpression(BlockStatement* b, const Location& l);
-    AnonymousFunctionExpression(const AnonymousFunctionExpression& other);
+    static AnonymousFunctionExpression* create(
+        BlockStatement* b,
+        const Location& l);
 
     Expression* clone() const override;
     Type* typeCheck(Context& context) override;
@@ -547,6 +552,9 @@ public:
     }
 
 private:
+    AnonymousFunctionExpression(BlockStatement* b, const Location& l);
+    AnonymousFunctionExpression(const AnonymousFunctionExpression& other);
+
     void copyArgumentTypes(const ArgumentList& from);
 
     ArgumentList argumentList;
@@ -563,14 +571,14 @@ public:
         MethodCall
     };
 
-    MemberExpression(Kind k, ClassMemberDefinition* m, const Location& loc);
-    MemberExpression(const MemberExpression& other);
-
     Kind getKind() const {
         return kind;
     }
 
 protected:
+    MemberExpression(Kind k, ClassMemberDefinition* m, const Location& loc);
+    MemberExpression(const MemberExpression& other);
+
     Expression* transformIntoMemberSelector(Context& context);
     void accessCheck(Context& context);
 
@@ -584,8 +592,9 @@ private:
 
 class DataMemberExpression: public MemberExpression {
 public:
-    DataMemberExpression(DataMemberDefinition* d, const Location& loc);
-    DataMemberExpression(const DataMemberExpression& other);
+    static DataMemberExpression* create(
+        DataMemberDefinition* d,
+        const Location& loc);
 
     Expression* clone() const override;
     Expression* transform(Context& context) override;
@@ -596,14 +605,16 @@ public:
     const Identifier& getName() const;
 
 private:
+    DataMemberExpression(DataMemberDefinition* d, const Location& loc);
+    DataMemberExpression(const DataMemberExpression& other);
+
     Expression* transformIntoConstructorArgumentReference(Context& context);
 };
 
 class MethodCallExpression: public MemberExpression {
 public:
-    MethodCallExpression(const Identifier& n, const Location& l);
-    explicit MethodCallExpression(const Identifier& n);
-    MethodCallExpression(const MethodCallExpression& other);
+    static MethodCallExpression* create(const Identifier& n, const Location& l);
+    static MethodCallExpression* create(const Identifier& n);
 
     MethodCallExpression* clone() const override;
     Expression* transform(Context& context) override;
@@ -657,6 +668,9 @@ public:
     }
 
 private:
+    MethodCallExpression(const Identifier& n, const Location& l);
+    MethodCallExpression(const MethodCallExpression& other);
+
     void resolve(Context& context);
     void resolveByInferringConcreteClass(
         const MethodDefinition* candidate,
@@ -707,9 +721,8 @@ private:
 
 class HeapAllocationExpression: public Expression {
 public:
-    explicit HeapAllocationExpression(MethodCallExpression* m);
-    HeapAllocationExpression(Type* t, MethodCallExpression* m);
-    HeapAllocationExpression(const HeapAllocationExpression& other);
+    static HeapAllocationExpression* create(MethodCallExpression* m);
+    static HeapAllocationExpression* create(Type* t, MethodCallExpression* m);
 
     Expression* clone() const override;
     Expression* transform(Context& context) override;
@@ -727,6 +740,9 @@ public:
     }
 
 private:
+    HeapAllocationExpression(Type* t, MethodCallExpression* m);
+    HeapAllocationExpression(const HeapAllocationExpression& other);
+
     ClassDefinition* lookupClass(Context& context);
 
     Type* allocatedObjectType;
@@ -737,9 +753,11 @@ private:
 
 class ArrayAllocationExpression: public Expression {
 public:
-    ArrayAllocationExpression(Type* t, Expression* c, const Location& l);
-    ArrayAllocationExpression(Type* t, Expression* c);
-    ArrayAllocationExpression(const ArrayAllocationExpression& other);
+    static ArrayAllocationExpression* create(
+        Type* t,
+        Expression* c,
+        const Location& l);
+    static ArrayAllocationExpression* create(Type* t, Expression* c);
 
     Expression* clone() const override;
     Type* typeCheck(Context& context) override;
@@ -760,6 +778,9 @@ public:
     }
 
 private:
+    ArrayAllocationExpression(Type* t, Expression* c, const Location& l);
+    ArrayAllocationExpression(const ArrayAllocationExpression& other);
+
     Type* arrayType;
     Expression* arrayCapacityExpression;
     ArrayLiteralExpression* initExpression;
@@ -767,7 +788,7 @@ private:
 
 class ArraySubscriptExpression: public Expression {
 public:
-    ArraySubscriptExpression(Expression* n, Expression* i);
+    static ArraySubscriptExpression* create(Expression* n, Expression* i);
 
     Expression* clone() const override;
     Expression* transform(Context& context) override;
@@ -783,6 +804,8 @@ public:
     }
 
 private:
+    ArraySubscriptExpression(Expression* n, Expression* i);
+
     MemberSelectorExpression* createSliceMethodCall(
         BinaryExpression* range,
         Context& context);
@@ -793,9 +816,11 @@ private:
 
 class TypeCastExpression: public Expression {
 public:
-    TypeCastExpression(Type* target, Expression* o,  const Location& l);
-    TypeCastExpression(Type* target, Expression* o);
-    TypeCastExpression(const TypeCastExpression& other);
+    static TypeCastExpression* create(
+        Type* target,
+        Expression* o,
+        const Location& l);
+    static TypeCastExpression* create(Type* target, Expression* o);
 
     Expression* clone() const override;
     Type* typeCheck(Context& context) override;
@@ -816,6 +841,9 @@ public:
     }
 
 private:
+    TypeCastExpression(Type* target, Expression* o,  const Location& l);
+    TypeCastExpression(const TypeCastExpression& other);
+
     bool isCastBetweenObjectAndInterface(const Type* fromType);
 
     Type* targetType;
@@ -831,9 +859,8 @@ using PatternList = std::vector<Pattern*>;
 
 class MatchCase: public Node {
 public:
-    explicit MatchCase(const Location& loc);
-    MatchCase();
-    MatchCase(const MatchCase& other);
+    static MatchCase* create(const Location& loc);
+    static MatchCase* create();
 
     Traverse::Result traverse(Visitor& visitor) override;
 
@@ -868,6 +895,9 @@ public:
     }
 
 private:
+    explicit MatchCase(const Location& loc);
+    MatchCase(const MatchCase& other);
+
     BinaryExpression* generateComparisonExpression(
         Expression* subject,
         Context& context);
@@ -892,9 +922,8 @@ private:
 
 class MatchExpression: public Expression {
 public:
-    MatchExpression(Expression* s, const Location& loc);
-    explicit MatchExpression(Expression* s);
-    MatchExpression(const MatchExpression& other);
+    static MatchExpression* create(Expression* s, const Location& loc);
+    static MatchExpression* create(Expression* s);
 
     Expression* clone() const override;
     Expression* transform(Context& context) override;
@@ -912,6 +941,9 @@ public:
 
 private:
     using CaseList = std::vector<MatchCase*>;
+
+    MatchExpression(Expression* s, const Location& loc);
+    MatchExpression(const MatchExpression& other);
 
     BlockStatement* generateMatchLogic(
         Context& context,
@@ -939,8 +971,7 @@ public:
 
     using MemberList = std::vector<Member>;
 
-    ClassDecompositionExpression(Type* t, const Location& l);
-    ClassDecompositionExpression(const ClassDecompositionExpression& other);
+    static ClassDecompositionExpression* create(Type* t, const Location& l);
 
     ClassDecompositionExpression* clone() const override;
     Type* typeCheck(Context&) override;
@@ -962,14 +993,19 @@ public:
     }
 
 private:
+    ClassDecompositionExpression(Type* t, const Location& l);
+    ClassDecompositionExpression(const ClassDecompositionExpression& other);
+
     MemberList members;
     Identifier enumVariantName;
 };
 
 class TypedExpression: public Expression {
 public:
-    TypedExpression(Type* targetType, Expression* n,  const Location& l);
-    TypedExpression(const TypedExpression& other);
+    static TypedExpression* create(
+        Type* targetType,
+        Expression* n,
+        const Location& l);
 
     TypedExpression* clone() const override;
     Type* typeCheck(Context& context) override;
@@ -982,55 +1018,73 @@ public:
     }
 
 private:
+    TypedExpression(Type* targetType, Expression* n, const Location& l);
+    TypedExpression(const TypedExpression& other);
+
     Expression* resultName;
 };
 
 class PlaceholderExpression: public Expression {
 public:
-    explicit PlaceholderExpression(const Location& l);
-    PlaceholderExpression();
+    static PlaceholderExpression* create(const Location& l);
+    static PlaceholderExpression* create();
 
     Expression* clone() const override;
 
-    virtual Type* typeCheck(Context&) {
+    Type* typeCheck(Context&) override {
         return &Type::voidType();
     }
+
+private:
+    explicit PlaceholderExpression(const Location& l);
+    PlaceholderExpression();
 };
 
 class WildcardExpression: public Expression {
 public:
-    explicit WildcardExpression(const Location& l);
+    static WildcardExpression* create(const Location& l);
 
     Expression* clone() const override;
 
-    virtual Type* typeCheck(Context&) {
+    Type* typeCheck(Context&) override {
         return &Type::voidType();
     }
+
+private:
+    explicit WildcardExpression(const Location& l);
 };
 
 class NullExpression: public Expression {
 public:
-    explicit NullExpression(const Location& l);
+    static NullExpression* create(const Location& l);
 
     Expression* clone() const override;
 
-    virtual Type* typeCheck(Context&) {
+    Type* typeCheck(Context&) override {
         return &Type::nullType();
     }
+
+private:
+    explicit NullExpression(const Location& l);
 };
 
 class ThisExpression: public Expression {
 public:
-    ThisExpression();
-    explicit ThisExpression(const Location& l);
+    static ThisExpression* create();
+    static ThisExpression* create(const Location& l);
 
     Expression* clone() const override;
     Type* typeCheck(Context& context) override;
+
+private:
+    explicit ThisExpression(const Location& l);
 };
 
 class TemporaryExpression: public Expression {
 public:
-    TemporaryExpression(VariableDeclaration* d, const Location& l);
+    static TemporaryExpression* create(
+        VariableDeclaration* d,
+        const Location& l);
 
     Expression* clone() const override;
     Type* typeCheck(Context& context) override;
@@ -1048,14 +1102,15 @@ public:
     }
 
 private:
+    TemporaryExpression(VariableDeclaration* d, const Location& l);
+
     VariableDeclaration* declaration;
     BlockStatement* nonStaticInlinedMethodBody;
 };
 
 class WrappedStatementExpression: public Expression {
 public:
-    WrappedStatementExpression(Statement* s, const Location& l);
-    WrappedStatementExpression(const WrappedStatementExpression& other);
+    static WrappedStatementExpression* create(Statement* s, const Location& l);
 
     Expression* clone() const override;
     Type* typeCheck(Context& context) override;
@@ -1085,6 +1140,9 @@ public:
     }
 
 private:
+    WrappedStatementExpression(Statement* s, const Location& l);
+    WrappedStatementExpression(const WrappedStatementExpression& other);
+
     Statement* statement;
     bool inlinedNonStaticMethod;
     bool inlinedArrayForEach;

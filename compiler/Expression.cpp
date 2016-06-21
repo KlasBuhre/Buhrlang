@@ -50,7 +50,7 @@ Expression* Expression::generateDefaultInitialization(
     const Location& location) {
 
     if (type->isReference()) {
-        return new NullExpression(location);
+        return NullExpression::create(location);
     } else if (type->isEnumeration()) {
         return nullptr;
     } else {
@@ -174,10 +174,11 @@ Expression* StringLiteralExpression::transform(Context& context) {
     if (context.isStringConstructorCall()) {
         transformedExpression = createCharArrayExpression(context);
     } else {
-        MethodCallExpression* stringCtorCall = 
-            new MethodCallExpression(Keyword::stringString, getLocation());
+        auto stringCtorCall =
+            MethodCallExpression::create(Keyword::stringString, getLocation());
         stringCtorCall->addArgument(createCharArrayExpression(context));
-        transformedExpression = new HeapAllocationExpression(stringCtorCall);
+        transformedExpression =
+            HeapAllocationExpression::create(stringCtorCall);
     }
 
     return transformedExpression;
@@ -245,8 +246,8 @@ Expression* ArrayLiteralExpression::transform(Context& context) {
 
     auto capacity =
         IntegerLiteralExpression::create(elements.size(), getLocation());
-    ArrayAllocationExpression* arrayAllocation = 
-        new ArrayAllocationExpression(type, capacity, getLocation());
+    auto arrayAllocation =
+        ArrayAllocationExpression::create(type, capacity, getLocation());
     arrayAllocation->setInitExpression(this);
     return arrayAllocation;
 }
@@ -325,7 +326,7 @@ Expression* NamedEntityExpression::transform(Context& context) {
     Expression* resolvedExpression = nullptr;
     switch (binding->getReferencedEntity()) { 
         case Binding::LocalObject: {
-            Type* type = binding->getLocalObject()->getType();
+            auto type = binding->getLocalObject()->getType();
             resolvedExpression =
                 LocalVariableExpression::create(type,
                                                 identifier,
@@ -333,10 +334,10 @@ Expression* NamedEntityExpression::transform(Context& context) {
             break;
         }
         case Binding::DataMember: {
-            DataMemberDefinition* dataMember = 
+            auto dataMember =
                 binding->getDefinition()->cast<DataMemberDefinition>();
-            resolvedExpression = new DataMemberExpression(dataMember,
-                                                          getLocation());
+            resolvedExpression = DataMemberExpression::create(dataMember,
+                                                              getLocation());
             break;
         }
         case Binding::Class: {
@@ -346,8 +347,8 @@ Expression* NamedEntityExpression::transform(Context& context) {
             break;
         }
         case Binding::Method:
-            resolvedExpression = new MethodCallExpression(identifier,
-                                                          getLocation());
+            resolvedExpression = MethodCallExpression::create(identifier,
+                                                              getLocation());
             break;
         default:
             Trace::internalError("NamedEntityExpression::transform");
@@ -383,8 +384,8 @@ MethodCallExpression* NamedEntityExpression::getCall(
     switch (binding->getReferencedEntity()) {
         case Binding::Class:
         case Binding::Method: {
-            MethodCallExpression* methodCall =
-                new MethodCallExpression(identifier, getLocation());
+            auto methodCall =
+                MethodCallExpression::create(identifier, getLocation());
             methodCall->tryResolveEnumConstructor(context);
             return methodCall;
         }
@@ -608,7 +609,7 @@ MethodCallExpression* MemberSelectorExpression::getRhsCall(Context& context) {
         return retval;
     }
 
-    ClassNameExpression* className = left->cast<ClassNameExpression>();
+    auto className = left->cast<ClassNameExpression>();
     Context::BindingsGuard guard(context,
                                  &(className->getClassDefinition()->
                                        getNameBindings()));
@@ -623,8 +624,7 @@ MethodCallExpression* MemberSelectorExpression::getRhsCall(Context& context) {
                                                                    false);
             break;
         case Expression::Member: {
-            if (MethodCallExpression* methodCall =
-                    right->dynCast<MethodCallExpression>()) {
+            if (auto methodCall = right->dynCast<MethodCallExpression>()) {
                 methodCall->tryResolveEnumConstructor(context);
                 retval = methodCall;
             }
@@ -751,7 +751,7 @@ MemberSelectorExpression::transformIntoBlockStatement(
 TemporaryExpression* MemberSelectorExpression::transformIntoTemporaryExpression(
     TemporaryExpression* temporary) {
 
-    BlockStatement* nonStaticInlinedMethodBody =
+    auto nonStaticInlinedMethodBody =
         temporary->getNonStaticInlinedMethodBody();
     if (nonStaticInlinedMethodBody != nullptr) {
         // Right-hand side was a method call to an non-static inlined method
@@ -803,7 +803,7 @@ void MemberSelectorExpression::generateThisPointerDeclaration(
 Expression* MemberSelectorExpression::transformPrimitiveTypeMethodCall(
     Context& context) {
 
-    MethodCallExpression* call = right->dynCast<MethodCallExpression>();
+    auto call = right->dynCast<MethodCallExpression>();
     assert(call != nullptr);
 
     const Location& loc = getLocation();
@@ -817,8 +817,7 @@ Expression* MemberSelectorExpression::transformPrimitiveTypeMethodCall(
         return comparison->transform(context);
     }
 
-    MethodCallExpression* selfCall =
-        new MethodCallExpression("_" + methodName, loc);
+    auto selfCall = MethodCallExpression::create("_" + methodName, loc);
     selfCall->addArgument(left);
     return selfCall->transform(context);
 }
@@ -963,6 +962,13 @@ DataMemberExpression::DataMemberExpression(
 DataMemberExpression::DataMemberExpression(const DataMemberExpression& other) :
     MemberExpression(other) {}
 
+DataMemberExpression* DataMemberExpression::create(
+    DataMemberDefinition* d,
+    const Location& loc) {
+
+    return new DataMemberExpression(d, loc);
+}
+
 Expression* DataMemberExpression::clone() const {
     return new DataMemberExpression(*this);
 }
@@ -1016,9 +1022,6 @@ MethodCallExpression::MethodCallExpression(
     isCtorCall(false),
     inferredConcreteType(nullptr) {}
 
-MethodCallExpression::MethodCallExpression(const Identifier& n) :
-    MethodCallExpression(n, Location()) {}
-
 MethodCallExpression::MethodCallExpression(const MethodCallExpression& other) :
     MemberExpression(other),
     name(other.name),
@@ -1031,6 +1034,17 @@ MethodCallExpression::MethodCallExpression(const MethodCallExpression& other) :
     Utils::cloneList(arguments, other.arguments);
 }
 
+MethodCallExpression* MethodCallExpression::create(
+    const Identifier& n,
+    const Location& l) {
+
+    return new MethodCallExpression(n, l);
+}
+
+MethodCallExpression* MethodCallExpression::create(const Identifier& n) {
+    return create(n, Location());
+}
+
 MethodCallExpression* MethodCallExpression::clone() const {
     return new MethodCallExpression(*this);
 }
@@ -1041,8 +1055,7 @@ void MethodCallExpression::addArgument(const Identifier& argument) {
 
 MethodDefinition* MethodCallExpression::getEnumCtorMethodDefinition() const {
     if (memberDefinition != nullptr) {
-        MethodDefinition* methodDef =
-            memberDefinition->cast<MethodDefinition>();
+        auto methodDef = memberDefinition->cast<MethodDefinition>();
         if (methodDef->isEnumConstructor()) {
             return methodDef;
         }
@@ -1445,7 +1458,7 @@ Expression* MethodCallExpression::transformDueToLambda(
 }
 
 Expression* MethodCallExpression::inlineCalledMethod(Context& context) {
-    MethodDefinition* calledMethod = memberDefinition->cast<MethodDefinition>();
+    auto calledMethod = memberDefinition->cast<MethodDefinition>();
 
     if (!calledMethod->hasBeenTypeCheckedAndTransformedBefore()) {
         // The inlined method must be transformed in order to turn the named
@@ -1454,7 +1467,7 @@ Expression* MethodCallExpression::inlineCalledMethod(Context& context) {
         calledMethod->typeCheckAndTransform();
     }
 
-    BlockStatement* clonedBody = calledMethod->getBody()->clone();
+    auto clonedBody = calledMethod->getBody()->clone();
     clonedBody->setEnclosingBlock(context.getBlock());
     addArgumentsToInlinedMethodBody(clonedBody);
 
@@ -1466,8 +1479,8 @@ Expression* MethodCallExpression::inlineCalledMethod(Context& context) {
     if (calledMethod->getReturnType()->isVoid()) {
         // The called method does not return anything so we can simply replace
         // method call expression with the code of the inlined called method.
-        WrappedStatementExpression* wrappedBlockStatement =
-            new WrappedStatementExpression(clonedBody, getLocation());
+        auto wrappedBlockStatement =
+            WrappedStatementExpression::create(clonedBody, getLocation());
         if (!calledMethod->isStatic()) {
             wrappedBlockStatement->setInlinedNonStaticMethod(true);
         }
@@ -1477,7 +1490,7 @@ Expression* MethodCallExpression::inlineCalledMethod(Context& context) {
         // The called method returns a value. Inline the method at the location
         // right before the current statement and transform this method call
         // into a reference to the temporary that holds the return value.
-        TemporaryExpression* temporary =
+        auto temporary =
             inlineMethodWithReturnValue(clonedBody, calledMethod, context);
         lambda = nullptr;
         return temporary;
@@ -1524,22 +1537,21 @@ MethodCallExpression::inlineMethodWithReturnValue(
     Context& context) {
 
     const Location& location = getLocation();
-    Type* returnType = calledMethod->getReturnType()->clone();
-    BlockStatement* currentBlock = context.getBlock();
+    auto returnType = calledMethod->getReturnType()->clone();
+    auto currentBlock = context.getBlock();
 
     // Remove any write-protection from the temporary return variable so that it
     // can be assigned a value in the inlined code.
     returnType->setConstant(false);
 
     // Insert the declaration of the temporary that holds the return value.
-    VariableDeclarationStatement* retvalTmpDeclarationStatement =
+    auto retvalTmpDeclarationStatement =
         VariableDeclarationStatement::generateTemporary(returnType,
                                                         retvalName,
                                                         nullptr,
                                                         location);
     currentBlock->insertBeforeCurrentStatement(retvalTmpDeclarationStatement);
-    VariableDeclaration* retvalTmpDeclaration =
-        retvalTmpDeclarationStatement->getDeclaration();
+    auto retvalTmpDeclaration = retvalTmpDeclarationStatement->getDeclaration();
 
     // Store pointer to the return value declaration so that return statements
     // in the inlined code can be transformed into assignments to the return
@@ -1549,8 +1561,8 @@ MethodCallExpression::inlineMethodWithReturnValue(
     // Inline the called method body.
     currentBlock->insertBeforeCurrentStatement(clonedMethodBody);
 
-    TemporaryExpression* temporary =
-        new TemporaryExpression(retvalTmpDeclaration, location);
+    auto temporary =
+        TemporaryExpression::create(retvalTmpDeclaration, location);
     if (calledMethod->isStatic()) {
         clonedMethodBody->typeCheck(context);
         context.setTemporaryRetvalDeclaration(nullptr);
@@ -1594,8 +1606,9 @@ WrappedStatementExpression* MethodCallExpression::transformIntoForStatement(
             arrayLengthName,
             MemberSelectorExpression::create(
                 NamedEntityExpression::create(arrayReferenceName, location),
-                new MethodCallExpression(BuiltInTypes::arrayLengthMethodName,
-                                         location),
+                MethodCallExpression::create(
+                    BuiltInTypes::arrayLengthMethodName,
+                    location),
                 location),
             location);
     outerBlock->addStatement(arrayLengthDeclaration);
@@ -1630,8 +1643,8 @@ WrappedStatementExpression* MethodCallExpression::transformIntoForStatement(
                                              location);
     outerBlock->addStatement(forStatement);
 
-    WrappedStatementExpression* wrappedBlockStatement = 
-            new WrappedStatementExpression(outerBlock, location);
+    auto wrappedBlockStatement =
+        WrappedStatementExpression::create(outerBlock, location);
     wrappedBlockStatement->setInlinedArrayForEach(true);
     lambda = nullptr;
     return wrappedBlockStatement;
@@ -1643,14 +1656,14 @@ BlockStatement* MethodCallExpression::addLamdaArgumentsToLambdaBlock(
     const Identifier& arrayName) {
 
     const Location& location = getLocation();
-    BlockStatement* lambdaBlock = lambda->getBlock();
+    auto lambdaBlock = lambda->getBlock();
     lambdaBlock->setEnclosingBlock(whileBlock);
 
     const VariableDeclarationStatementList& lambdaArguments =
         lambda->getArguments();
     VariableDeclarationStatement* elementArgument = *lambdaArguments.begin();
 
-    auto arraySubscript = new ArraySubscriptExpression(
+    auto arraySubscript = ArraySubscriptExpression::create(
         NamedEntityExpression::create(arrayName, location),
         NamedEntityExpression::create(indexVaraibleName, location));
 
@@ -1712,10 +1725,6 @@ void MethodCallExpression::resolveArgumentTypes(
 }
 
 HeapAllocationExpression::HeapAllocationExpression(
-    MethodCallExpression* m) :
-    HeapAllocationExpression(Type::create(m->getName()), m) {}
-
-HeapAllocationExpression::HeapAllocationExpression(
     Type* t, 
     MethodCallExpression* m) :
     Expression(Expression::HeapAllocation, m->getLocation()),
@@ -1731,6 +1740,19 @@ HeapAllocationExpression::HeapAllocationExpression(
     classDefinition(other.classDefinition),
     constructorCall(other.constructorCall->clone()),
     processName(other.processName) {}
+
+HeapAllocationExpression* HeapAllocationExpression::create(
+    MethodCallExpression* m) {
+
+    return create(Type::create(m->getName()), m);
+}
+
+HeapAllocationExpression* HeapAllocationExpression::create(
+    Type* t,
+    MethodCallExpression* m) {
+
+    return new HeapAllocationExpression(t, m);
+}
 
 Expression* HeapAllocationExpression::clone() const {
     return new HeapAllocationExpression(*this);
@@ -1750,8 +1772,8 @@ Expression* HeapAllocationExpression::transform(Context& context) {
         // into:
         //     (ProcessType) new ProcessType_Proxy(name)
         const Location& loc = getLocation();
-        MethodCallExpression* proxyConstructorCall =
-            new MethodCallExpression(classDefinition->getName() + "_Proxy",
+        auto proxyConstructorCall =
+            MethodCallExpression::create(classDefinition->getName() + "_Proxy",
                                      loc);
         if (processName != nullptr) {
             processName = processName->transform(context);
@@ -1761,9 +1783,9 @@ Expression* HeapAllocationExpression::transform(Context& context) {
             proxyConstructorCall->addArgument(processName);
         }
 
-        return new TypeCastExpression(
+        return TypeCastExpression::create(
             allocatedObjectType->clone(),
-            new HeapAllocationExpression(proxyConstructorCall),
+            HeapAllocationExpression::create(proxyConstructorCall),
             loc);
     }
 
@@ -1844,9 +1866,6 @@ ArrayAllocationExpression::ArrayAllocationExpression(
     arrayCapacityExpression(c),
     initExpression(nullptr) {}
 
-ArrayAllocationExpression::ArrayAllocationExpression(Type* t, Expression* c) :
-    ArrayAllocationExpression(t, c, Location()) {}
-
 ArrayAllocationExpression::ArrayAllocationExpression(
     const ArrayAllocationExpression& other) :
     Expression(other),
@@ -1857,6 +1876,21 @@ ArrayAllocationExpression::ArrayAllocationExpression(
     initExpression(other.initExpression ?
                    other.initExpression->clone() :
                    nullptr) {}
+
+ArrayAllocationExpression* ArrayAllocationExpression::create(
+    Type* t,
+    Expression* c,
+    const Location& l) {
+
+    return new ArrayAllocationExpression(t, c, l);
+}
+
+ArrayAllocationExpression* ArrayAllocationExpression::create(
+    Type* t,
+    Expression* c) {
+
+    return create(t, c, Location());
+}
 
 Expression* ArrayAllocationExpression::clone() const {
     return new ArrayAllocationExpression(*this);
@@ -1910,6 +1944,13 @@ ArraySubscriptExpression::ArraySubscriptExpression(
     Expression(Expression::ArraySubscript, n->getLocation()),
     arrayNameExpression(n),
     indexExpression(i) {}
+
+ArraySubscriptExpression* ArraySubscriptExpression::create(
+    Expression* n,
+    Expression* i) {
+
+    return new ArraySubscriptExpression(n, i);
+}
 
 Expression* ArraySubscriptExpression::clone() const {
     return new ArraySubscriptExpression(arrayNameExpression->clone(),
@@ -1969,9 +2010,9 @@ MemberSelectorExpression* ArraySubscriptExpression::createSliceMethodCall(
     BinaryExpression* range,
     Context& context) {
 
-    MethodCallExpression* sliceCall =
-        new MethodCallExpression(BuiltInTypes::arraySliceMethodName,
-                                 getLocation());
+    auto sliceCall =
+        MethodCallExpression::create(BuiltInTypes::arraySliceMethodName,
+                                     getLocation());
     sliceCall->addArgument(range->getLeft());
     sliceCall->addArgument(range->getRight());
 
@@ -1993,15 +2034,24 @@ TypeCastExpression::TypeCastExpression(
     staticCast(false),
     isGenerated(true) {}
 
-TypeCastExpression::TypeCastExpression(Type* target, Expression* o) :
-    TypeCastExpression(target, o, Location()) {}
-
 TypeCastExpression::TypeCastExpression(const TypeCastExpression& other) :
     Expression(other),
     targetType(other.targetType->clone()),
     operand(other.operand->clone()),
     staticCast(other.staticCast),
     isGenerated(other.isGenerated) {}
+
+TypeCastExpression* TypeCastExpression::create(
+    Type* target,
+    Expression* o,
+    const Location& l) {
+
+    return new TypeCastExpression(target, o, l);
+}
+
+TypeCastExpression* TypeCastExpression::create(Type* target, Expression* o) {
+    return create(target, o, Location());
+}
 
 Expression* TypeCastExpression::clone() const {
     return new TypeCastExpression(*this);
@@ -2076,15 +2126,24 @@ NullExpression::NullExpression(const Location& l) :
     type = Type::create(Type::Null);
 }
 
+NullExpression* NullExpression::create(const Location& l) {
+    return new NullExpression(l);
+}
+
 Expression* NullExpression::clone() const {
     return new NullExpression(getLocation());
 }
 
-ThisExpression::ThisExpression() :
-    ThisExpression(Location()) {}
-
 ThisExpression::ThisExpression(const Location& l) :
     Expression(Expression::This, l) {}
+
+ThisExpression* ThisExpression::create() {
+    return create(Location());
+}
+
+ThisExpression* ThisExpression::create(const Location& l) {
+    return new ThisExpression(l);
+}
 
 Expression* ThisExpression::clone() const {
     return new ThisExpression(getLocation());
@@ -2390,8 +2449,7 @@ MemberSelectorExpression* BinaryExpression::createStringOperation(
             Trace::error("Incompatible operator for string types.", this);
             break;
     }
-    MethodCallExpression* operation = new MethodCallExpression(operationName,
-                                                               getLocation());
+    auto operation = MethodCallExpression::create(operationName, getLocation());
     operation->addArgument(right);
 
     auto memberSelector =
@@ -2415,8 +2473,7 @@ MemberSelectorExpression* BinaryExpression::createArrayOperation(
             Trace::error("Incompatible operator for array types.", this);
             break;
     }
-    MethodCallExpression* operation = new MethodCallExpression(operationName,
-                                                               getLocation());
+    auto operation = MethodCallExpression::create(operationName, getLocation());
     operation->addArgument(right);
 
     auto memberSelector =
@@ -2516,9 +2573,6 @@ LambdaExpression::LambdaExpression(BlockStatement* b, const Location& l) :
     Tree::lookupAndSetTypeDefinition(type, l);
 }
 
-LambdaExpression::LambdaExpression(BlockStatement* b) :
-    LambdaExpression(b, Location()) {}
-
 LambdaExpression::LambdaExpression(const LambdaExpression& other) :
     Expression(other),
     arguments(),
@@ -2526,6 +2580,17 @@ LambdaExpression::LambdaExpression(const LambdaExpression& other) :
     signature(other.signature) {
 
     Utils::cloneList(arguments, other.arguments);
+}
+
+LambdaExpression* LambdaExpression::create(
+    BlockStatement* b,
+    const Location& l) {
+
+    return new LambdaExpression(b, l);
+}
+
+LambdaExpression* LambdaExpression::create(BlockStatement* b) {
+    return create(b, Location());
 }
 
 LambdaExpression* LambdaExpression::clone() const {
@@ -2564,6 +2629,10 @@ YieldExpression::YieldExpression(const YieldExpression& other) :
     Utils::cloneList(arguments, other.arguments);
 }
 
+YieldExpression* YieldExpression::create(const Location& l) {
+    return new YieldExpression(l);
+}
+
 Expression* YieldExpression::clone() const {
     return new YieldExpression(*this);
 }
@@ -2580,10 +2649,10 @@ Expression* YieldExpression::transform(Context& context) {
     if (lambdaExpression->getLambdaSignature()->getReturnType()->isVoid()) {
         // Inline the lambda by transforming this YieldExpression into the
         // inlined lambda.
-        BlockStatement* inlinedLambda = inlineLambdaExpression(lambdaExpression,
+        auto inlinedLambda = inlineLambdaExpression(lambdaExpression,
                                                                context);
-        WrappedStatementExpression* wrappedBlockStatement =
-            new WrappedStatementExpression(inlinedLambda, getLocation());
+        auto wrappedBlockStatement =
+            WrappedStatementExpression::create(inlinedLambda, getLocation());
 
         // Disallow any yield transformation while processing the inlined lambda
         // by temporarily resetting the lambda expression in the context. This
@@ -2594,7 +2663,7 @@ Expression* YieldExpression::transform(Context& context) {
         // The lambda returns a value so transform into a
         // LocalVariableExpression that references the returned value. Also,
         // inline the lambda before the current statement.
-        LocalVariableExpression* lambdaRetvalTmp =
+        auto lambdaRetvalTmp =
             inlineLambdaExpressionWithReturnValue(lambdaExpression, context);
         return lambdaRetvalTmp;
     }
@@ -2614,16 +2683,15 @@ YieldExpression::inlineLambdaExpressionWithReturnValue(
     // be assigned a value in the lambda block.
     lambdaRetvalTmpType->setConstant(false);
 
-    VariableDeclarationStatement* lambdaRetvalTmpDeclaration =
+    auto lambdaRetvalTmpDeclaration =
         VariableDeclarationStatement::generateTemporary(lambdaRetvalTmpType,
                                                         lambdaRetvalName,
                                                         nullptr,
                                                         location);
 
-    BlockStatement* currentBlock = context.getBlock();
+    auto currentBlock = context.getBlock();
     currentBlock->insertBeforeCurrentStatement(lambdaRetvalTmpDeclaration);
-    BlockStatement* inlinedLambda = inlineLambdaExpression(lambdaExpression,
-                                                           context);
+    auto inlinedLambda = inlineLambdaExpression(lambdaExpression, context);
 
     // Run typeCheck() pass on the inlined lambda. Disallow any yield
     // transformation while processing the inlined lambda by temporarily
@@ -2730,6 +2798,13 @@ AnonymousFunctionExpression::AnonymousFunctionExpression(
     }
 }
 
+AnonymousFunctionExpression* AnonymousFunctionExpression::create(
+    BlockStatement* b,
+    const Location& l) {
+
+    return new AnonymousFunctionExpression(b, l);
+}
+
 Expression* AnonymousFunctionExpression::clone() const {
     return new AnonymousFunctionExpression(*this);
 }
@@ -2750,16 +2825,18 @@ Expression* AnonymousFunctionExpression::transform(Context& context) {
     closure.generateClass(this, context, &closureInfo);
 
     const Location& loc = getLocation();
-    auto constructorCall = new MethodCallExpression(closureInfo.className, loc);
+    auto constructorCall =
+        MethodCallExpression::create(closureInfo.className, loc);
     for (auto nonLocalVarDecl: closureInfo.nonLocalVars) {
         constructorCall->addArgument(
             NamedEntityExpression::create(nonLocalVarDecl->getIdentifier(),
                                           loc));
     }
 
-    return new TypeCastExpression(closureInfo.closureInterfaceType,
-                                  new HeapAllocationExpression(constructorCall),
-                                  loc);
+    return TypeCastExpression::create(
+        closureInfo.closureInterfaceType,
+        HeapAllocationExpression::create(constructorCall),
+        loc);
 }
 
 Traverse::Result AnonymousFunctionExpression::traverse(Visitor& visitor) {
@@ -2830,8 +2907,6 @@ MatchCase::MatchCase(const Location& loc) :
     resultBlock(nullptr),
     isExhaustive(false) {}
 
-MatchCase::MatchCase() : MatchCase(Location()) {}
-
 MatchCase::MatchCase(const MatchCase& other) :
     Node(other),
     patternExpressions(),
@@ -2842,6 +2917,14 @@ MatchCase::MatchCase(const MatchCase& other) :
 
     Utils::cloneList(patternExpressions, other.patternExpressions);
     Utils::cloneList(patterns, other.patterns);
+}
+
+MatchCase* MatchCase::create(const Location& loc) {
+    return new MatchCase(loc);
+}
+
+MatchCase* MatchCase::create() {
+    return create(Location());
 }
 
 Traverse::Result MatchCase::traverse(Visitor& visitor) {
@@ -3090,9 +3173,6 @@ MatchExpression::MatchExpression(Expression* s, const Location& loc) :
     cases(),
     isGenerated(false) {}
 
-MatchExpression::MatchExpression(Expression* s) :
-    MatchExpression(s, Location()) {}
-
 MatchExpression::MatchExpression(const MatchExpression& other) :
     Expression(other),
     subject(other.subject->clone()),
@@ -3100,6 +3180,14 @@ MatchExpression::MatchExpression(const MatchExpression& other) :
     isGenerated(other.isGenerated) {
 
     Utils::cloneList(cases, other.cases);
+}
+
+MatchExpression* MatchExpression::create(Expression* s, const Location& loc) {
+    return new MatchExpression(s, loc);
+}
+
+MatchExpression* MatchExpression::create(Expression* s) {
+    return create(s, Location());
 }
 
 Expression* MatchExpression::clone() const {
@@ -3117,14 +3205,14 @@ Expression* MatchExpression::transform(Context& context) {
 
     Identifier resultTmpName =
         VariableDeclarationStatement::generateTemporaryName(matchResultName);
-    BlockStatement* matchLogic = generateMatchLogic(context, resultTmpName);
+    auto matchLogic = generateMatchLogic(context, resultTmpName);
     if (type->isVoid()) {
         // The MatchExpression does not return anything so transform it into a
         // WrappedStatement that contains the match logic. No need to run
         // typeCheck() on the generated match logic code from here, since the
         // typeCheck() method on the WrappedStatementExpression will be called
         // by the containing BlockStatement.
-        return new WrappedStatementExpression(matchLogic, location);
+        return WrappedStatementExpression::create(matchLogic, location);
     } else {
         // The MatchExpression returns a value so transform it into a
         // LocalVariableExpression that references the match result.
@@ -3138,7 +3226,7 @@ Expression* MatchExpression::transform(Context& context) {
         // so that results can be assigned in the match logic.
         type->setConstant(false);
 
-        BlockStatement* currentBlock = context.getBlock();
+        auto currentBlock = context.getBlock();
         currentBlock->insertBeforeCurrentStatement(resultTmpDeclaration);
 
         // Run typeCheck() pass on the generated match logic code.
@@ -3327,6 +3415,13 @@ ClassDecompositionExpression::ClassDecompositionExpression(
     }
 }
 
+ClassDecompositionExpression* ClassDecompositionExpression::create(
+    Type* t,
+    const Location& l) {
+
+    return new ClassDecompositionExpression(t, l);
+}
+
 ClassDecompositionExpression* ClassDecompositionExpression::clone() const {
     return new ClassDecompositionExpression(*this);
 }
@@ -3384,6 +3479,14 @@ TypedExpression::TypedExpression(const TypedExpression& other) :
     Expression(other),
     resultName(other.resultName->clone()) {}
 
+TypedExpression* TypedExpression::create(
+    Type* targetType,
+    Expression* n,
+    const Location& l) {
+
+    return new TypedExpression(targetType, n, l);
+}
+
 TypedExpression* TypedExpression::clone() const {
     return new TypedExpression(*this);
 }
@@ -3412,12 +3515,24 @@ PlaceholderExpression::PlaceholderExpression(const Location& l) :
 PlaceholderExpression::PlaceholderExpression() :
     Expression(Expression::Placeholder, Location()) {}
 
+PlaceholderExpression* PlaceholderExpression::create(const Location& l) {
+    return new PlaceholderExpression(l);
+}
+
+PlaceholderExpression* PlaceholderExpression::create() {
+    return create(Location());
+}
+
 Expression* PlaceholderExpression::clone() const {
     return new PlaceholderExpression(getLocation());
 }
 
 WildcardExpression::WildcardExpression(const Location& l) :
     Expression(Expression::Wildcard, l) {}
+
+WildcardExpression* WildcardExpression::create(const Location& l) {
+    return new WildcardExpression(l);
+}
 
 Expression* WildcardExpression::clone() const {
     return new WildcardExpression(getLocation());
@@ -3430,8 +3545,15 @@ TemporaryExpression::TemporaryExpression(
     declaration(d),
     nonStaticInlinedMethodBody(nullptr) {}
 
+TemporaryExpression* TemporaryExpression::create(
+    VariableDeclaration* d,
+    const Location& l) {
+
+    return new TemporaryExpression(d, l);
+}
+
 Expression* TemporaryExpression::clone() const {
-    return new TemporaryExpression(new VariableDeclaration(*declaration),
+    return new TemporaryExpression(declaration->clone(),
                                    getLocation());
 }
 
@@ -3467,6 +3589,13 @@ WrappedStatementExpression::WrappedStatementExpression(
     inlinedNonStaticMethod(other.inlinedNonStaticMethod),
     inlinedArrayForEach(other.inlinedArrayForEach),
     disallowYieldTransformation(other.disallowYieldTransformation) {}
+
+WrappedStatementExpression* WrappedStatementExpression::create(
+    Statement* s,
+    const Location& l) {
+
+    return new WrappedStatementExpression(s, l);
+}
 
 Expression* WrappedStatementExpression::clone() const {
     return new WrappedStatementExpression(*this);

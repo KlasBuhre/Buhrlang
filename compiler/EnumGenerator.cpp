@@ -45,15 +45,15 @@ namespace {
         } else {
             checkNonPrimitiveVariantDataMember(variantDataMember);
             if (variantDataType->isReference()) {
-                return new TypeCastExpression(
+                return TypeCastExpression::create(
                     variantDataType->clone(),
                     MemberSelectorExpression::create(
                         variantDataMemberSelector,
                         NamedEntityExpression::create(
                             CommonNames::cloneMethodName)));
             } else {
-                MethodCallExpression* deepCopyCall =
-                    new MethodCallExpression(CommonNames::deepCopyMethodName);
+                auto deepCopyCall = MethodCallExpression::create(
+                    CommonNames::deepCopyMethodName);
                 deepCopyCall->addArgument(variantDataMemberSelector);
                 return MemberSelectorExpression::create(
                     variantDataType->getFullConstructedName(),
@@ -444,7 +444,7 @@ void EnumGenerator::generateDeepCopyMethod() {
                                     otherTagVariableName)));
 
     auto match =
-        new MatchExpression(
+        MatchExpression::create(
             NamedEntityExpression::create(otherTagVariableName));
     const DefinitionList& members = tree.getCurrentClass()->getMembers();
     for (auto member: members) {
@@ -454,8 +454,8 @@ void EnumGenerator::generateDeepCopyMethod() {
             }
         }
     }
-    auto unknownCase = new MatchCase();
-    unknownCase->addPatternExpression(new PlaceholderExpression());
+    auto unknownCase = MatchCase::create();
+    unknownCase->addPatternExpression(PlaceholderExpression::create());
     match->addCase(unknownCase);
     tree.addStatement(match);
 
@@ -503,7 +503,7 @@ MethodDefinition* EnumGenerator::generateDeepCopyMethodSignature(
 MatchCase* EnumGenerator::generateVariantMatchCase(
     MethodDefinition* variantConstructor) {
 
-    auto matchCase = new MatchCase();
+    auto matchCase = MatchCase::create();
     const Identifier& variantName = variantConstructor->getName();
     matchCase->addPatternExpression(
         NamedEntityExpression::create(
@@ -589,10 +589,10 @@ void EnumGenerator::generateImplicitConversion() {
     auto convertableEnumType = Type::create(fullEnumType->getName());
     convertableEnumType->addGenericTypeParameter(
         Type::create(Type::Placeholder));
-    VariableDeclaration* argument =
-        new VariableDeclaration(convertableEnumType,
-                                otherVariableName,
-                                location);
+    auto argument =
+        VariableDeclaration::create(convertableEnumType,
+                                    otherVariableName,
+                                    location);
     method->addArgument(argument);
 
     tree.addStatement(

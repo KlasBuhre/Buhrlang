@@ -227,6 +227,10 @@ FunctionSignature::FunctionSignature(const FunctionSignature& other) :
     Utils::cloneList(arguments, other.arguments);
 }
 
+FunctionSignature* FunctionSignature::create(Type* rt) {
+    return new FunctionSignature(rt);
+}
+
 FunctionSignature* FunctionSignature::clone() const {
     return new FunctionSignature(*this);
 }
@@ -263,14 +267,23 @@ VariableDeclaration::VariableDeclaration(
     identifier(i),
     isMember(false) {}
 
-VariableDeclaration::VariableDeclaration(Type* t, const Identifier& i) :
-    VariableDeclaration(t, i, Location()) {}
-
 VariableDeclaration::VariableDeclaration(const VariableDeclaration& other) :
     Node(other),
     type(other.type ? other.type->clone() : nullptr),
     identifier(other.identifier),
     isMember(other.isMember) {}
+
+VariableDeclaration* VariableDeclaration::create(
+    Type* t,
+    const Identifier& i,
+    const Location& l) {
+
+    return new VariableDeclaration(t, i, l);
+}
+
+VariableDeclaration* VariableDeclaration::create(Type* t, const Identifier& i) {
+    return create(t, i, Location());
+}
 
 VariableDeclaration* VariableDeclaration::clone() const {
     return new VariableDeclaration(*this);

@@ -66,7 +66,7 @@ namespace {
         Context& context) {
 
         auto classDecomposition =
-            new ClassDecompositionExpression(
+            ClassDecompositionExpression::create(
                 Type::create(constructorCall->getName()),
                 constructorCall->getLocation());
 
@@ -111,7 +111,7 @@ namespace {
         const auto enumDef = enumConstructor->getClass();
 
         auto classDecomposition =
-            new ClassDecompositionExpression(
+            ClassDecompositionExpression::create(
                 Type::create(enumDef->getName()),
                 enumConstructorCall->getLocation());
 
@@ -463,7 +463,7 @@ ArraySubscriptExpression* ArrayPattern::generateArraySubscriptExpression(
             IntegerLiteralExpression::create(std::distance(elements.begin(), i),
                                              location);
     }
-    return new ArraySubscriptExpression(subject->clone(), indexExpression);
+    return ArraySubscriptExpression::create(subject->clone(), indexExpression);
 }
 
 BinaryExpression* ArrayPattern::generateLengthComparisonExpression() {
@@ -719,9 +719,9 @@ BinaryExpression* ClassDecompositionPattern::generateTypeComparisonExpression(
                                              nullptr,
                                              location));
     auto typeCast =
-        new TypeCastExpression(castedSubjectType,
-                               originalSubject->clone(),
-                               location);
+        TypeCastExpression::create(castedSubjectType,
+                                   originalSubject->clone(),
+                                   location);
     auto castedSubject = LocalVariableExpression::create(castedSubjectType,
                                                          castedSubjectName,
                                                          location);
@@ -732,7 +732,7 @@ BinaryExpression* ClassDecompositionPattern::generateTypeComparisonExpression(
                                  castedSubject->clone(),
                                  typeCast,
                                  location),
-        new NullExpression(location),
+        NullExpression::create(location),
         location);
 }
 
@@ -752,7 +752,7 @@ ClassDecompositionPattern::generateEnumVariantTagComparisonExpression(
                                          location);
     auto tagConstant =
         MemberSelectorExpression::create(NamedEntityExpression::create(enumName,
-                                                                   location),
+                                                                       location),
                                          NamedEntityExpression::create(
                                              Symbol::makeEnumVariantTagName(
                                                  enumVariantName),
@@ -805,7 +805,9 @@ BinaryExpression* TypedPattern::generateComparisonExpression(
                                              nullptr,
                                              location));
     auto typeCast =
-        new TypeCastExpression(castedSubjectType, subject->clone(), location);
+        TypeCastExpression::create(castedSubjectType,
+                                   subject->clone(),
+                                   location);
     auto castedSubject =
         LocalVariableExpression::create(castedSubjectType,
                                         castedSubjectName,
@@ -824,6 +826,6 @@ BinaryExpression* TypedPattern::generateComparisonExpression(
                                  castedSubject->clone(),
                                  typeCast,
                                  location),
-        new NullExpression(location),
+        NullExpression::create(location),
         location);
 }

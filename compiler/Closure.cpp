@@ -93,7 +93,7 @@ namespace {
     Traverse::Result NonLocalVarVisitor::visitMemberSelector(
         MemberSelectorExpression& memberSelector) {
 
-        if (NamedEntityExpression* namedEntity =
+        if (auto namedEntity =
                 memberSelector.getLeft()->dynCast<NamedEntityExpression>()) {
             checkIfNonLocal(*namedEntity);
         }
@@ -113,7 +113,7 @@ namespace {
             return;
         }
 
-        NameBindings* funcEnclosingScope = funcScope.getEnclosing();
+        auto funcEnclosingScope = funcScope.getEnclosing();
         funcScope.setEnclosing(&globalScope);
         bool mayBeNonLocalVar = (currentScope->lookup(identifier) == nullptr);
         funcScope.setEnclosing(funcEnclosingScope);
@@ -125,18 +125,18 @@ namespace {
         // Could not resolve the named entity, which could mean that it is a
         // non-local variable. We will check that by trying to resolve it when
         // the function scope is reconnected to its outer scope.
-        Binding* binding = currentScope->lookup(identifier);
+        auto binding = currentScope->lookup(identifier);
         if (binding == nullptr) {
             // This is an unknown identifier.
             return;
         }
 
-        Type* nonLocalType = binding->getVariableType();
+        auto nonLocalType = binding->getVariableType();
         if (nonLocalType != nullptr) {
             nonLocalVariables.push_back(
-                new VariableDeclaration(nonLocalType->clone(),
-                                        identifier,
-                                        namedEntity.getLocation()));
+                VariableDeclaration::create(nonLocalType->clone(),
+                                            identifier,
+                                            namedEntity.getLocation()));
             alreadyFound.insert(identifier);
         }
     }
@@ -262,7 +262,7 @@ void Closure::generateClass(
     const Context& context,
     ClosureInfo* info) {
 
-    BlockStatement* body = function->getBody();
+    auto body = function->getBody();
 
     GenericTypeVisitor genericTypeVisitor(context);
     body->traverse(genericTypeVisitor);
@@ -279,10 +279,10 @@ void Closure::generateClass(
 
     // Start generating the closure class.
     MethodDefinition* callMethod = nullptr;
-    ClassDefinition* closureClass = startGeneratingClass(function,
-                                                         nonLocalVariables,
-                                                         context,
-                                                         &callMethod);
+    auto closureClass = startGeneratingClass(function,
+                                             nonLocalVariables,
+                                             context,
+                                             &callMethod);
     info->className = closureClass->getName();
 
     // Infer any implicit types in the closure signature by running the
@@ -291,11 +291,11 @@ void Closure::generateClass(
 
     // Calculate the return type of the closure by inspecting the last
     // statement.
-    Type* returnType = handleReturnType(callMethod);
+    auto returnType = handleReturnType(callMethod);
     callMethod->setReturnType(returnType->clone());
 
     // Get the closure interface type from the call method signature.
-    Type* closureInterfaceType = getClosureInterfaceType(callMethod);
+    auto closureInterfaceType = getClosureInterfaceType(callMethod);
     info->closureInterfaceType = closureInterfaceType;
 
     tree.insertClassPostParse(closureClass, false);
@@ -353,7 +353,7 @@ Type* Closure::getClosureInterfaceType(MethodDefinition* callMethod) {
     auto closureType = Type::create(Type::Function);
 
     auto closureSignature =
-        new FunctionSignature(callMethod->getReturnType()->clone());
+        FunctionSignature::create(callMethod->getReturnType()->clone());
     for (auto argument: callMethod->getArgumentList()) {
         closureSignature->addArgument(argument->getType()->clone());
     }

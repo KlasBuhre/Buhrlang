@@ -59,14 +59,14 @@ void CloneGenerator::generateEmptyCloneMethod(ClassDefinition *classDef) {
 void CloneGenerator::generateCloneMethod() {    
     // An empty clone method was created for the message class when the class
     // was created. We will now generate the method body.
-    MethodDefinition* cloneMethod = getCloneMethod(inputClass);
+    auto cloneMethod = getCloneMethod(inputClass);
     tree.setCurrentBlock(cloneMethod->getBody());
 
-    MethodCallExpression* constructorCall =
-        new MethodCallExpression(inputClass->getName());
-    constructorCall->addArgument(new ThisExpression());
+    auto constructorCall = MethodCallExpression::create(inputClass->getName());
+    constructorCall->addArgument(ThisExpression::create());
     tree.addStatement(
-        ReturnStatement::create(new HeapAllocationExpression(constructorCall)));
+        ReturnStatement::create(
+            HeapAllocationExpression::create(constructorCall)));
 
     tree.finishBlock();
 }
@@ -148,8 +148,7 @@ void CloneGenerator::generateBaseClassConstructorCall() {
                      inputClass);
     }
 
-    MethodCallExpression* constructorCall =
-        new MethodCallExpression(baseClass->getName());
+    auto constructorCall = MethodCallExpression::create(baseClass->getName());
     constructorCall->addArgument(CommonNames::otherVariableName);
     tree.addStatement(ConstructorCallStatement::create(constructorCall));
 }
@@ -182,8 +181,8 @@ void CloneGenerator::generateEnumMemberInit(
     checkNonPrimitiveMember(dataMember);
 
     const Identifier& memberName = dataMember->getName();
-    MethodCallExpression* deepCopyCall =
-        new MethodCallExpression(CommonNames::deepCopyMethodName);
+    auto deepCopyCall =
+        MethodCallExpression::create(CommonNames::deepCopyMethodName);
     deepCopyCall->addArgument(
         MemberSelectorExpression::create(CommonNames::otherVariableName,
                                          memberName));
@@ -223,8 +222,8 @@ void CloneGenerator::generateArrayMemberInit(
 
     // Generate:
     // memberArray = new MemberArrayType[other.memberArray.size]
-    ArrayAllocationExpression* allocation =
-        new ArrayAllocationExpression(
+    auto allocation =
+        ArrayAllocationExpression::create(
            dataMemberType->clone(),
            MemberSelectorExpression::create(
                NamedEntityExpression::create(CommonNames::otherVariableName),
@@ -257,8 +256,8 @@ void CloneGenerator::generateArrayMemberInit(
 // memberArray.appendAll(other.memberArray)
 //
 void CloneGenerator::generateArrayAppendAllCall(const Identifier& memberName) {
-    MethodCallExpression* appendAllCall =
-        new MethodCallExpression(BuiltInTypes::arrayAppendAllMethodName);
+    auto appendAllCall =
+        MethodCallExpression::create(BuiltInTypes::arrayAppendAllMethodName);
     appendAllCall->addArgument(
         MemberSelectorExpression::create(CommonNames::otherVariableName,
                                          memberName));
@@ -283,9 +282,10 @@ void CloneGenerator::generateArrayForEachLoop(
 
     // Generate:
     // other.memberArray.each |element| {
-    auto eachCall = new MethodCallExpression(BuiltInTypes::arrayEachMethodName);
+    auto eachCall =
+        MethodCallExpression::create(BuiltInTypes::arrayEachMethodName);
     auto lambdaBody = tree.startBlock();
-    auto lambda = new LambdaExpression(lambdaBody);
+    auto lambda = LambdaExpression::create(lambdaBody);
     auto lambdaArgument =
         VariableDeclarationStatement::create(Type::create(Type::Implicit),
                                              elementVariableName,
@@ -293,13 +293,13 @@ void CloneGenerator::generateArrayForEachLoop(
                                              Location());
     lambda->addArgument(lambdaArgument);
 
-    MethodCallExpression* appendCall =
-        new MethodCallExpression(BuiltInTypes::arrayAppendMethodName);
+    auto appendCall =
+        MethodCallExpression::create(BuiltInTypes::arrayAppendMethodName);
     if (arrayElementType->isEnumeration()) {
         // Generate:
         // memberArray.append(MemberType._deepCopy(element))
-        MethodCallExpression* deepCopyCall =
-            new MethodCallExpression(CommonNames::deepCopyMethodName);
+        auto deepCopyCall =
+            MethodCallExpression::create(CommonNames::deepCopyMethodName);
         deepCopyCall->addArgument(elementVariableName);
         appendCall->addArgument(
             MemberSelectorExpression::create(
@@ -308,11 +308,11 @@ void CloneGenerator::generateArrayForEachLoop(
     } else {
         // Generate:
         // memberArray.append((ArrayType) element._clone)
-        TypeCastExpression* cloneCall =
-            new TypeCastExpression(arrayElementType,
-                                   MemberSelectorExpression::create(
-                                       elementVariableName,
-                                       CommonNames::cloneMethodName));
+        auto cloneCall =
+            TypeCastExpression::create(arrayElementType,
+                                       MemberSelectorExpression::create(
+                                           elementVariableName,
+                                           CommonNames::cloneMethodName));
         appendCall->addArgument(cloneCall);
     }
     tree.addStatement(MemberSelectorExpression::create(memberName, appendCall));
@@ -344,8 +344,8 @@ void CloneGenerator::generateReferenceMemberInit(
             NamedEntityExpression::create(CommonNames::otherVariableName),
             MemberSelectorExpression::create(memberName,
                                              CommonNames::cloneMethodName));
-    TypeCastExpression* rhs =
-        new TypeCastExpression(dataMember->getType()->clone(), clonedMember);
+    auto rhs = TypeCastExpression::create(dataMember->getType()->clone(),
+                                          clonedMember);
     auto initExpression =
         BinaryExpression::create(Operator::Assignment,
                                  NamedEntityExpression::create(memberName),

@@ -279,7 +279,7 @@ void ProcessGenerator::generateCallConstructor(
         Expression* rhs = NULL;
         auto argumentType = argument->getType();
         if (argumentType->getClass()->isProcess()) {
-            rhs = new TypeCastExpression(
+            rhs = TypeCastExpression::create(
                       Type::create(argumentType->getName() + "_Proxy"),
                       NamedEntityExpression::create(
                           argument->getIdentifier() + "_Arg"));
@@ -355,7 +355,7 @@ MemberSelectorExpression* ProcessGenerator::generateProcessMethodCall(
     MethodDefinition* remoteMethodSignature) {
 
     auto processMethodCall =
-        new MethodCallExpression(remoteMethodSignature->getName());
+        MethodCallExpression::create(remoteMethodSignature->getName());
     for (auto argument: remoteMethodSignature->getArgumentList()) {
         processMethodCall->addArgument(argument->getIdentifier());
     }
@@ -378,10 +378,10 @@ VariableDeclarationStatement* ProcessGenerator::generateRetValDeclaration(
         auto boxType = Type::create(BuiltInTypes::boxTypeName);
         boxType->addGenericTypeParameter(remoteCallReturnType->clone());
         auto boxConstructorCall =
-            new MethodCallExpression(BuiltInTypes::boxTypeName);
+            MethodCallExpression::create(BuiltInTypes::boxTypeName);
         boxConstructorCall->addArgument(processMethodCall);
-        initExpression = new HeapAllocationExpression(boxType,
-                                                      boxConstructorCall);
+        initExpression = HeapAllocationExpression::create(boxType,
+                                                          boxConstructorCall);
     }
 
     return VariableDeclarationStatement::create(retvalVariableName,
@@ -393,11 +393,10 @@ VariableDeclarationStatement* ProcessGenerator::generateRetValDeclaration(
 // Process.send(sourcePid, message.createMethodResult(retval))
 //
 MemberSelectorExpression* ProcessGenerator::generateSendMethodResult() {
-    MethodCallExpression* createMethodResult =
-        new MethodCallExpression(createMethodResultMethodName);
+    auto createMethodResult =
+        MethodCallExpression::create(createMethodResultMethodName);
     createMethodResult->addArgument(retvalVariableName);
-    MethodCallExpression* send =
-        new MethodCallExpression(sendMethodName);
+    auto send = MethodCallExpression::create(sendMethodName);
     send->addArgument(sourcePidVariableName);
     send->addArgument(MemberSelectorExpression::create(messageVariableName,
                                                        createMethodResult));
@@ -525,15 +524,15 @@ void ProcessGenerator::generateMessageHandlerClass() {
 // }
 // 
 void ProcessGenerator::generateHandleMessageMethod() {
-    MethodDefinition* handleMessageMethod = 
+    auto handleMessageMethod =
         generateHandleMessageMethodSignature(tree.startBlock());
 
-    Expression* processCall = generateCastAndCall(inputClassName);
+    auto processCall = generateCastAndCall(inputClassName);
     if (inputClass->isInheritingFromProcessInterface()) {
-        MatchExpression* match = new MatchExpression(
+        auto match = MatchExpression::create(
             MemberSelectorExpression::create(messageVariableName,
                                              interfaceIdVariableName));
-        MatchCase* processCase = new MatchCase();
+        auto processCase = MatchCase::create();
         processCase->addPatternExpression(
             MemberSelectorExpression::create(interfaceIdClassName,
                                              inputClassName + "Id"));
@@ -560,7 +559,7 @@ void ProcessGenerator::generateHandleMessageMethod() {
 void ProcessGenerator::generateInterfaceMatchCases(MatchExpression* match) {
     for (auto parent: inputClass->getParentClasses()) {
         if (parent->isProcess() && parent->isInterface()) {
-            auto interfaceCase = new MatchCase();
+            auto interfaceCase = MatchCase::create();
             const Identifier& interfaceName = parent->getName();
             interfaceCase->addPatternExpression(
                 MemberSelectorExpression::create(interfaceIdClassName,
@@ -573,8 +572,8 @@ void ProcessGenerator::generateInterfaceMatchCases(MatchExpression* match) {
         }
     }
 
-    auto unknownCase = new MatchCase();
-    unknownCase->addPatternExpression(new PlaceholderExpression());
+    auto unknownCase = MatchCase::create();
+    unknownCase->addPatternExpression(PlaceholderExpression::create());
     match->addCase(unknownCase);
 }
 
@@ -601,14 +600,14 @@ MethodDefinition* ProcessGenerator::generateHandleMessageMethodSignature(
 MemberSelectorExpression* ProcessGenerator::generateCastAndCall(
     const Identifier& processType) {
 
-    auto call = new MethodCallExpression(callMethodName);
+    auto call = MethodCallExpression::create(callMethodName);
     call->addArgument(messageVariableName);
-    call->addArgument(new ThisExpression());
+    call->addArgument(ThisExpression::create());
     auto typeCast =
-        new TypeCastExpression(Type::create(processType + "_Call"),
-                               MemberSelectorExpression::create(
-                                   messageVariableName,
-                                   dataVariableName));
+        TypeCastExpression::create(Type::create(processType + "_Call"),
+                                   MemberSelectorExpression::create(
+                                       messageVariableName,
+                                       dataVariableName));
     return MemberSelectorExpression::create(typeCast, call);
 }
 
@@ -639,13 +638,13 @@ void ProcessGenerator::generateMessageHandlerGetProxyMethods() {
 void ProcessGenerator::generateMessageHandlerGetInterfaceProxyMethod(
     const Identifier& interfaceName) {
 
-    MethodDefinition* getProxyMethod = createGetProxyMethodSignature(
+    auto getProxyMethod = createGetProxyMethodSignature(
         tree.getCurrentClass(),
         tree.startBlock(),
         interfaceName);
 
-    MethodCallExpression* constructorCall =
-        new MethodCallExpression(interfaceName + "_Proxy");
+    auto constructorCall =
+        MethodCallExpression::create(interfaceName + "_Proxy");
     constructorCall->addArgument(
         MemberSelectorExpression::create(processTypeName, getPidMethodName));
     if (inputClass->isProcess()) {
@@ -657,7 +656,8 @@ void ProcessGenerator::generateMessageHandlerGetInterfaceProxyMethod(
         MemberSelectorExpression::create(interfaceIdClassName,
                                          interfaceName + "Id"));
     tree.addStatement(
-        ReturnStatement::create(new HeapAllocationExpression(constructorCall)));
+        ReturnStatement::create(
+            HeapAllocationExpression::create(constructorCall)));
 
     finishNonAbstractMethod(getProxyMethod);
 }
@@ -669,17 +669,18 @@ void ProcessGenerator::generateMessageHandlerGetInterfaceProxyMethod(
 // }
 //
 void ProcessGenerator::generateMessageHandlerGetProcessProxyMethod() {
-    MethodDefinition* getProxyMethod =
+    auto getProxyMethod =
         createGetProxyMethodSignature(tree.getCurrentClass(),
                                       tree.startBlock(),
                                       inputClassName);
 
-    MethodCallExpression* constructorCall =
-        new MethodCallExpression(inputClassName + "_Proxy");
+    auto constructorCall =
+        MethodCallExpression::create(inputClassName + "_Proxy");
     constructorCall->addArgument(
         MemberSelectorExpression::create(processTypeName, getPidMethodName));
     tree.addStatement(
-        ReturnStatement::create(new HeapAllocationExpression(constructorCall)));
+        ReturnStatement::create(
+            HeapAllocationExpression::create(constructorCall)));
 
     finishNonAbstractMethod(getProxyMethod);
 }
@@ -710,9 +711,9 @@ void ProcessGenerator::generateMessageHandlerFactoryClass() {
             Type::create(CommonNames::messageHandlerTypeName),
             tree.getCurrentClass());
     createMessageHandlerMethod->setBody(tree.startBlock());
-    HeapAllocationExpression* allocation =
-        new HeapAllocationExpression(
-            new MethodCallExpression(messageHandlerClassName));
+    auto allocation =
+        HeapAllocationExpression::create(
+            MethodCallExpression::create(messageHandlerClassName));
     tree.addStatement(ReturnStatement::create(allocation));
     finishNonAbstractMethod(createMessageHandlerMethod);
 
@@ -811,13 +812,13 @@ void ProcessGenerator::generateProxyClass() {
 // }
 //
 void ProcessGenerator::generateProxyConstructor(bool includeProcessName) {
-    MethodDefinition* proxyConstructorMethod =
+    auto proxyConstructorMethod =
         generateProxyConstructorMethodSignature(tree.startBlock(),
                                                 includeProcessName);
 
-    MethodCallExpression* spawn = new MethodCallExpression(spawnMethodName);
-    spawn->addArgument(new HeapAllocationExpression(new MethodCallExpression(
-        factoryClassName)));
+    auto spawn = MethodCallExpression::create(spawnMethodName);
+    spawn->addArgument(HeapAllocationExpression::create(
+        MethodCallExpression::create(factoryClassName)));
     if (includeProcessName) {
         spawn->addArgument(nameVariableName);
     }
@@ -898,16 +899,16 @@ ProcessGenerator::generateProxyConstructorMethodSignatureWithPid(
 void ProcessGenerator::generateProxyRemoteMethod(
     MethodDefinition* remoteMethodSignature) {
 
-    MethodDefinition* proxyMethod =
+    auto proxyMethod =
         generateProxyRemoteMethodSignature(remoteMethodSignature,
                                            tree.startBlock());
 
     tree.addStatement(generateMessageDeclaration(remoteMethodSignature));
-    MethodCallExpression* send = new MethodCallExpression(sendMethodName);
+    auto send = MethodCallExpression::create(sendMethodName);
     send->addArgument(pidVariableName);
     send->addArgument(messageVariableName);
     tree.addStatement(MemberSelectorExpression::create(processTypeName, send));
-    Type* remoteCallReturnType = remoteMethodSignature->getReturnType();
+    auto remoteCallReturnType = remoteMethodSignature->getReturnType();
     if (!remoteCallReturnType->isVoid()) {
         tree.addStatement(
             generateMethodResultReturnStatement(remoteCallReturnType));
@@ -953,9 +954,9 @@ MethodDefinition* ProcessGenerator::generateProxyRemoteMethodSignature(
 Statement* ProcessGenerator::generateMessageDeclaration(
     MethodDefinition* remoteMethodSignature) {
 
-    auto callClassConstructorCall =
-        new MethodCallExpression(inputClassName + "_" +
-                                 remoteMethodSignature->getName() + "_Call");
+    auto callClassConstructorCall = MethodCallExpression::create(
+        inputClassName + "_" +
+        remoteMethodSignature->getName() + "_Call");
     if (!remoteMethodSignature->getReturnType()->isVoid()) {
         callClassConstructorCall->addArgument(
             MemberSelectorExpression::create(processTypeName,
@@ -968,7 +969,7 @@ Statement* ProcessGenerator::generateMessageDeclaration(
     }
 
     auto messageClassConstructorCall =
-        new MethodCallExpression(messageTypeName);
+        MethodCallExpression::create(messageTypeName);
     if (inputClass->isInterface()) {
         messageClassConstructorCall->addArgument(messageHandlerIdVariableName);
         messageClassConstructorCall->addArgument(interfaceIdVariableName);
@@ -978,10 +979,10 @@ Statement* ProcessGenerator::generateMessageDeclaration(
                                              methodCallConstantName));
     }
     messageClassConstructorCall->addArgument(
-        new HeapAllocationExpression(callClassConstructorCall));
+        HeapAllocationExpression::create(callClassConstructorCall));
     return VariableDeclarationStatement::create(
         messageVariableName,
-        new HeapAllocationExpression(messageClassConstructorCall));
+        HeapAllocationExpression::create(messageClassConstructorCall));
 }
 
 // Generate the following expression:
@@ -1019,8 +1020,8 @@ Statement* ProcessGenerator::generateMethodResultReturnStatement(
         returnType = Type::create(BuiltInTypes::boxTypeName);
         returnType->addGenericTypeParameter(remoteCallReturnType->clone());
     }
-    MethodCallExpression* receiveMethodResult =
-        new MethodCallExpression(receiveMethodResultMethodName);
+    auto receiveMethodResult =
+        MethodCallExpression::create(receiveMethodResultMethodName);
     receiveMethodResult->addArgument(
         MemberSelectorExpression::create(messageVariableName, idVariableName));
     auto selector =
@@ -1029,7 +1030,7 @@ Statement* ProcessGenerator::generateMethodResultReturnStatement(
             MemberSelectorExpression::create(
                 receiveMethodResult,
                 NamedEntityExpression::create(dataVariableName)));
-    TypeCastExpression* typeCast = new TypeCastExpression(returnType, selector);
+    auto typeCast = TypeCastExpression::create(returnType, selector);
     Expression* returnedExpression = nullptr;
     if (remoteCallReturnType->isReference()) {
         returnedExpression = typeCast;
@@ -1057,7 +1058,7 @@ void ProcessGenerator::generateProxyGetProxyMethod(
         tree.startBlock(),
         processOrInterfaceName);
 
-    tree.addStatement(ReturnStatement::create(new ThisExpression()));
+    tree.addStatement(ReturnStatement::create(ThisExpression::create()));
 
     finishNonAbstractMethod(getProxyMethod);
 }
@@ -1069,10 +1070,10 @@ void ProcessGenerator::generateProxyGetProxyMethod(
 // }
 //
 void ProcessGenerator::generateProxyWaitMethod() {
-    MethodDefinition* waitMethod =
+    auto waitMethod =
         createWaitMethodSignature(tree.getCurrentClass(), tree.startBlock());
 
-    MethodCallExpression* wait = new MethodCallExpression(waitMethodName);
+    auto wait = MethodCallExpression::create(waitMethodName);
     wait->addArgument(pidVariableName);
     tree.addStatement(MemberSelectorExpression::create(processTypeName, wait));
 
@@ -1097,11 +1098,11 @@ void ProcessGenerator::generateGetProcessInterfaceProxyMethodSignature() {
 //
 void ProcessGenerator::updateRegularClassConstructor() {
     inputClass->generateDefaultConstructorIfNeeded();
-    MethodDefinition* constructor = inputClass->getDefaultConstructor();
+    auto constructor = inputClass->getDefaultConstructor();
 
-    MethodCallExpression* registerHandler =
-        new MethodCallExpression(registerMessageHandlerMethodName);
-    registerHandler->addArgument(new ThisExpression());
+    auto registerHandler =
+        MethodCallExpression::create(registerMessageHandlerMethodName);
+    registerHandler->addArgument(ThisExpression::create());
     auto assignment = BinaryExpression::create(
         Operator::Assignment,
         NamedEntityExpression::create(messageHandlerIdVariableName),
@@ -1123,10 +1124,10 @@ void ProcessGenerator::updateRegularClassConstructor() {
 // }
 //
 void ProcessGenerator::generateRegularClassMessageHandlerMethod() {
-    MethodDefinition* handleMessageMethod =
+    auto handleMessageMethod =
         generateHandleMessageMethodSignature(tree.startBlock());
 
-    MatchExpression* match = new MatchExpression(
+    auto match = MatchExpression::create(
         MemberSelectorExpression::create(messageVariableName,
                                          interfaceIdVariableName));
     generateInterfaceMatchCases(match);

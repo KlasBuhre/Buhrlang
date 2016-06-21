@@ -447,16 +447,16 @@ void Parser::parseArgumentList(ArgumentList& argumentList) {
             isDataMember = false;
         }
 
-        Type* type = parseType();
+        auto type = parseType();
         const Token& identifier = lexer.consumeToken();
         if (!identifier.isIdentifier()) {
             error("Expected identifier.", identifier);
         }
 
-        VariableDeclaration* argument =
-            new VariableDeclaration(type,
-                                    identifier.getValue(),
-                                    identifier.getLocation());
+        auto argument =
+            VariableDeclaration::create(type,
+                                        identifier.getValue(),
+                                        identifier.getLocation());
         argument->setIsDataMember(isDataMember);
         argumentList.push_back(argument);
     }
@@ -473,7 +473,7 @@ FunctionSignature* Parser::parseFunctionSignature() {
         error("Expected '('.", openParentheses);
     }
 
-    FunctionSignature* functionSignature = new FunctionSignature(returnType);
+    auto functionSignature = FunctionSignature::create(returnType);
     CommaSeparatedListParser listParser(*this, Operator::CloseParentheses);
     while (listParser.parseComma()) {
         functionSignature->addArgument(parseType());
@@ -651,11 +651,12 @@ void Parser::parseEnumerationVariant(EnumGenerator& enumGenerator) {
         CommaSeparatedListParser listParser(*this, Operator::CloseParentheses);
         int numberOfDataMembers = 0;
         while (listParser.parseComma()) {
-            Location loc = location();
-            VariableDeclaration* variantDataMember =
-                new VariableDeclaration(parseType(),
-                                        Symbol::makeTemp(numberOfDataMembers++),
-                                        loc);
+            auto loc = location();
+            auto variantDataMember =
+                VariableDeclaration::create(
+                    parseType(),
+                    Symbol::makeTemp(numberOfDataMembers++),
+                    loc);
             variantDataMember->setIsDataMember(true);
             variantData.push_back(variantDataMember);
         }
@@ -1151,7 +1152,7 @@ Expression* Parser::parseSimpleExpression(bool patternAllowed) {
                     expression = parseBooleanLiteralExpression(token);
                     break;
                 case Keyword::This:
-                    expression = new ThisExpression(location);
+                    expression = ThisExpression::create(location);
                     break;
                 case Keyword::New:
                     expression = parseNewExpression();
@@ -1185,10 +1186,10 @@ Expression* Parser::parseSimpleExpression(bool patternAllowed) {
                     expression = parseParenthesesOrTypeCastExpression();
                     break;
                 case Operator::Placeholder:
-                    expression = new PlaceholderExpression(location);
+                    expression = PlaceholderExpression::create(location);
                     break;
                 case Operator::Wildcard:
-                    expression = new WildcardExpression(location);
+                    expression = WildcardExpression::create(location);
                     break;
                 default:
                     error("Unexpected operator token.", token);
@@ -1295,17 +1296,16 @@ Expression* Parser::parseTypeCastExpression() {
         error("Expected ')'.", token);
     }
 
-    Expression* expression = parseSubexpression();
-    TypeCastExpression* typeCast = new TypeCastExpression(type,
-                                                          expression,
-                                                          token.getLocation());
+    auto expression = parseSubexpression();
+    auto typeCast =
+        TypeCastExpression::create(type, expression, token.getLocation());
     typeCast->setGenerated(false);
     return typeCast;
 }
 
 Expression* Parser::parseMethodCall(const Token& name) {
-    MethodCallExpression* methodCall =
-        new MethodCallExpression(name.getValue(), name.getLocation());
+    auto methodCall =
+        MethodCallExpression::create(name.getValue(), name.getLocation());
     parseExpressionList(methodCall->getArguments(),
                         Operator::OpenParentheses,
                         Operator::CloseParentheses);
@@ -1354,8 +1354,8 @@ bool Parser::lambdaExpressionStartsHere() {
 }
 
 void Parser::parseLambdaExpression(MethodCallExpression* methodCall) {
-    BlockStatement* body = tree.startBlock(location());
-    LambdaExpression* lambda = new LambdaExpression(body, location());
+    auto body = tree.startBlock(location());
+    auto lambda = LambdaExpression::create(body, location());
 
     switch (lexer.getCurrentToken().getOperator()) {
         case Operator::BitwiseOr:
@@ -1405,19 +1405,19 @@ void Parser::parseLambdaArguments(
                     identifier.getLocation());
             lambda->addArgument(argument);
         } else {
-            VariableDeclaration* argument =
-                new VariableDeclaration(type,
-                                        identifier.getValue(),
-                                        identifier.getLocation());
+            auto argument =
+                VariableDeclaration::create(type,
+                                            identifier.getValue(),
+                                            identifier.getLocation());
             anonymousFunction->addArgument(argument);
         }
     }
 }
 
 AnonymousFunctionExpression* Parser::parseAnonymousFunctionExpression() {
-    BlockStatement* body = tree.startBlock(location());
-    AnonymousFunctionExpression* anonymousFunction =
-        new AnonymousFunctionExpression(body, location());
+    auto body = tree.startBlock(location());
+    auto anonymousFunction =
+        AnonymousFunctionExpression::create(body, location());
 
     switch (lexer.getCurrentToken().getOperator()) {
         case Operator::BitwiseOr:
@@ -1444,8 +1444,7 @@ Expression* Parser::parseUnknownExpression(
     const Token& currentToken = lexer.getCurrentToken();
 
     if (lambdaExpressionStartsHere()) {
-        MethodCallExpression* methodCall =
-            new MethodCallExpression(previousTokenValue, loc);
+        auto methodCall = MethodCallExpression::create(previousTokenValue, loc);
         parseLambdaExpression(methodCall);
         return methodCall;
     } else if (currentToken.isOperator(Operator::OpenBrace) && patternAllowed) {
@@ -1467,7 +1466,7 @@ Expression* Parser::parseNewExpression() {
         error("Expected type or identifier.", typeNameToken);
     }
 
-    Type* type = Type::create(typeName);
+    auto type = Type::create(typeName);
     if (lexer.getCurrentToken().isOperator(Operator::Less)) {
         parseGenericTypeParameters(type);
     }
@@ -1475,27 +1474,26 @@ Expression* Parser::parseNewExpression() {
     HeapAllocationExpression* heapAllocation = nullptr;
     switch (lexer.getCurrentToken().getOperator()) {
         case Operator::OpenParentheses: {
-            MethodCallExpression* constructorCall =
-                new MethodCallExpression(typeName, typeNameLocation);
+            auto constructorCall =
+                MethodCallExpression::create(typeName, typeNameLocation);
             parseExpressionList(constructorCall->getArguments(),
                                 Operator::OpenParentheses,
                                 Operator::CloseParentheses);
-            heapAllocation = new HeapAllocationExpression(type,
-                                                          constructorCall);
+            heapAllocation = HeapAllocationExpression::create(type,
+                                                              constructorCall);
             break;
         }
         case Operator::OpenBracket: {
-            Expression* arrayCapacityExpression =
-                parseArrayIndexExpression(true);
-            return new ArrayAllocationExpression(type,
-                                                 arrayCapacityExpression,
-                                                 typeNameLocation);
+            auto arrayCapacityExpression = parseArrayIndexExpression(true);
+            return ArrayAllocationExpression::create(type,
+                                                     arrayCapacityExpression,
+                                                     typeNameLocation);
         }
         default: {
-            MethodCallExpression* constructorCall =
-                new MethodCallExpression(typeName, typeNameLocation);
-            heapAllocation = new HeapAllocationExpression(type,
-                                                          constructorCall);
+            auto constructorCall =
+                MethodCallExpression::create(typeName, typeNameLocation);
+            heapAllocation = HeapAllocationExpression::create(type,
+                                                              constructorCall);
             break;
         }
     }
@@ -1509,7 +1507,7 @@ Expression* Parser::parseNewExpression() {
 }
 
 Expression* Parser::parseYieldExpression(const Location& location) {
-    YieldExpression* yieldExpression = new YieldExpression(location);
+    auto yieldExpression = YieldExpression::create(location);
     if (lexer.getCurrentToken().isOperator(Operator::OpenParentheses)) {
         parseExpressionList(yieldExpression->getArguments(),
                             Operator::OpenParentheses,
@@ -1529,8 +1527,8 @@ ConstructorCallStatement* Parser::parseConstructorCall() {
         error("Expected '('.", lexer.getCurrentToken());
     }
 
-    MethodCallExpression* constructorCall =
-        new MethodCallExpression(baseClassOrInit.getValue(), location());
+    auto constructorCall =
+        MethodCallExpression::create(baseClassOrInit.getValue(), location());
     parseExpressionList(constructorCall->getArguments(),
                         Operator::OpenParentheses,
                         Operator::CloseParentheses);
@@ -1565,9 +1563,9 @@ Expression* Parser::parseArraySubscriptExpression(
         return arrayNameExpression;
     }
 
-    Expression* arrayIndexExpression = parseArrayIndexExpression();
-    return new ArraySubscriptExpression(arrayNameExpression,
-                                        arrayIndexExpression);
+    auto arrayIndexExpression = parseArrayIndexExpression();
+    return ArraySubscriptExpression::create(arrayNameExpression,
+                                            arrayIndexExpression);
 }
 
 NamedEntityExpression* Parser::parseNamedEntityExpression() {
@@ -1580,8 +1578,8 @@ NamedEntityExpression* Parser::parseNamedEntityExpression() {
 }
 
 Expression* Parser::parseMatchExpression(const Location& location) {
-    Expression* subject = parseExpression();
-    MatchExpression* matchExpression = new MatchExpression(subject, location);
+    auto subject = parseExpression();
+    auto matchExpression = MatchExpression::create(subject, location);
 
     const Token& openBrace = lexer.consumeToken();
     if (!openBrace.isOperator(Operator::OpenBrace)) {
@@ -1597,7 +1595,7 @@ Expression* Parser::parseMatchExpression(const Location& location) {
 }
 
 MatchCase* Parser::parseMatchCase() {
-    MatchCase* matchCase = new MatchCase(location());
+    auto matchCase = MatchCase::create(location());
     parseMatchCasePatterns(matchCase);
 
     const Token& arrowToken = lexer.consumeToken();
@@ -1634,12 +1632,12 @@ Expression* Parser::parseClassDecompositionExpression(
 
     assert(lexer.consumeToken().isOperator(Operator::OpenBrace));
 
-    ClassDecompositionExpression* classDecomposition =
-        new ClassDecompositionExpression(Type::create(typeName), loc);
+    auto classDecomposition =
+        ClassDecompositionExpression::create(Type::create(typeName), loc);
 
     CommaSeparatedListParser listParser(*this, Operator::CloseBrace);
     while (listParser.parseComma()) {
-        NamedEntityExpression* memberName = parseNamedEntityExpression();
+        auto memberName = parseNamedEntityExpression();
 
         Expression* memberPattern = nullptr;
         if (lexer.getCurrentToken().isOperator(Operator::Colon)) {
@@ -1665,9 +1663,9 @@ bool Parser::typedExpressionStartsHere() {
 
 Expression* Parser::parseTypedExpression() {
     const Location& loc = lexer.getCurrentToken().getLocation();
-    Type* type = parseType();
-    Expression* resultName = parseSubexpression();
-    return new TypedExpression(type, resultName, loc);
+    auto type = parseType();
+    auto resultName = parseSubexpression();
+    return TypedExpression::create(type, resultName, loc);
 }
 
 void Parser::parseIfStatement() {
@@ -1698,18 +1696,18 @@ void Parser::parseIfStatement() {
 void Parser::parseOptionalBinding(const Location& location) {
     assert(lexer.consumeToken().isKeyword(Keyword::Let));
 
-    Expression* pattern = parseSubexpression(true);
+    auto pattern = parseSubexpression(true);
 
     const Token& assignment = lexer.consumeToken();
     if (!assignment.isOperator(Operator::Assignment)) {
         error("Expected '='.", assignment);
     }
 
-    Expression* subject = parseExpression();
-    MatchExpression* matchExpression = new MatchExpression(subject, location);
+    auto subject = parseExpression();
+    auto matchExpression = MatchExpression::create(subject, location);
     matchExpression->setGenerated(true);
 
-    MatchCase* matchCase = new MatchCase(location);
+    auto matchCase = MatchCase::create(location);
     matchCase->addPatternExpression(pattern);
     matchCase->setResultBlock(parseBlock());
     matchExpression->addCase(matchCase);
@@ -1718,8 +1716,8 @@ void Parser::parseOptionalBinding(const Location& location) {
     if (token.isKeyword(Keyword::Else)) {
         lexer.consumeToken();
 
-        MatchCase* elseCase = new MatchCase(location);
-        elseCase->addPatternExpression(new PlaceholderExpression(location));
+        auto elseCase = MatchCase::create(location);
+        elseCase->addPatternExpression(PlaceholderExpression::create(location));
         elseCase->setResultBlock(parseBlock());
         matchExpression->addCase(elseCase);
     }

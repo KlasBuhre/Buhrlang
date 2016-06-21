@@ -248,8 +248,13 @@ namespace Utils {
 
 class VariableDeclaration: public Node {
 public:
+    static VariableDeclaration* create(
+        Type* t,
+        const Identifier& i,
+        const Location& l);
+    static VariableDeclaration* create(Type* t, const Identifier& i);
+
     VariableDeclaration(Type* t, const Identifier& i, const Location& l);
-    VariableDeclaration(Type* t, const Identifier& i);
     VariableDeclaration(const VariableDeclaration& other);
 
     VariableDeclaration* clone() const;
@@ -294,8 +299,9 @@ using ExpressionList = std::list<Expression*>;
 
 class FunctionSignature {
 public:
+    static FunctionSignature* create(Type* rt);
+
     explicit FunctionSignature(Type* rt);
-    FunctionSignature(const FunctionSignature& other);
 
     FunctionSignature* clone() const;
     bool equals(const FunctionSignature& other) const;
@@ -317,6 +323,8 @@ public:
     }
 
 private:
+    FunctionSignature(const FunctionSignature& other);
+
     TypeList arguments;
     Type* returnType;
 };

@@ -921,7 +921,7 @@ MethodDefinition::MethodDefinition(const MethodDefinition& other) :
     argumentList(),
     body(other.body ? other.body->clone() : nullptr),
     lambdaSignature(other.lambdaSignature ?
-                    new FunctionSignature(*(other.lambdaSignature)) : nullptr),
+                    other.lambdaSignature->clone() : nullptr),
     isCtor(other.isCtor),
     isPrimaryCtor(other.isPrimaryCtor),
     isEnumCtor(other.isEnumCtor),
@@ -937,7 +937,7 @@ MethodDefinition::MethodDefinition(const MethodDefinition& other) :
 
 void MethodDefinition::copyArgumentList(const ArgumentList& from) {
     for (auto argument: from) {
-        addArgument(new VariableDeclaration(*argument));
+        addArgument(argument->clone());
     }
 }
 
@@ -1023,7 +1023,7 @@ std::string MethodDefinition::toString() const {
 }
 
 void MethodDefinition::addArgument(VariableDeclaration* argument) {
-    Type* type = argument->getType();
+    auto type = argument->getType();
     if (type->isImplicit() && !isClosure) {
         Trace::error("Method arguments can not have implicit type.",
                      argument->getLocation());
@@ -1047,24 +1047,27 @@ void MethodDefinition::addArgument(
     Type::BuiltInType type,
     const Identifier& argumentName) {
 
-    addArgument(new VariableDeclaration(Type::create(type),
-                                        argumentName,
-                                        enclosingDefinition->getLocation()));
+    addArgument(VariableDeclaration::create(
+        Type::create(type),
+        argumentName,
+        enclosingDefinition->getLocation()));
 }
 
 void MethodDefinition::addArgument(Type* type, const Identifier& argumentName) {
-    addArgument(new VariableDeclaration(type->clone(),
-                                        argumentName,
-                                        enclosingDefinition->getLocation()));
+    addArgument(VariableDeclaration::create(
+        type->clone(),
+        argumentName,
+        enclosingDefinition->getLocation()));
 }
 
 void MethodDefinition::addArgument(
     const Identifier& typeName,
     const Identifier& argumentName) {
 
-    addArgument(new VariableDeclaration(Type::create(typeName),
-                                        argumentName,
-                                        enclosingDefinition->getLocation()));
+    addArgument(VariableDeclaration::create(
+        Type::create(typeName),
+        argumentName,
+        enclosingDefinition->getLocation()));
 }
 
 void MethodDefinition::addArguments(const ArgumentList& arguments) {
@@ -1129,9 +1132,9 @@ void MethodDefinition::updateGenericReturnType(
 
     const Location& loc = getLocation();
     Tree::lookupAndSetTypeDefinition(returnType, nameBindings, loc);
-    Type* concreteType = Tree::makeGenericTypeConcrete(returnType,
-                                                       nameBindings,
-                                                       loc);
+    auto concreteType = Tree::makeGenericTypeConcrete(returnType,
+                                                      nameBindings,
+                                                      loc);
     if (concreteType != nullptr) {
         // The return type is a generic type parameter that has been assigned a
         // concrete type. Change the return type to the concrete type.
@@ -1193,7 +1196,7 @@ void MethodDefinition::updateGenericTypesInLambdaSignature(
 }
 
 void MethodDefinition::convertClosureTypesInSignature() {
-    Type* closureInterfaceType = Tree::convertToClosureInterface(returnType);
+    auto closureInterfaceType = Tree::convertToClosureInterface(returnType);
     if (closureInterfaceType != nullptr) {
         returnType = closureInterfaceType;
     }
@@ -1291,8 +1294,8 @@ void MethodDefinition::checkReturnStatements() {
 void MethodDefinition::generateBaseClassConstructorCall(
     const Identifier& baseClassName) {
 
-    MethodCallExpression* constructorCall = 
-        new MethodCallExpression(baseClassName, getLocation());
+    auto constructorCall =
+        MethodCallExpression::create(baseClassName, getLocation());
     body->insertStatementAtFront(
         ConstructorCallStatement::create(constructorCall));
 }
@@ -1340,8 +1343,8 @@ void MethodDefinition::generateMemberInitializations(
         }
 
         auto dataMemberType = dataMember->getType();
-        Expression* left = new DataMemberExpression(dataMember, location);
-        Expression* right = dataMember->getExpression();
+        auto left = DataMemberExpression::create(dataMember, location);
+        auto right = dataMember->getExpression();
         if (right == nullptr) {
             // Add argument to constructor.
             Identifier argumentName(dataMember->getName() + "_Arg");
@@ -1385,8 +1388,8 @@ void MethodDefinition::generateMemberDefaultInitializations(
             continue;
         }
 
-        Expression* left = new DataMemberExpression(dataMember, location);
-        Expression* right = dataMember->getExpression();
+        auto left = DataMemberExpression::create(dataMember, location);
+        auto right = dataMember->getExpression();
         if (right == nullptr) {
             right = Expression::generateDefaultInitialization(
                 dataMember->getType(),
@@ -1472,7 +1475,9 @@ void MethodDefinition::setLambdaSignature(
 
     lambdaSignature = s;
     auto lambdaArgument =
-        new VariableDeclaration(Type::create(Type::Lambda), "",  getLocation());
+        VariableDeclaration::create(Type::create(Type::Lambda),
+                                    "",
+                                    getLocation());
     addArgument(lambdaArgument);
 
     assert(enclosingDefinition->isClass());

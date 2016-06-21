@@ -446,7 +446,7 @@ void Tree::generateArrayClass() {
                                  false,
                                  arrayClass);
     auto eachLambdaSignature =
-        new FunctionSignature(Type::create(Type::Void));
+        FunctionSignature::create(Type::create(Type::Void));
     eachLambdaSignature->addArgument(Type::create(Type::Integer));
     eachMethod->setLambdaSignature(eachLambdaSignature,
                                    arrayClass->getLocation());
@@ -457,7 +457,8 @@ void Tree::generateArrayClass() {
 
 void Tree::generateNoArgsClosureInterface() {
     auto closureInterfaceType = Type::create(Type::Function);
-    closureInterfaceType->setFunctionSignature(new FunctionSignature(nullptr));
+    closureInterfaceType->setFunctionSignature(
+        FunctionSignature::create(nullptr));
 
     Closure closure(*this);
     closure.generateInterface(closureInterfaceType);
@@ -466,7 +467,7 @@ void Tree::generateNoArgsClosureInterface() {
 void Tree::generateDeferClass() {
     ClassDefinition::Properties properties;
     startGeneratedClass(CommonNames::deferTypeName, properties);
-    ClassDefinition* deferClass = getCurrentClass();
+    auto deferClass = getCurrentClass();
 
     // addClosure(fun () closure)
     auto addClosureMethod =
@@ -475,7 +476,7 @@ void Tree::generateDeferClass() {
                                  false,
                                  deferClass);
     auto closureType = Type::create(Type::Function);
-    closureType->setFunctionSignature(new FunctionSignature(nullptr));
+    closureType->setFunctionSignature(FunctionSignature::create(nullptr));
     auto closureInterfaceType =
         Type::create(closureType->getClosureInterfaceName());
     addClosureMethod->addArgument(closureInterfaceType, "closure");
