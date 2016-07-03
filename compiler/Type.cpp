@@ -1,6 +1,7 @@
+#include "Type.h"
+
 #include <assert.h>
 
-#include "Type.h"
 #include "Definition.h"
 #include "Expression.h"
 
@@ -220,7 +221,7 @@ bool Type::isPrimitive() const {
 
 bool Type::isInterface() const {
     if (definition != nullptr && definition->isClass()) {
-        ClassDefinition* classDef = definition->cast<ClassDefinition>();
+        auto classDef = definition->cast<ClassDefinition>();
         if (classDef->isInterface()) {
             return true;
         }
@@ -284,7 +285,7 @@ bool Type::isMessageOrPrimitive() const {
 void Type::setDefinition(Definition* d) {
     definition = d;
     if (definition->isClass()) {
-        ClassDefinition* classDef = definition->cast<ClassDefinition>();
+        auto classDef = definition->cast<ClassDefinition>();
         if (classDef->isEnumeration()) {
             builtInType = Enumeration;
             if (!array) {
@@ -320,11 +321,11 @@ Type* Type::getConcreteTypeAssignedToGenericTypeParameter() {
     assert(definition != nullptr);
 
     if (definition->isGenericTypeParameter()) {
-        GenericTypeParameterDefinition* genericTypeParameter =
+        auto genericTypeParameter =
             definition->cast<GenericTypeParameterDefinition>();
-        Type* concreteType = genericTypeParameter->getConcreteType();
+        auto concreteType = genericTypeParameter->getConcreteType();
         if (concreteType != nullptr) {
-            Type* copiedConcreteType = concreteType->clone();
+            auto copiedConcreteType = concreteType->clone();
             copiedConcreteType->setArray(array);
             copiedConcreteType->setConstant(constant);
             return copiedConcreteType;
@@ -466,9 +467,8 @@ bool Type::isUpcast(const Type* targetType) {
     }
 
     if (definition->isClass() && targetType->definition->isClass()) {
-        ClassDefinition* fromClass = definition->cast<ClassDefinition>();
-        ClassDefinition* targetClass =
-            targetType->definition->cast<ClassDefinition>();
+        auto fromClass = definition->cast<ClassDefinition>();
+        auto targetClass = targetType->definition->cast<ClassDefinition>();
         if (fromClass->isSubclassOf(targetClass)) {
             return true;
         }
@@ -482,9 +482,8 @@ bool Type::isDowncast(const Type* targetType) {
     }
 
     if (definition->isClass() && targetType->definition->isClass()) {
-        ClassDefinition* fromClass = definition->cast<ClassDefinition>();
-        ClassDefinition* targetClass =
-            targetType->definition->cast<ClassDefinition>();
+        auto fromClass = definition->cast<ClassDefinition>();
+        auto targetClass = targetType->definition->cast<ClassDefinition>();
         if (targetClass->isSubclassOf(fromClass)) {
             return true;
         }
@@ -503,10 +502,8 @@ bool Type::areConvertable(const Type* left, const Type* right) {
     }
 
     if (left->definition->isClass() && right->definition->isClass()) {
-        ClassDefinition* leftClass =
-            left->definition->cast<ClassDefinition>();
-        ClassDefinition* rightClass =
-            right->definition->cast<ClassDefinition>();
+        auto leftClass = left->definition->cast<ClassDefinition>();
+        auto rightClass = right->definition->cast<ClassDefinition>();
         if (rightClass->isSubclassOf(leftClass)) {
             return true;
         }
@@ -637,12 +634,11 @@ bool Type::isInitializableByExpression(
     const Type* left,
     Expression* expression) {
 
-    const Type* right = expression->getType();
+    auto right = expression->getType();
     if (right == nullptr) {
         return false;
     }
-    if (IntegerLiteralExpression* integerLiteral =
-            expression->dynCast<IntegerLiteralExpression>()) {
+    if (auto integerLiteral = expression->dynCast<IntegerLiteralExpression>()) {
         if (integerLiteral->getValue() < 256) {
             // Implicitly convert to byte.
             right = Type::create(Type::Byte);

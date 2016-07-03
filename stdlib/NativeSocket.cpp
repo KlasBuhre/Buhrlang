@@ -1,11 +1,11 @@
+#include "NativeSocket.h"
+
 #include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
 #include <string>
-
-#include "NativeSocket.h"
 
 int NativeSocket::socket() {
     int socketFd = ::socket(AF_INET, SOCK_STREAM, 0);

@@ -1,6 +1,6 @@
-#include <stdio.h>
-
 #include "Token.h"
+
+#include <stdio.h>
 
 Token::Token(Kind k) :
     kind(k),

@@ -1,6 +1,4 @@
 #include "Process.h"
-#include "Utils.h"
-#include "Exception.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -14,75 +12,79 @@
 #include <string>
 #include <memory>
 
+#include "Utils.h"
+#include "Exception.h"
+
+void _main_();
+
 namespace {
     template<typename T, typename... Ts>
     std::unique_ptr<T> make_unique(Ts&&... params)
     {
         return std::unique_ptr<T>(new T(std::forward<Ts>(params)...));
     }
-}
 
-class ProcessControlBlock {
-public:
-    ProcessControlBlock(int id, int parent, const std::string& n);
+    class ProcessControlBlock {
+    public:
+        ProcessControlBlock(int id, int parent, const std::string& n);
 
-    void start(MessageHandlerFactory* factory);
-    void run(MessageHandlerFactory* factory);
-    void terminate();
-    int registerMessageHandler(Pointer<MessageHandler> messageHandler);
-    void addMessage(std::unique_ptr<Message> message);
-    std::unique_ptr<Message> getMessage();
-    std::unique_ptr<Message> getMessage(int messageType, int messageId);
+        void start(MessageHandlerFactory* factory);
+        void run(MessageHandlerFactory* factory);
+        void terminate();
+        int registerMessageHandler(Pointer<MessageHandler> messageHandler);
+        void addMessage(std::unique_ptr<Message> message);
+        std::unique_ptr<Message> getMessage();
+        std::unique_ptr<Message> getMessage(int messageType, int messageId);
 
-    int getPid() const {
-        return pid;
-    }
+        int getPid() const {
+            return pid;
+        }
 
-    const std::string& getName() const {
-        return name;
-    }
+        const std::string& getName() const {
+            return name;
+        }
 
-private:
-    using MessageQueue = std::list<std::unique_ptr<Message>>;
-    using MessageHandlerVector = std::vector<Pointer<MessageHandler>>;
+    private:
+        using MessageQueue = std::list<std::unique_ptr<Message>>;
+        using MessageHandlerVector = std::vector<Pointer<MessageHandler>>;
 
-    int pid;
-    int parentPid;
-    std::string name;
-    Pointer<MessageHandler> defaultMessageHandler;
-    MessageHandlerVector messageHandlerVector;
-    int messageHandlerIdCounter;
-    std::thread thread;
-    MessageQueue mailbox;
-    std::mutex mutex;
-    std::condition_variable condition;
-};
+        int pid;
+        int parentPid;
+        std::string name;
+        Pointer<MessageHandler> defaultMessageHandler;
+        MessageHandlerVector messageHandlerVector;
+        int messageHandlerIdCounter;
+        std::thread thread;
+        MessageQueue mailbox;
+        std::mutex mutex;
+        std::condition_variable condition;
+    };
 
-class Kernel {
-public:
-    Kernel();
+    class Kernel {
+    public:
+        Kernel();
 
-    int spawnProcess(MessageHandlerFactory* factory, const std::string& name);
-    int sendMessage(int destinationPid, std::unique_ptr<Message> message);
-    void waitForProcessTermination(int pid);
-    void removeProcess(int pid);
+        int spawnProcess(
+            MessageHandlerFactory* factory,
+            const std::string& name);
+        int sendMessage(int destinationPid, std::unique_ptr<Message> message);
+        void waitForProcessTermination(int pid);
+        void removeProcess(int pid);
 
-private:
-    bool isProcessAlive(int pid);
+    private:
+        bool isProcessAlive(int pid);
 
-    using PidToProcessMap = std::map<int, std::unique_ptr<ProcessControlBlock>>;
-    using NameToProcessMap = std::map<std::string, ProcessControlBlock*>;
+        using PidToProcessMap =
+            std::map<int, std::unique_ptr<ProcessControlBlock>>;
+        using NameToProcessMap = std::map<std::string, ProcessControlBlock*>;
 
-    PidToProcessMap processMap;
-    NameToProcessMap nameToProcessMap;
-    int pidCounter;
-    int messageIdCounter;
-    std::mutex mutex;
-};
+        PidToProcessMap processMap;
+        NameToProcessMap nameToProcessMap;
+        int pidCounter;
+        int messageIdCounter;
+        std::mutex mutex;
+    };
 
-void _main_();
-
-namespace {
     thread_local ProcessControlBlock* currentProcess;
     Kernel kernel;
 

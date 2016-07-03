@@ -1,7 +1,8 @@
+#include "Expression.h"
+
 #include <iterator>
 #include <memory>
 
-#include "Expression.h"
 #include "Context.h"
 #include "Definition.h"
 #include "Tree.h"
@@ -399,7 +400,7 @@ MethodCallExpression* NamedEntityExpression::getCall(
 bool NamedEntityExpression::isReferencingStaticDataMember(Context& context) {
     if (resolve(context) &&
         binding->getReferencedEntity() == Binding::DataMember) {
-        DataMemberDefinition* dataMember =
+        auto dataMember =
             binding->getDefinition()->cast<DataMemberDefinition>();
         if (dataMember->isStatic()) {
             return true;
@@ -411,16 +412,14 @@ bool NamedEntityExpression::isReferencingStaticDataMember(Context& context) {
 bool NamedEntityExpression::isReferencingName(Expression* name) {
     switch (name->getKind()) {
         case Expression::NamedEntity: {
-            NamedEntityExpression* namedEntity =
-                name->cast<NamedEntityExpression>();
+            auto namedEntity = name->cast<NamedEntityExpression>();
             if (namedEntity->getIdentifier().compare(identifier) == 0) {
                 return true;
             }
             break;
         }
         case Expression::LocalVariable: {
-            LocalVariableExpression* local =
-                name->cast<LocalVariableExpression>();
+            auto local = name->cast<LocalVariableExpression>();
             if (local->getName().compare(identifier) == 0) {
                 return true;
             }
@@ -593,7 +592,7 @@ MemberSelectorExpression* MemberSelectorExpression::transformMemberSelector(
     MemberSelectorExpression* memberSelector,
     Context& context) {
 
-    Expression* transformedExpression = memberSelector->transform(context);
+    auto transformedExpression = memberSelector->transform(context);
     if (transformedExpression->getKind() != Expression::MemberSelector) {
         Trace::internalError(
             "MemberSelectorExpression::transformMemberSelector");
@@ -692,10 +691,10 @@ NameBindings* MemberSelectorExpression::bindingScopeOfLeft(Context& context) {
     NameBindings* localBindings = nullptr;
     if (left->getKind() == Expression::ClassName) {
         context.setIsStatic(true);
-        ClassNameExpression* expr = left->cast<ClassNameExpression>();
+        auto expr = left->cast<ClassNameExpression>();
         localBindings = &(expr->getClassDefinition()->getNameBindings());
     } else {
-        Type* resultingLeftType = left->typeCheck(context);
+        auto resultingLeftType = left->typeCheck(context);
         context.setIsStatic(false);
         Definition* definition = nullptr;
         if (resultingLeftType->isArray()) {
@@ -772,7 +771,7 @@ void MemberSelectorExpression::generateThisPointerDeclaration(
     VariableDeclarationStatement* thisPointerDeclaration = nullptr;
     Statement* firstStatement = *(block->getStatements().begin());
     if (firstStatement->getKind() == Statement::VarDeclaration) {
-        VariableDeclarationStatement* variableDeclaration = 
+        auto variableDeclaration =
             firstStatement->cast<VariableDeclarationStatement>();
         if (variableDeclaration->getIdentifier().
             compare(thisPointerIdentifier) == 0) {
@@ -925,8 +924,7 @@ void MemberExpression::accessCheck(Context& context) {
 
     if (context.isStatic() && !memberDefinition->isStatic()) {
         if (memberDefinition->isMethod()) {
-            MethodDefinition* method =
-                memberDefinition->cast<MethodDefinition>();
+            auto method = memberDefinition->cast<MethodDefinition>();
             if (!method->isConstructor()) {
                 Trace::error(
                     "Cannot access a non-static method from a static context.",
@@ -1130,7 +1128,7 @@ void MethodCallExpression::resolveByInferringConcreteClass(
         return;
     }
 
-    Type* concreteType = inferConcreteType(candidate, argumentTypes, context);
+    auto concreteType = inferConcreteType(candidate, argumentTypes, context);
     if (concreteType == nullptr) {
         return;
     }
@@ -1138,8 +1136,7 @@ void MethodCallExpression::resolveByInferringConcreteClass(
     if (candidate->isConstructor()) {
         setConstructorCallName(concreteType);
     }
-    ClassDefinition* concreteClass =
-        concreteType->getDefinition()->cast<ClassDefinition>();
+    auto concreteClass = concreteType->getDefinition()->cast<ClassDefinition>();
 
     Context::BindingsGuard guard(context, &(concreteClass->getNameBindings()));
 
@@ -1291,18 +1288,18 @@ Expression* MethodCallExpression::transform(Context& context) {
 }
 
 bool MethodCallExpression::resolvesToClosure(Context& context) {
-    const Binding* binding = context.lookup(name);
+    const auto binding = context.lookup(name);
     if (binding == nullptr) {
         Trace::error("Unknown method: " + name, this);
     }
 
-    Type* type = binding->getVariableType();
+    auto type = binding->getVariableType();
     if (type == nullptr) {
         return false;
     }
 
-    Definition* definition = type->getDefinition();
-    if (ClassDefinition* classDef = definition->dynCast<ClassDefinition>()) {
+    auto definition = type->getDefinition();
+    if (auto* classDef = definition->dynCast<ClassDefinition>()) {
         if (classDef->isClosure()) {
             return true;
         }
@@ -1322,9 +1319,8 @@ Expression* MethodCallExpression::transformIntoClosureCallMethod(
 }
 
 bool MethodCallExpression::isBuiltInArrayMethod() {
-    MethodDefinition* methodDefinition =
-        memberDefinition->cast<MethodDefinition>();
-    ClassDefinition* classDef = methodDefinition->getEnclosingClass();
+    auto methodDefinition = memberDefinition->cast<MethodDefinition>();
+    auto classDef = methodDefinition->getEnclosingClass();
     return classDef->getName().compare(BuiltInTypes::arrayTypeName) == 0;
 }
 
@@ -1501,8 +1497,7 @@ void MethodCallExpression::addArgumentsToInlinedMethodBody(
     BlockStatement* clonedBody) {
 
     const Location& location = getLocation();
-    MethodDefinition* calledMethod =
-        memberDefinition->cast<MethodDefinition>();
+    auto calledMethod = memberDefinition->cast<MethodDefinition>();
     const ArgumentList& argumentsFromSignature =
         calledMethod->getArgumentList();
     auto i = argumentsFromSignature.cbegin();
@@ -1809,14 +1804,14 @@ Type* HeapAllocationExpression::typeCheck(Context& context) {
                                                                 context);
     constructorCall->typeCheck(context);
 
-    Type* inferredConcreteType = constructorCall->getInferredConcreteType();
+    auto inferredConcreteType = constructorCall->getInferredConcreteType();
     if (inferredConcreteType != nullptr) {
         type = inferredConcreteType;
     } else {
         type = allocatedObjectType;
     }
 
-    if (ClassDefinition* def = type->getDefinition()->cast<ClassDefinition>()) {
+    if (auto def = type->getDefinition()->cast<ClassDefinition>()) {
         ClassList treePath;
         def->checkImplementsAllAbstractMethods(treePath, getLocation());
     }
@@ -1847,7 +1842,7 @@ ClassDefinition* HeapAllocationExpression::lookupClass(Context& context) {
     }
 
     constructorCall->setConstructorCallName(allocatedObjectType);
-    Definition* definition = allocatedObjectType->getDefinition();
+    auto definition = allocatedObjectType->getDefinition();
     assert(definition->isClass());
     return definition->cast<ClassDefinition>();
 }
@@ -1962,7 +1957,7 @@ Expression* ArraySubscriptExpression::transform(Context& context) {
         Context::BindingsGuard guard(context);
 
         arrayNameExpression = arrayNameExpression->transform(context);
-        Type* arrayType = arrayNameExpression->typeCheck(context);
+        auto arrayType = arrayNameExpression->typeCheck(context);
         if (!arrayType->isArray())
         {
             Trace::error("Not an array.", this);
@@ -1971,15 +1966,14 @@ Expression* ArraySubscriptExpression::transform(Context& context) {
     }
 
     indexExpression = indexExpression->transform(context);
-    Type* indexExpressionReturnType = indexExpression->typeCheck(context);
+    auto indexExpressionReturnType = indexExpression->typeCheck(context);
     if (!indexExpressionReturnType->isIntegerNumber()) {
         Trace::error("Array index must be of integer type.", this);
     }
 
-    if (BinaryExpression* binExpression =
-            indexExpression->dynCast<BinaryExpression>()) {
+    if (auto binExpression = indexExpression->dynCast<BinaryExpression>()) {
         if (binExpression->getOperator() == Operator::Range) {
-            MemberSelectorExpression* transformedExpression =
+            auto transformedExpression =
                 createSliceMethodCall(binExpression, context);
             return transformedExpression;
         }
@@ -2306,14 +2300,12 @@ void BinaryExpression::checkAssignment(
 }
 
 bool BinaryExpression::leftIsMemberConstant() {
-    Expression* leftExpression = left;
+    auto leftExpression = left;
     if (leftExpression->getKind() == Expression::ArraySubscript) {
-        ArraySubscriptExpression* arraySubscript =
-            leftExpression->cast<ArraySubscriptExpression>();
+        auto arraySubscript = leftExpression->cast<ArraySubscriptExpression>();
         leftExpression = arraySubscript->getArrayNameExpression();
     }
-    if (DataMemberExpression* dataMember =
-        leftExpression->dynCast<DataMemberExpression>()) {
+    if (auto dataMember = leftExpression->dynCast<DataMemberExpression>()) {
         if (dataMember->getType()->isConstant()) {
             return true;
         }
@@ -2404,8 +2396,7 @@ Type* BinaryExpression::inferTypeFromOtherSide(
     const Type* otherSideType,
     const Context& context) {
 
-    const LocalVariableExpression* localVar =
-        implicitlyTypedExpr->dynCast<LocalVariableExpression>();
+    auto localVar = implicitlyTypedExpr->dynCast<LocalVariableExpression>();
     if (localVar == nullptr) {
         Trace::error("Can not infer type.",
                      left->getType(),
@@ -2413,7 +2404,7 @@ Type* BinaryExpression::inferTypeFromOtherSide(
                      this);
     }
 
-    Binding* binding = context.lookup(localVar->getName());
+    auto binding = context.lookup(localVar->getName());
     assert(binding != nullptr);
     if (binding->getReferencedEntity() != Binding::LocalObject) {
         Trace::error("Can not infer type.",
@@ -2422,8 +2413,8 @@ Type* BinaryExpression::inferTypeFromOtherSide(
                      this);
     }
 
-    VariableDeclaration* varDeclaration = binding->getLocalObject();
-    Type* inferredType = otherSideType->clone();
+    auto varDeclaration = binding->getLocalObject();
+    auto inferredType = otherSideType->clone();
     varDeclaration->setType(inferredType);
     return inferredType;
 }

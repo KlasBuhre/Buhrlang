@@ -1,6 +1,7 @@
+#include "Statement.h"
+
 #include <sstream>
 
-#include "Statement.h"
 #include "Type.h"
 #include "Definition.h"
 #include "Context.h"
@@ -405,10 +406,9 @@ void BlockStatement::insertBeforeCurrentStatement(Statement* statement) {
 void BlockStatement::initialStatementCheck(Statement* statement) {
     switch (statement->getKind()) {
         case VarDeclaration: {
-            VariableDeclarationStatement* varDeclarationStatement =
+            auto varDeclarationStatement =
                 statement->cast<VariableDeclarationStatement>();
-            VariableDeclaration* varDeclaration =
-                varDeclarationStatement->getDeclaration();
+            auto varDeclaration = varDeclarationStatement->getDeclaration();
             if (!(varDeclarationStatement->getAddToNameBindingsWhenTypeChecked()
                   || varDeclarationStatement->hasPattern())) {
                 addLocalBinding(varDeclaration);
@@ -505,7 +505,7 @@ void BlockStatement::returnLastExpression(
     if (lastStatement->getKind() != Statement::ExpressionStatement) {
         Trace::error("Must return a value.", getLocation());
     }
-    Expression* returnExpression = lastStatement->cast<Expression>();
+    auto returnExpression = lastStatement->cast<Expression>();
 
     const Type* returnTypeInSignature = retvalTmpDeclaration->getType();
     const Type* returnType = returnExpression->getType();
@@ -563,7 +563,7 @@ Expression* BlockStatement::getLastStatementAsExpression() const {
 }
 
 bool BlockStatement::containsDeferDeclaration() const {
-    if (VariableDeclarationStatement* varDeclaration =
+    if (auto varDeclaration =
             statements.front()->dynCast<VariableDeclarationStatement>()) {
         if (varDeclaration->getIdentifier().compare(deferVariableName) == 0) {
             return true;
@@ -679,15 +679,14 @@ Type* WhileStatement::typeCheck(Context& context) {
 }
 
 bool WhileStatement::mayFallThrough() const {
-    if (auto literal = expression->dynCast<LiteralExpression>()) {
-        if (auto boolLiteral = literal->dynCast<BooleanLiteralExpression>()) {
-            if (boolLiteral->getValue() == true) {
-                // TODO: check if the block contains a break. If not, we cannot
-                // fall through to the next statement.
-                return false;
-            }
+    if (auto boolLiteral = expression->dynCast<BooleanLiteralExpression>()) {
+        if (boolLiteral->getValue() == true) {
+            // TODO: check if the block contains a break. If not, we cannot
+            // fall through to the next statement.
+            return false;
         }
     }
+
     return true;
 }
 

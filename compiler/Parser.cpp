@@ -1,9 +1,10 @@
+#include "Parser.h"
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
 #include <memory>
 
-#include "Parser.h"
 #include "Definition.h"
 #include "Statement.h"
 #include "Expression.h"
@@ -160,7 +161,7 @@ void Parser::addDefinition(Definition* definition) {
     tree.addGlobalDefinition(definition);
 
     if (definition->isClass()) {
-        ClassDefinition* classDef = definition->cast<ClassDefinition>();
+        auto classDef = definition->cast<ClassDefinition>();
         if (!classDef->isProcess() &&
             classDef->isInheritingFromProcessInterface()) {
             ProcessGenerator generator(classDef, tree);

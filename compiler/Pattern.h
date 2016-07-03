@@ -6,14 +6,7 @@
 #include "CommonTypes.h"
 #include "Type.h"
 #include "Statement.h"
-
-class Expression;
-class BinaryExpression;
-class ArrayLiteralExpression;
-class ArraySubscriptExpression;
-class ClassDecompositionExpression;
-class MemberSelectorExpression;
-class TypedExpression;
+#include "Expression.h"
 
 class MatchCoverage {
 public:

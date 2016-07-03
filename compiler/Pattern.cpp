@@ -1,6 +1,6 @@
+#include "Pattern.h"
 #include "Definition.h"
 #include "Expression.h"
-#include "Pattern.h"
 #include "Context.h"
 
 namespace {

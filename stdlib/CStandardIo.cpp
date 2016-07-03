@@ -1,8 +1,9 @@
+#include "CStandardIo.h"
+
 #include <string>
 #include <string.h>
 #include <unistd.h>
 
-#include "CStandardIo.h"
 #include "Utils.h"
 
 namespace {

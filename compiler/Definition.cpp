@@ -1,8 +1,9 @@
+#include "Definition.h"
+
 #include <memory>
 #include <algorithm>
 #include <assert.h>
 
-#include "Definition.h"
 #include "Statement.h"
 #include "Expression.h"
 #include "Context.h"
@@ -30,14 +31,12 @@ namespace {
         const Location& location,
         const ClassDefinition::Properties& properties) {
 
-        Definition* parentDefinition =
-            enclosingBindings->lookupType(parentName);
+        auto parentDefinition = enclosingBindings->lookupType(parentName);
         if (parentDefinition == nullptr) {
             Trace::error("Unknown class: " + parentName, location);
         }
 
-        ClassDefinition* parentClass =
-            parentDefinition->dynCast<ClassDefinition>();
+        auto parentClass = parentDefinition->dynCast<ClassDefinition>();
         if (!parentClass->isGenerated() && parentClass->isProcess() &&
             parentClass->isInterface()) {
             classParents.isProcessInterfacePresent = true;
@@ -772,8 +771,7 @@ void ClassDefinition::removeCloneableParent() {
 void ClassDefinition::removeMethod(const Identifier& methodName) {
     for (auto i = members.begin(); i!= members.end(); i++) {
         auto definition = *i;
-        if (MethodDefinition* method =
-                definition->dynCast<MethodDefinition>()) {
+        if (auto method = definition->dynCast<MethodDefinition>()) {
             if (method->getName().compare(methodName) == 0) {
                 members.erase(i);
                 break;
@@ -785,8 +783,7 @@ void ClassDefinition::removeMethod(const Identifier& methodName) {
 void ClassDefinition::removeCopyConstructor() {
     for (auto i = members.begin(); i!= members.end(); i++) {
         auto definition = *i;
-        if (MethodDefinition* method =
-                definition->dynCast<MethodDefinition>()) {
+        if (auto method = definition->dynCast<MethodDefinition>()) {
             if (method->isConstructor()) {
                 const ArgumentList& arguments = method->getArgumentList();
                 if (arguments.size() == 1) {
@@ -818,9 +815,8 @@ void ClassDefinition::transformIntoInterface() {
         if (definition->getKind() != Definition::Member) {
             continue;
         }
-        ClassMemberDefinition* member =
-            definition->cast<ClassMemberDefinition>();
-        MethodDefinition* method = member->dynCast<MethodDefinition>();
+        auto member = definition->cast<ClassMemberDefinition>();
+        auto method = member->dynCast<MethodDefinition>();
         bool removeMethod = false;
         if (method != nullptr) {
             if (isMethodImplementingParentInterfaceMethod(method) ||
@@ -1561,7 +1557,7 @@ void DataMemberDefinition::typeCheckAndTransform() {
     }
 
     assert(enclosingDefinition->isClass());
-    ClassDefinition* classDef = enclosingDefinition->cast<ClassDefinition>();
+    auto classDef = enclosingDefinition->cast<ClassDefinition>();
 
     changeTypeIfGeneric(classDef->getNameBindings());
     if (expression == nullptr) {

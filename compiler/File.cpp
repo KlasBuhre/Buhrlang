@@ -1,3 +1,5 @@
+#include "File.h"
+
 #define _CRT_SECURE_NO_DEPRECATE
 
 #include <stdio.h>
@@ -7,8 +9,6 @@
 #include <sstream>
 #include <unistd.h>
 #include <limits.h>
-
-#include "File.h"
 
 namespace {
     using FileMap = std::map<std::string, std::string>;

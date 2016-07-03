@@ -1,9 +1,9 @@
+#include "CommonTypes.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <sstream>
 
-#include "CommonTypes.h"
 #include "Type.h"
 #include "File.h"
 

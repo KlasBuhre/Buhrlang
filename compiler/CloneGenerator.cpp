@@ -1,7 +1,8 @@
 #include "CloneGenerator.h"
-#include "Expression.h"
 
 #include <stdio.h>
+
+#include "Expression.h"
 
 namespace {
     const Identifier elementVariableName("element");

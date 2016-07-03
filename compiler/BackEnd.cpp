@@ -1,3 +1,4 @@
+#include "BackEnd.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -5,7 +6,6 @@
 #include <sstream>
 #include <memory>
 
-#include "BackEnd.h"
 #include "Definition.h"
 #include "Statement.h"
 #include "Expression.h"
@@ -369,7 +369,7 @@ void CppBackEnd::generateMethod(const MethodDefinition* method) {
         if (!statements.empty()) {
             const Statement* firstStatement = *statements.begin();
             if (firstStatement->getKind() == Statement::ConstructorCall) {
-                const ConstructorCallStatement* constructorCall =
+                auto constructorCall =
                     firstStatement->cast<ConstructorCallStatement>();
                 generateCpp(colon);
                 generateCpp(space);

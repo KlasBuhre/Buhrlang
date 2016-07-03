@@ -1,7 +1,8 @@
+#include "Lexer.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "Lexer.h"
 #include "File.h"
 
 // #define DEBUG

@@ -1,7 +1,8 @@
+#include "Tree.h"
+
 #include <assert.h>
 #include <stdio.h>
 
-#include "Tree.h"
 #include "Statement.h"
 #include "CloneGenerator.h"
 #include "Context.h"
@@ -704,24 +705,23 @@ void Tree::useNamespace(
     const Location& location) {
 
     NameBindings& currentNamespace = getCurrentNameBindings();
-    Definition* namespaceDefinition =
-        currentNamespace.lookupType(namespaceName);
+    auto namespaceDefinition = currentNamespace.lookupType(namespaceName);
     if (namespaceDefinition == nullptr) {
         Trace::error("Unknown namespace: " + namespaceName, location);
     }
 
     assert(namespaceDefinition->isClass());
-    ClassDefinition* classDef = namespaceDefinition->cast<ClassDefinition>();
+    auto classDef = namespaceDefinition->cast<ClassDefinition>();
     currentNamespace.use(classDef->getNameBindings());
 }
 
 NameBindings& Tree::getCurrentNameBindings() {
-    BlockStatement* currentBlock = getCurrentBlock();
+    auto currentBlock = getCurrentBlock();
     if (currentBlock != nullptr) {
         return currentBlock->getNameBindings();
     }
 
-    ClassDefinition* currentClass = getCurrentClass();
+    auto currentClass = getCurrentClass();
     if (currentClass != nullptr) {
         return currentClass->getNameBindings();
     }
@@ -873,7 +873,7 @@ Type* Tree::makeGenericTypeConcreteInCurrentTree(
                                    location);
     }
 
-    Definition* typeDefinition = type->getDefinition();
+    auto typeDefinition = type->getDefinition();
     assert(typeDefinition != nullptr);
     if (typeDefinition->isGenericTypeParameter()) {
         // Since the type is a generic type parameter, we must lookup the type
@@ -892,7 +892,7 @@ Type* Tree::makeGenericTypeConcreteInCurrentTree(
         // In all cases we must make sure that the definition of the type is
         // the generated concrete class.
         assert(typeDefinition->getKind() == Definition::Class);
-        ClassDefinition* classDef = typeDefinition->cast<ClassDefinition>();
+        auto classDef = typeDefinition->cast<ClassDefinition>();
         if (classDef->isGeneric()) {
             // The class is still a generic, which means we must get the
             // generated concrete class.

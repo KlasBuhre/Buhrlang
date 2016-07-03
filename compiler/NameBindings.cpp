@@ -1,6 +1,7 @@
+#include "NameBindings.h"
+
 #include <assert.h>
 
-#include "NameBindings.h"
 #include "Definition.h"
 
 Binding::Binding(ReferencedEntity e) :

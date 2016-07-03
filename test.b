@@ -1930,6 +1930,7 @@ class MatchTest {
 
         println(match true { true -> "is true", false -> "is false" })
         println(fact(4))
+        println(fib(5))
 
         testArrayPatterns
         testClassDecompositionPatterns
@@ -1941,6 +1942,14 @@ class MatchTest {
         return match x {
             0 -> 1,
             n -> n * fact(n - 1)
+        }
+    }
+
+    int fib(int n) {
+        return match n {
+            0 -> 0,
+            1 -> 1,
+            x -> fib(x - 2) + fib(x - 1)
         }
     }
 
