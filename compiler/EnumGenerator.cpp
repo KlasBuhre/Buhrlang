@@ -9,7 +9,7 @@ namespace {
     const Identifier otherTagVariableName("otherTag");
 
     void checkNonPrimitiveVariantDataMember(
-        VariableDeclaration* variantDataMember) {
+        const VariableDeclaration* variantDataMember) {
 
         if (!variantDataMember->getType()->isMessageOrPrimitive()) {
             Trace::error("Non-primitive members in a message enum must be of "
@@ -30,7 +30,7 @@ namespace {
     // [$0Type]._deepCopy(other.$[Variant0Name].$0)
     //
     Expression* generateVariantDataMemberInitRhs(
-        VariableDeclaration* variantDataMember,
+        const VariableDeclaration* variantDataMember,
         const Identifier& enumVariantDataName) {
 
         auto variantDataMemberSelector =
@@ -501,7 +501,7 @@ MethodDefinition* EnumGenerator::generateDeepCopyMethodSignature(
 //  }
 //
 MatchCase* EnumGenerator::generateVariantMatchCase(
-    MethodDefinition* variantConstructor) {
+    const MethodDefinition* variantConstructor) {
 
     auto matchCase = MatchCase::create();
     const Identifier& variantName = variantConstructor->getName();

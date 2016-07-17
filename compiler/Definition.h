@@ -88,22 +88,13 @@ class ClassDefinition: public Definition {
 public:
 
     struct Properties {
-        Properties() :
-            isInterface(false),
-            isProcess(false),
-            isMessage(false),
-            isClosure(false),
-            isGenerated(false),
-            isEnumeration(false),
-            isEnumerationVariant(false) {}
-
-        bool isInterface;
-        bool isProcess;
-        bool isMessage;
-        bool isClosure;
-        bool isGenerated;
-        bool isEnumeration;
-        bool isEnumerationVariant;
+        bool isInterface {false};
+        bool isProcess {false};
+        bool isMessage {false};
+        bool isClosure {false};
+        bool isGenerated {false};
+        bool isEnumeration {false};
+        bool isEnumerationVariant {false};
     };
 
     static ClassDefinition* create(

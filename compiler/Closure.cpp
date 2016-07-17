@@ -6,39 +6,6 @@
 #include "Context.h"
 
 namespace {
-    Type* handleReturnType(MethodDefinition* callMethod) {
-        auto body = callMethod->getBody();
-        const BlockStatement::StatementList& statements = body->getStatements();
-
-        unsigned nrOfStatements = statements.size();
-        if (nrOfStatements == 0) {
-            return &Type::voidType();
-        }
-
-        auto lastStatement = statements.back();
-        if (auto returnStatement = lastStatement->dynCast<ReturnStatement>()) {
-            return returnStatement->getExpression()->getType();
-        }
-
-        if (nrOfStatements == 1) {
-            if (auto expression = lastStatement->dynCast<Expression>()) {
-                // If the AnonymousFunctionExpression consists of a single
-                // non-void expression then that expression is implicitly
-                //returned.
-                auto expressionType = expression->getType();
-                if (!expressionType->isVoid()) {
-                    auto returnStatement =
-                        ReturnStatement::create(expression,
-                                                expression->getLocation());
-                    body->replaceLastStatement(returnStatement);
-                    return expressionType;
-                }
-            }
-        }
-
-        return &Type::voidType();
-    }
-
     class NonLocalVarVisitor: public Visitor {
     public:
         NonLocalVarVisitor(NameBindings& global, NameBindings& func);
@@ -204,9 +171,123 @@ namespace {
         typedExpression.lookupType(context);
         return Traverse::Continue;
     }
-}
 
-Closure::Closure(Tree& t) : tree(t) {}
+    Type* handleReturnType(MethodDefinition* callMethod) {
+        auto body = callMethod->getBody();
+        const BlockStatement::StatementList& statements = body->getStatements();
+
+        auto nrOfStatements = statements.size();
+        if (nrOfStatements == 0) {
+            return &Type::voidType();
+        }
+
+        auto lastStatement = statements.back();
+        if (auto returnStatement = lastStatement->dynCast<ReturnStatement>()) {
+            return returnStatement->getExpression()->getType();
+        }
+
+        if (nrOfStatements == 1) {
+            if (auto expression = lastStatement->dynCast<Expression>()) {
+                // If the AnonymousFunctionExpression consists of a single
+                // non-void expression then that expression is implicitly
+                // returned.
+                auto expressionType = expression->getType();
+                if (!expressionType->isVoid()) {
+                    auto returnStatement =
+                        ReturnStatement::create(expression,
+                                                expression->getLocation());
+                    body->replaceLastStatement(returnStatement);
+                    return expressionType;
+                }
+            }
+        }
+
+        return &Type::voidType();
+    }
+
+    // Generate the following method signature:
+    //
+    // [ClosureReturnType] call([ClosureArguments]...)
+    //
+    MethodDefinition* generateCallMethodSignature(
+        Tree& tree,
+        const Type* closureType) {
+
+        auto closureSignature = closureType->getFunctionSignature();
+        auto methodSignature =
+            MethodDefinition::create(CommonNames::callMethodName,
+                                     closureSignature->getReturnType(),
+                                     tree.getCurrentClass());
+
+        int index = 0;
+        for (auto argumentType: closureSignature->getArguments()) {
+            methodSignature->addArgument(argumentType->clone(),
+                                         Symbol::makeTemp(index));
+            index++;
+        }
+
+        return methodSignature;
+    }
+
+    // Generate the following class:
+    //
+    // class $Closure$N([NonLocalVars]...) {
+    //     implicit call(implicit args...) {
+    //         ...
+    //     }
+    // }
+    //
+    ClassDefinition* startGeneratingClass(
+        Tree& tree,
+        AnonymousFunctionExpression* function,
+        const VariableDeclarationList& nonLocalVariables,
+        const Context& context,
+        MethodDefinition** callMethod) {
+
+        ClassDefinition::Properties properties;
+        properties.isClosure = true;
+        Identifier closureClassName =
+            Symbol::makeClosureClassName(context.getClassDefinition()->getName(),
+                                         context.getMethodDefinition()->getName(),
+                                         function->getLocation());
+        tree.startGeneratedClass(closureClassName, properties);
+
+        for (auto nonLocalVar: nonLocalVariables) {
+            tree.addClassDataMember(nonLocalVar->getType()->clone(),
+                                    nonLocalVar->getIdentifier());
+        }
+        tree.getCurrentClass()->generateConstructor();
+
+        auto callMethodDef =
+            MethodDefinition::create(CommonNames::callMethodName,
+                                     Type::create(Type::Implicit),
+                                     AccessLevel::Public,
+                                     false,
+                                     tree.getCurrentClass(),
+                                     function->getLocation());
+        callMethodDef->setIsClosure(true);
+        callMethodDef->setBody(function->getBody());
+        callMethodDef->addArguments(function->getArgumentList());
+        tree.addClassMember(callMethodDef);
+        *callMethod = callMethodDef;
+
+        return tree.finishClass();
+    }
+
+    Type* getClosureInterfaceType(Tree& tree, MethodDefinition* callMethod) {
+        auto closureType = Type::create(Type::Function);
+
+        auto closureSignature =
+            FunctionSignature::create(callMethod->getReturnType()->clone());
+        for (auto argument: callMethod->getArgumentList()) {
+            closureSignature->addArgument(argument->getType()->clone());
+        }
+
+        closureType->setFunctionSignature(closureSignature);
+
+        return tree.convertToClosureInterfaceInCurrentTree(closureType);
+    }
+}
 
 // Generate the following closure interface:
 //
@@ -214,39 +295,19 @@ Closure::Closure(Tree& t) : tree(t) {}
 //     [ClosureReturnType] call([ClosureArguments]...)
 // }
 //
-ClassDefinition* Closure::generateInterface(const Type* closureType) {
+ClassDefinition* Closure::generateInterface(
+    Tree& tree,
+    const Type* closureType) {
+
     ClassDefinition::Properties properties;
     properties.isInterface = true;
     properties.isClosure = true;
     tree.startGeneratedClass(closureType->getClosureInterfaceName(),
                              properties);
 
-    tree.addClassMember(generateCallMethodSignature(closureType));
+    tree.addClassMember(generateCallMethodSignature(tree, closureType));
 
     return tree.finishClass();
-}
-
-// Generate the following method signature:
-//
-// [ClosureReturnType] call([ClosureArguments]...)
-//
-MethodDefinition* Closure::generateCallMethodSignature(
-    const Type* closureType) {
-
-    auto closureSignature = closureType->getFunctionSignature();
-    auto methodSignature =
-        MethodDefinition::create(CommonNames::callMethodName,
-                                 closureSignature->getReturnType(),
-                                 tree.getCurrentClass());
-
-    int index = 0;
-    for (auto argumentType: closureSignature->getArguments()) {
-        methodSignature->addArgument(argumentType->clone(),
-                                     Symbol::makeTemp(index));
-        index++;
-    }
-
-    return methodSignature;
 }
 
 // Generate the following closure class:
@@ -258,9 +319,10 @@ MethodDefinition* Closure::generateCallMethodSignature(
 // }
 //
 void Closure::generateClass(
+    Tree& tree,
     AnonymousFunctionExpression* function,
     const Context& context,
-    ClosureInfo* info) {
+    Info& info) {
 
     auto body = function->getBody();
 
@@ -275,15 +337,16 @@ void Closure::generateClass(
     body->traverse(nonLocalVarVisitor);
     const VariableDeclarationList& nonLocalVariables =
         nonLocalVarVisitor.getNonLocalVariables();
-    info->nonLocalVars = nonLocalVariables;
+    info.nonLocalVars = nonLocalVariables;
 
     // Start generating the closure class.
     MethodDefinition* callMethod = nullptr;
-    auto closureClass = startGeneratingClass(function,
+    auto closureClass = startGeneratingClass(tree,
+                                             function,
                                              nonLocalVariables,
                                              context,
                                              &callMethod);
-    info->className = closureClass->getName();
+    info.className = closureClass->getName();
 
     // Infer any implicit types in the closure signature by running the
     // typeCheckAndTransform pass on the closure function body.
@@ -295,70 +358,12 @@ void Closure::generateClass(
     callMethod->setReturnType(returnType->clone());
 
     // Get the closure interface type from the call method signature.
-    auto closureInterfaceType = getClosureInterfaceType(callMethod);
-    info->closureInterfaceType = closureInterfaceType;
+    auto closureInterfaceType = getClosureInterfaceType(tree, callMethod);
+    info.closureInterfaceType = closureInterfaceType;
 
     tree.insertClassPostParse(closureClass, false);
 
     // Finally, add the closure interface as a parent interface.
     closureClass->addParent(
         closureInterfaceType->getDefinition()->cast<ClassDefinition>());
-}
-
-// Generate the following class:
-//
-// class $Closure$N([NonLocalVars]...) {
-//     implicit call(implicit args...) {
-//         ...
-//     }
-// }
-//
-ClassDefinition* Closure::startGeneratingClass(
-    AnonymousFunctionExpression* function,
-    const VariableDeclarationList& nonLocalVariables,
-    const Context& context,
-    MethodDefinition** callMethod) {
-
-    ClassDefinition::Properties properties;
-    properties.isClosure = true;
-    Identifier closureClassName =
-        Symbol::makeClosureClassName(context.getClassDefinition()->getName(),
-                                     context.getMethodDefinition()->getName(),
-                                     function->getLocation());
-    tree.startGeneratedClass(closureClassName, properties);
-
-    for (auto nonLocalVar: nonLocalVariables) {
-        tree.addClassDataMember(nonLocalVar->getType()->clone(),
-                                nonLocalVar->getIdentifier());
-    }
-    tree.getCurrentClass()->generateConstructor();
-
-    auto callMethodDef =
-        MethodDefinition::create(CommonNames::callMethodName,
-                                 Type::create(Type::Implicit),
-                                 AccessLevel::Public,
-                                 false,
-                                 tree.getCurrentClass(),
-                                 function->getLocation());
-    callMethodDef->setIsClosure(true);
-    callMethodDef->setBody(function->getBody());
-    callMethodDef->addArguments(function->getArgumentList());
-    tree.addClassMember(callMethodDef);
-    *callMethod = callMethodDef;
-
-    return tree.finishClass();
-}
-
-Type* Closure::getClosureInterfaceType(MethodDefinition* callMethod) {
-    auto closureType = Type::create(Type::Function);
-
-    auto closureSignature =
-        FunctionSignature::create(callMethod->getReturnType()->clone());
-    for (auto argument: callMethod->getArgumentList()) {
-        closureSignature->addArgument(argument->getType()->clone());
-    }
-
-    closureType->setFunctionSignature(closureSignature);
-
-    return tree.convertToClosureInterfaceInCurrentTree(closureType);
 }

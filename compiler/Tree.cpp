@@ -287,17 +287,17 @@ void Tree::insertBuiltInTypesInGlobalNameBindings() {
     objectClass->appendMember(hashMethod);
 
     // Create the primitive types (and some other types).
-    ClassDefinition* viodClass = insertBuiltInType("void");
+    auto viodClass = insertBuiltInType("void");
     insertBuiltInType("_");
     insertBuiltInType("lambda");
     insertBuiltInType(Keyword::funString);
     insertBuiltInType("implicit");
-    ClassDefinition* byteClass = insertBuiltInType(Keyword::byteString);
-    ClassDefinition* charClass = insertBuiltInType(Keyword::charString);
-    ClassDefinition* floatClass = insertBuiltInType(Keyword::floatString);
-    ClassDefinition* intClass = insertBuiltInType(Keyword::intString);
-    ClassDefinition* longClass = insertBuiltInType(Keyword::longString);
-    ClassDefinition* boolClass = insertBuiltInType(Keyword::boolString);
+    auto byteClass = insertBuiltInType(Keyword::byteString);
+    auto charClass = insertBuiltInType(Keyword::charString);
+    auto floatClass = insertBuiltInType(Keyword::floatString);
+    auto intClass = insertBuiltInType(Keyword::intString);
+    auto longClass = insertBuiltInType(Keyword::longString);
+    auto boolClass = insertBuiltInType(Keyword::boolString);
 
     // Now that the primitive types exist we can set the definitions of the
     // return types of the methods in the object class.
@@ -460,9 +460,7 @@ void Tree::generateNoArgsClosureInterface() {
     auto closureInterfaceType = Type::create(Type::Function);
     closureInterfaceType->setFunctionSignature(
         FunctionSignature::create(nullptr));
-
-    Closure closure(*this);
-    closure.generateInterface(closureInterfaceType);
+    Closure::generateInterface(*this, closureInterfaceType);
 }
 
 void Tree::generateDeferClass() {
@@ -602,7 +600,7 @@ void Tree::reopenClass(ClassDefinition* classDefinition) {
 }
 
 ClassDefinition* Tree::finishClass() {
-    ClassDefinition* retVal = getCurrentClass();
+    auto retVal = getCurrentClass();
     openClasses.pop_back();
     return retVal;
 }
@@ -619,7 +617,7 @@ void Tree::finishFunction(MethodDefinition* function) {
 }
 
 void Tree::addClassMember(Definition* definition) {
-    ClassDefinition* currentClass = getCurrentClass();
+    auto currentClass = getCurrentClass();
     currentClass->appendMember(definition);
 }
 
@@ -1134,9 +1132,7 @@ Type* Tree::convertToClosureInterfaceInCurrentTree(Type* type) {
     auto closureInterfaceDef =
         globalNameBindings.lookupType(type->getClosureInterfaceName());
     if (closureInterfaceDef == nullptr) {
-        Closure closure(*this);
-        ClassDefinition* closureInterfaceClass =
-            closure.generateInterface(type);
+        auto closureInterfaceClass = Closure::generateInterface(*this, type);
         insertClassPostParse(closureInterfaceClass);
         closureInterfaceDef = closureInterfaceClass;
     }

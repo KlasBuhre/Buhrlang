@@ -276,7 +276,7 @@ void ProcessGenerator::generateCallConstructor(
 
     for (auto argument: remoteMethodSignature->getArgumentList()) {
         auto lhs = NamedEntityExpression::create(argument->getIdentifier());
-        Expression* rhs = NULL;
+        Expression* rhs = nullptr;
         auto argumentType = argument->getType();
         if (argumentType->getClass()->isProcess()) {
             rhs = TypeCastExpression::create(

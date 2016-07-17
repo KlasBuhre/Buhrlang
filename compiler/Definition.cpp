@@ -384,7 +384,7 @@ void ClassDefinition::addMethod(MethodDefinition* newMethod) {
         nameBindings.insertMethod(newMethod->getName(), newMethod);
     }
 
-    BlockStatement* body = newMethod->getBody();
+    auto body = newMethod->getBody();
     if (body != nullptr) {
         body->getNameBindings().setEnclosing(&nameBindings);
     }
@@ -431,7 +431,7 @@ void ClassDefinition::addPrimaryConstructor(
 
     addPrimaryCtorArgsAsDataMembers(constructorArguments);
 
-    MethodDefinition* constructor =
+    auto constructor =
         MethodDefinition::create(Keyword::initString, nullptr, false, this);
     constructor->setIsPrimaryConstructor(true);
     if (constructorCall != nullptr) {
@@ -443,13 +443,13 @@ void ClassDefinition::addPrimaryConstructor(
 }
 
 void ClassDefinition::generateConstructor() {
-    MethodDefinition* primaryConstructor = generateEmptyConstructor();
+    auto primaryConstructor = generateEmptyConstructor();
     primaryConstructor->generateMemberInitializations(dataMembers);
     appendMember(primaryConstructor);
 }
 
 void ClassDefinition::generateDefaultConstructor() {
-    MethodDefinition* defaultConstructor = generateEmptyConstructor();
+    auto defaultConstructor = generateEmptyConstructor();
     appendMember(defaultConstructor);
 }
 
@@ -556,9 +556,8 @@ Traverse::Result ClassDefinition::traverse(Visitor& visitor) {
 void ClassDefinition::generateCloneMethod() {
     if (needsCloneMethod()) {
         if (allTypeParametersAreMessagesOrPrimitives()) {
-            // Generate the cloning code for message classes.
-            CloneGenerator cloneGenerator(this, Tree::getCurrentTree());
-            cloneGenerator.generate();
+            // Generate the cloning code for message class.
+            CloneGenerator::generate(this, Tree::getCurrentTree());
         } else {
             // Not all type parameters are messages or primitive types. This
             // means this class cannot implement the _Cloneable interface. This
@@ -656,7 +655,7 @@ bool ClassDefinition::isReferenceType() {
 }
 
 MethodDefinition* ClassDefinition::getMainMethod() const {
-    const Binding* methodBinding = nameBindings.lookupLocal("main");
+    const auto methodBinding = nameBindings.lookupLocal("main");
     if (methodBinding &&
         methodBinding->getReferencedEntity() == Binding::Method) {
         for (auto method: methodBinding->getMethodList()) {
@@ -688,7 +687,7 @@ MethodDefinition* ClassDefinition::getCopyConstructor() const {
 ClassDefinition* ClassDefinition::getNestedClass(
     const Identifier& className) const {
 
-    Binding* binding = nameBindings.lookupLocal(className);
+    auto binding = nameBindings.lookupLocal(className);
     if (binding != nullptr &&
         binding->getReferencedEntity() == Binding::Class) {
         return binding->getDefinition()->cast<ClassDefinition>();
@@ -757,44 +756,56 @@ bool ClassDefinition::needsCloneMethod() {
 }
 
 void ClassDefinition::removeCloneableParent() {
-    for (auto i = parentClasses.begin(); i != parentClasses.end(); i++) {
-        auto parentClassDef = *i;
-        if (parentClassDef->isInterface() &&
-            parentClassDef->getName().compare(
-                CommonNames::cloneableTypeName) == 0) {
-            parentClasses.erase(i);
-            break;
-        }
+    auto i = std::find_if(
+        parentClasses.begin(),
+        parentClasses.end(),
+        [] (const ClassDefinition* parent) {
+            if (parent->isInterface() &&
+                parent->getName().compare(CommonNames::cloneableTypeName) == 0) {
+                return true;
+            }
+            return false;
+        });
+    if (i != parentClasses.end()) {
+        parentClasses.erase(i);
     }
 }
 
 void ClassDefinition::removeMethod(const Identifier& methodName) {
-    for (auto i = members.begin(); i!= members.end(); i++) {
-        auto definition = *i;
-        if (auto method = definition->dynCast<MethodDefinition>()) {
-            if (method->getName().compare(methodName) == 0) {
-                members.erase(i);
-                break;
-            }
-        }
-    }
+    members.erase(
+        std::remove_if(
+            members.begin(),
+            members.end(),
+            [&] (const Definition* member) {
+                if (auto method = member->dynCast<MethodDefinition>()) {
+                    if (method->getName().compare(methodName) == 0) {
+                        return true;
+                    }
+                }
+                return false;
+            }),
+        members.end());
 }
 
 void ClassDefinition::removeCopyConstructor() {
-    for (auto i = members.begin(); i!= members.end(); i++) {
-        auto definition = *i;
-        if (auto method = definition->dynCast<MethodDefinition>()) {
-            if (method->isConstructor()) {
-                const ArgumentList& arguments = method->getArgumentList();
-                if (arguments.size() == 1) {
-                    auto* argument = arguments.front();
-                    if (argument->getType()->getDefinition() == this) {
-                        members.erase(i);
-                        break;
+    auto thisPtr = this;
+    auto i = std::find_if(
+        members.begin(),
+        members.end(),
+        [=] (const Definition* member) {
+            if (auto method = member->dynCast<MethodDefinition>()) {
+                if (method->isConstructor()) {
+                    const ArgumentList& arguments = method->getArgumentList();
+                    if (arguments.size() == 1) {
+                        auto argument = arguments.front();
+                        return argument->getType()->getDefinition() == thisPtr;
                     }
                 }
             }
-        }
+            return false;
+        });
+    if (i != members.end()) {
+        members.erase(i);
     }
 }
 
@@ -1266,7 +1277,7 @@ void MethodDefinition::finishConstructor() {
         Trace::error("Constructor can not be static.", this);
     }
 
-    const ClassDefinition* classDefinition = getEnclosingClass();
+    auto classDefinition = getEnclosingClass();
     if (!classDefinition->isEnumeration()) {
         const ClassDefinition* baseClass = classDefinition->getBaseClass();
         if (baseClass != nullptr &&
@@ -1418,8 +1429,8 @@ bool MethodDefinition::isCompatible(const TypeList& arguments) const {
     auto j = argumentList.cbegin();
     auto i = arguments.cbegin();
     while (i != arguments.end()) {
-        Type* typeInCall = *i;
-        Type* typeInSignature = (*j)->getType();
+        auto typeInCall = *i;
+        auto typeInSignature = (*j)->getType();
         if (!Type::areInitializable(typeInSignature, typeInCall)) {
             return false;
         }
@@ -1437,8 +1448,8 @@ bool MethodDefinition::argumentsAreEqual(const ArgumentList& arguments) const {
     auto j = argumentList.cbegin();
     auto i = arguments.cbegin();
     while (i != arguments.end()) {
-        Type* type = (*i)->getType();
-        Type* typeInSignature = (*j)->getType();
+        auto type = (*i)->getType();
+        auto typeInSignature = (*j)->getType();
         if (!Type::areEqualNoConstCheck(typeInSignature, type)) {
             return false;
         }
@@ -1592,7 +1603,7 @@ void DataMemberDefinition::changeTypeIfGeneric(
     const Location& loc = getLocation();
 
     Tree::lookupAndSetTypeDefinition(type, nameBindings, loc);
-    Type* concreteType = Tree::makeGenericTypeConcrete(type, nameBindings, loc);
+    auto concreteType = Tree::makeGenericTypeConcrete(type, nameBindings, loc);
     if (concreteType != nullptr) {
         // The data member type is a generic type parameter that has been
         // assigned a concrete type. Change the data member type to the concrete
@@ -1611,7 +1622,7 @@ bool DataMemberDefinition::isDataMember(Definition* definition) {
 }
 
 void DataMemberDefinition::convertClosureType() {
-    Type* closureInterfaceType = Tree::convertToClosureInterface(type);
+    auto closureInterfaceType = Tree::convertToClosureInterface(type);
     if (closureInterfaceType != nullptr) {
         type = closureInterfaceType;
     }

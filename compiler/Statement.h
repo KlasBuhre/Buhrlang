@@ -155,7 +155,7 @@ public:
     void addLocalBinding(VariableDeclaration* localObject);
     void setEnclosingBlock(BlockStatement* b);
     void returnLastExpression(
-        VariableDeclarationStatement* retvalTmpDeclaration);
+        const VariableDeclarationStatement* retvalTmpDeclaration);
     ConstructorCallStatement* getFirstStatementAsConstructorCall() const;
     void replaceLastStatement(Statement* statement);
     void replaceCurrentStatement(Statement* s);

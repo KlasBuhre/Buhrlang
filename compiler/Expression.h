@@ -247,7 +247,7 @@ public:
 
     bool resolve(Context& context);
     bool isReferencingStaticDataMember(Context& context);
-    bool isReferencingName(Expression* name);
+    bool isReferencingName(const Expression* name);
     MethodCallExpression* getCall(
         Context& context,
         bool allowUnknownIdentifier);
@@ -622,10 +622,10 @@ public:
     Traverse::Result traverse(Visitor& visitor) override;
 
     void setIsConstructorCall();
-    void setConstructorCallName(Type* allocatedObjectType);
+    void setConstructorCallName(const Type* allocatedObjectType);
     void addArgument(const Identifier& argument);
     MethodDefinition* getEnumCtorMethodDefinition() const;
-    void tryResolveEnumConstructor(Context& context);
+    void tryResolveEnumConstructor(const Context& context);
 
     static MethodCallExpression* transformMethodCall(
         MethodCallExpression* methodCall,
@@ -680,7 +680,7 @@ private:
         const MethodDefinition* candidate,
         const TypeList& argumentTypes,
         Context& context);
-    const Binding::MethodList& resolveCandidates(Context& context);
+    const Binding::MethodList& resolveCandidates(const Context& context);
     void findCompatibleMethod(
         const Binding::MethodList& candidates,
         const TypeList& argumentTypes);
@@ -689,14 +689,14 @@ private:
         const Binding::MethodList& candidates,
         Context& context);
     bool isBuiltInArrayMethod();
-    void checkBuiltInArrayMethodPlaceholderTypes(Context& context);
+    void checkBuiltInArrayMethodPlaceholderTypes(const Context& context);
     void checkArrayAppend(const Type* arrayType);
     void checkArrayConcatenation(const Type* arrayType);
     void reportError(
         const TypeList& argumentTypes,
         const Binding::MethodList& candidates);
     Expression* transformDueToLambda(
-        MethodDefinition* methodDefinition,
+        const MethodDefinition* methodDefinition,
         Context& context);
     Expression* inlineCalledMethod(Context& context);
     void addArgumentsToInlinedMethodBody(BlockStatement* clonedBody);
@@ -709,7 +709,7 @@ private:
         BlockStatement* whileBlock,
         const Identifier& indexVariableName,
         const Identifier& arrayName);
-    bool resolvesToClosure(Context& context);
+    bool resolvesToClosure(const Context& context);
     Expression* transformIntoClosureCallMethod(Context& context);
 
     Identifier name;
@@ -868,13 +868,13 @@ public:
     void addPatternExpression(Expression* e);
     void buildPatterns(Context& context);
     bool isMatchExhaustive(
-        Expression* subject,
+        const Expression* subject,
         MatchCoverage& coverage,
         Context& context);
     Type* generateCaseBlock(
         BlockStatement* caseBlock,
         Context& context,
-        Expression* subject,
+        const Expression* subject,
         const Identifier& matchResultTmpName,
         const Identifier& matchEndLabelName);
     void setResultExpression(
@@ -899,7 +899,7 @@ private:
     MatchCase(const MatchCase& other);
 
     BinaryExpression* generateComparisonExpression(
-        Expression* subject,
+        const Expression* subject,
         Context& context);
     Type* generateCaseResultBlock(
         BlockStatement* block,
@@ -951,7 +951,9 @@ private:
     Expression* generateSubjectTemporary(BlockStatement* matchLogicBlock);
     Identifier generateMatchEndLabelName();
     void buildCasePatterns(Context& context);
-    void checkResultType(Type* caseResultType, const MatchCase* matchCase);
+    void checkResultType(
+        const Type* caseResultType,
+        const MatchCase* matchCase);
     void checkCases(Context& context);
 
     Expression* subject;
@@ -963,10 +965,8 @@ class ClassDecompositionExpression: public Expression {
 public:
 
     struct Member {
-        Member() : nameExpr(nullptr), patternExpr(nullptr) { }
-
-        Expression* nameExpr;
-        Expression* patternExpr;
+        Expression* nameExpr {nullptr};
+        Expression* patternExpr {nullptr};
     };
 
     using MemberList = std::vector<Member>;

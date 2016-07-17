@@ -244,7 +244,7 @@ Expression* VariableDeclarationStatement::generateInitTemporary(
         initRefExpr = initExpression;
     } else {
         const Location& location = initExpression->getLocation();
-        Type* initExpressionType = initExpression->getType();
+        auto initExpressionType = initExpression->getType();
 
         Identifier initTmpName =
             generateTemporaryName(CommonNames::matchSubjectName);
@@ -267,8 +267,8 @@ Expression* VariableDeclarationStatement::generateInitTemporary(
 
 void VariableDeclarationStatement::lookupType(const Context& context) {
     if (!hasLookedUpType) {
-        Type* type = context.lookupConcreteType(declaration.getType(),
-                                                getLocation());
+        auto type = context.lookupConcreteType(declaration.getType(),
+                                               getLocation());
         declaration.setType(type);
         hasLookedUpType = true;
     }
@@ -277,7 +277,7 @@ void VariableDeclarationStatement::lookupType(const Context& context) {
 void VariableDeclarationStatement::makeIdentifierUniqueIfTakingLambda(
     Context& context) {
 
-    const MethodDefinition* method = context.getMethodDefinition();
+    const auto method = context.getMethodDefinition();
     if (method->getLambdaSignature() != nullptr && !isNameUnique) {
         // Transform the variable name to avoid name collisions with names in
         // methods that call this method. Since this method takes a lambda it
@@ -424,7 +424,7 @@ void BlockStatement::initialStatementCheck(Statement* statement) {
 }
 
 void BlockStatement::addLocalBinding(VariableDeclaration* localObject) {
-    Type* type = localObject->getType();
+    auto type = localObject->getType();
     if (type->getDefinition() == nullptr) {
         Tree::lookupAndSetTypeDefinition(type,
                                          nameBindings,
@@ -493,7 +493,7 @@ Traverse::Result BlockStatement::traverse(Visitor& visitor) {
 }
 
 void BlockStatement::returnLastExpression(
-    VariableDeclarationStatement* retvalTmpDeclaration) {
+    const VariableDeclarationStatement* retvalTmpDeclaration) {
 
     if (statements.empty()) {
         Trace::error("Must return a value.", getLocation());
@@ -507,8 +507,8 @@ void BlockStatement::returnLastExpression(
     }
     auto returnExpression = lastStatement->cast<Expression>();
 
-    const Type* returnTypeInSignature = retvalTmpDeclaration->getType();
-    const Type* returnType = returnExpression->getType();
+    const auto returnTypeInSignature = retvalTmpDeclaration->getType();
+    const auto returnType = returnExpression->getType();
     if (!Type::areInitializable(returnTypeInSignature, returnType)) {
         Trace::error(
             "Returned type is incompatible with declared return type in lambda "
@@ -600,7 +600,7 @@ Statement* IfStatement::clone() const {
 
 Type* IfStatement::typeCheck(Context& context) {
     expression = expression->transform(context);
-    Type* type = expression->typeCheck(context);
+    auto type = expression->typeCheck(context);
 
     if (type->isBoolean() || type->isNumber()) {
         block->typeCheck(context);
@@ -663,7 +663,7 @@ Statement* WhileStatement::clone() const {
 
 Type* WhileStatement::typeCheck(Context& context) {
     expression = expression->transform(context);
-    Type* type = expression->typeCheck(context);
+    auto type = expression->typeCheck(context);
 
     if (!type->isBoolean() && !type->isNumber()) {
         Trace::error(
@@ -730,7 +730,7 @@ Statement* ForStatement::clone() const {
 Type* ForStatement::typeCheck(Context& context) {
     if (conditionExpression != nullptr) {
         conditionExpression = conditionExpression->transform(context);
-        Type* type = conditionExpression->typeCheck(context);
+        auto type = conditionExpression->typeCheck(context);
         if (!type->isBoolean() && !type->isNumber()) {
             Trace::error(
                 "Resulting type from expression should be a boolean type.",
@@ -845,16 +845,15 @@ Statement* ReturnStatement::clone() const {
 }
 
 Type* ReturnStatement::typeCheck(Context& context) {
-    MethodDefinition* method = context.getMethodDefinition();
-    VariableDeclaration* temporaryRetvalDeclaration = 
-        context.getTemporaryRetvalDeclaration();
+    auto method = context.getMethodDefinition();
+    auto temporaryRetvalDeclaration = context.getTemporaryRetvalDeclaration();
     if (originalMethod != nullptr && originalMethod != method &&
         temporaryRetvalDeclaration != nullptr) {
         // The method in which the return statement was located in has been
         // inlined in another method. Transform the return statement into an
         // assignment expression to assign the return value of the inlined
         // method.
-        BinaryExpression* returnValueAssignment = 
+        auto returnValueAssignment =
             makeReturnValueAssignment(
                 expression, 
                 temporaryRetvalDeclaration->getType(),
@@ -865,7 +864,7 @@ Type* ReturnStatement::typeCheck(Context& context) {
 
     originalMethod = method;
     Type* returnType = nullptr;
-    Type* returnTypeInSignature = method->getReturnType();
+    auto returnTypeInSignature = method->getReturnType();
     if (expression != nullptr) {
         if (returnTypeInSignature->isVoid()) {
             Trace::error(
@@ -920,9 +919,9 @@ Statement* DeferStatement::clone() const {
 }
 
 Type* DeferStatement::typeCheck(Context& context) {
-    BlockStatement* outerBlock = context.getBlock();
+    auto outerBlock = context.getBlock();
     if (!outerBlock->containsDeferDeclaration()) {
-        Type* deferType = Type::create(CommonNames::deferTypeName);
+        auto deferType = Type::create(CommonNames::deferTypeName);
 
         // A defer object is stored on the stack, not the heap.
         deferType->setReference(false);
@@ -987,9 +986,9 @@ Type* ConstructorCallStatement::typeCheck(Context& context) {
     }
 
     context.setIsConstructorCallStatement(true);
-    ClassDefinition* thisClass = context.getClassDefinition();
+    auto thisClass = context.getClassDefinition();
     if (isBaseClassCtorCall) {
-        ClassDefinition* baseClass = thisClass->getBaseClass();
+        auto baseClass = thisClass->getBaseClass();
         if (constructorCall->getName().compare(baseClass->getName()) != 0) {
             Trace::error(constructorCall->getName() +
                          " is not the base class of " +

@@ -236,15 +236,17 @@ ClassDefinition* Type::getClass() const {
     return nullptr;
 }
 
-bool Type::operator==(const Type& other) const {
-    if (areEqualNoConstCheck(this, &other) && constant == other.constant) {
+bool operator==(const Type& left, const Type& right) {
+    if (Type::areEqualNoConstCheck(&left, &right) &&
+        left.constant == right.constant) {
         return true;
     }
     return false;
+
 }
 
-bool Type::operator != (const Type& other) const {
-    return !(*this == other);
+bool operator!=(const Type& left, const Type& right) {
+    return !(left == right);
 }
 
 bool Type::areTypeParametersMatching(const Type* other) const {

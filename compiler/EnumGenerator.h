@@ -68,7 +68,8 @@ private:
     MethodDefinition* generateDeepCopyMethodSignature(
         BlockStatement* body,
         const Location& location);
-    MatchCase* generateVariantMatchCase(MethodDefinition* variantConstructor);
+    MatchCase* generateVariantMatchCase(
+        const MethodDefinition* variantConstructor);
     ClassDefinition* generateConvertableEnum();
     void generateImplicitConversion();
 

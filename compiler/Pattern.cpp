@@ -35,7 +35,7 @@ namespace {
     }
 
     MemberSelectorExpression* generateMatchSubjectMemberSelector(
-        Expression* subject,
+        const Expression* subject,
         Expression* memberName) {
 
         return MemberSelectorExpression::create(subject->clone(),
@@ -58,11 +58,11 @@ namespace {
     }
 
     ClassDecompositionExpression* createClassDecompositionExpr(
-        MethodCallExpression* constructorCall,
+        const MethodCallExpression* constructorCall,
         Context& context);
 
     ClassDecompositionExpression* createClassDecompositionFromConstructorCall(
-        MethodCallExpression* constructorCall,
+        const MethodCallExpression* constructorCall,
         Context& context) {
 
         auto classDecomposition =
@@ -104,8 +104,8 @@ namespace {
     }
 
     ClassDecompositionExpression* createClassDecompositionFromEnumCtorCall(
-        MethodCallExpression* enumConstructorCall,
-        MethodDefinition* enumConstructor,
+        const MethodCallExpression* enumConstructorCall,
+        const MethodDefinition* enumConstructor,
         Context& context) {
 
         const auto enumDef = enumConstructor->getClass();
@@ -162,7 +162,7 @@ namespace {
     }
 
     ClassDecompositionExpression* createClassDecompositionExpr(
-        MethodCallExpression* constructorCall,
+        const MethodCallExpression* constructorCall,
         Context& context) {
 
         auto enumConstructor = constructorCall->getEnumCtorMethodDefinition();
@@ -177,7 +177,7 @@ namespace {
     }
 }
 
-MatchCoverage::MatchCoverage(Type* subjectType) : notCoveredCases() {
+MatchCoverage::MatchCoverage(const Type* subjectType) : notCoveredCases() {
     if (subjectType->isBoolean()) {
         notCoveredCases.insert(boolTrueCaseName);
         notCoveredCases.insert(boolFalseCaseName);
@@ -248,7 +248,7 @@ Pattern* SimplePattern::clone() const {
 }
 
 bool SimplePattern::isMatchExhaustive(
-    Expression* subject,
+    const Expression* subject,
     MatchCoverage& coverage,
     bool isMatchGuardPresent,
     Context& context) {
@@ -298,7 +298,7 @@ bool SimplePattern::isMatchExhaustive(
 }
 
 BinaryExpression* SimplePattern::generateComparisonExpression(
-    Expression* subject,
+    const Expression* subject,
     Context& context) {
 
     const Location& location = expression->getLocation();
@@ -331,7 +331,7 @@ Pattern* ArrayPattern::clone() const {
 }
 
 bool ArrayPattern::isMatchExhaustive(
-    Expression*,
+    const Expression*,
     MatchCoverage&,
     bool isMatchGuardPresent,
     Context&) {
@@ -347,7 +347,7 @@ bool ArrayPattern::isMatchExhaustive(
 }
 
 BinaryExpression* ArrayPattern::generateComparisonExpression(
-    Expression* subject,
+    const Expression* subject,
     Context& context) {
 
     auto comparison = generateLengthComparisonExpression();
@@ -376,7 +376,7 @@ BinaryExpression* ArrayPattern::generateComparisonExpression(
 }
 
 BinaryExpression* ArrayPattern::generateElementComparisonExpression(
-    Expression* subject,
+    const Expression* subject,
     ExpressionList::const_iterator i,
     Context& context,
     bool toTheRightOfWildcard) {
@@ -409,7 +409,7 @@ BinaryExpression* ArrayPattern::generateElementComparisonExpression(
 }
 
 BinaryExpression* ArrayPattern::generateNamedEntityElementComparisonExpression(
-    Expression* subject,
+    const Expression* subject,
     ExpressionList::const_iterator i,
     Context& context,
     bool toTheRightOfWildcard) {
@@ -440,7 +440,7 @@ BinaryExpression* ArrayPattern::generateNamedEntityElementComparisonExpression(
 }
 
 ArraySubscriptExpression* ArrayPattern::generateArraySubscriptExpression(
-    Expression* subject,
+    const Expression* subject,
     ExpressionList::const_iterator i,
     bool toTheRightOfWildcard) {
 
@@ -502,7 +502,7 @@ BinaryExpression* ArrayPattern::generateLengthComparisonExpression() {
 }
 
 VariableDeclarationStatement*
-ArrayPattern::generateMatchSubjectLengthDeclaration(Expression* subject) {
+ArrayPattern::generateMatchSubjectLengthDeclaration(const Expression* subject) {
     const Location& location = subject->getLocation();
     auto arrayLengthSelector =
         MemberSelectorExpression::create(
@@ -529,7 +529,7 @@ Pattern* ClassDecompositionPattern::clone() const {
 }
 
 bool ClassDecompositionPattern::isMatchExhaustive(
-    Expression* subject,
+    const Expression* subject,
     MatchCoverage& coverage,
     bool isMatchGuardPresent,
     Context& context) {
@@ -561,7 +561,7 @@ bool ClassDecompositionPattern::isMatchExhaustive(
 
 bool ClassDecompositionPattern::isEnumMatchExhaustive(
     const Identifier& enumVariantName,
-    Expression* subject,
+    const Expression* subject,
     MatchCoverage& coverage,
     bool isMatchGuardPresent,
     Type* patternType,
@@ -600,7 +600,7 @@ bool ClassDecompositionPattern::areAllMemberPatternsIrrefutable(
 }
 
 BinaryExpression* ClassDecompositionPattern::generateComparisonExpression(
-    Expression* subject,
+    const Expression* subject,
     Context& context) {
 
     auto comparison = generateTypeComparisonExpression(&subject);
@@ -627,7 +627,7 @@ BinaryExpression* ClassDecompositionPattern::generateComparisonExpression(
 
 void ClassDecompositionPattern::generateVariableCreatedByMemberPattern(
     const ClassDecompositionExpression::Member& member,
-    Expression* subject,
+    const Expression* subject,
     Context& context) {
 
     NamedEntityExpression* patternVar = nullptr;
@@ -653,7 +653,7 @@ void ClassDecompositionPattern::generateVariableCreatedByMemberPattern(
 }
 
 BinaryExpression* ClassDecompositionPattern::generateMemberComparisonExpression(
-    Expression* subject,
+    const Expression* subject,
     const ClassDecompositionExpression::Member& member,
     Context& context) {
 
@@ -688,7 +688,7 @@ BinaryExpression* ClassDecompositionPattern::generateMemberComparisonExpression(
 }
 
 BinaryExpression* ClassDecompositionPattern::generateTypeComparisonExpression(
-    Expression** subject) {
+    const Expression** subject) {
 
     auto originalSubject = *subject;
     const Identifier& enumVariantName =
@@ -738,7 +738,7 @@ BinaryExpression* ClassDecompositionPattern::generateTypeComparisonExpression(
 
 BinaryExpression*
 ClassDecompositionPattern::generateEnumVariantTagComparisonExpression(
-    Expression* subject,
+    const Expression* subject,
     const Identifier& enumVariantName) {
 
     const Location& location = classDecomposition->getLocation();
@@ -774,7 +774,7 @@ Pattern* TypedPattern::clone() const {
 }
 
 bool TypedPattern::isMatchExhaustive(
-    Expression* subject,
+    const Expression* subject,
     MatchCoverage&,
     bool isMatchGuardPresent,
     Context& context) {
@@ -789,7 +789,7 @@ bool TypedPattern::isMatchExhaustive(
 }
 
 BinaryExpression* TypedPattern::generateComparisonExpression(
-    Expression* subject,
+    const Expression* subject,
     Context&) {
 
     auto targetType = typedExpression->getType();

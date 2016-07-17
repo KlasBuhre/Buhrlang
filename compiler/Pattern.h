@@ -10,7 +10,7 @@
 
 class MatchCoverage {
 public:
-    explicit MatchCoverage(Type* subjectType);
+    explicit MatchCoverage(const Type* subjectType);
 
     bool isCaseCovered(const Identifier& caseName) const;
     bool areAllCasesCovered() const;
@@ -32,12 +32,12 @@ public:
 
     virtual Pattern* clone() const = 0;
     virtual bool isMatchExhaustive(
-        Expression* subject,
+        const Expression* subject,
         MatchCoverage& coverage,
         bool isMatchGuardPresent,
         Context& context) = 0;
     virtual BinaryExpression* generateComparisonExpression(
-        Expression* subject,
+        const Expression* subject,
         Context& context) = 0;
 
     const VariableDeclarationStatementList&
@@ -64,12 +64,12 @@ public:
 
     Pattern* clone() const override;
     bool isMatchExhaustive(
-        Expression* subject,
+        const Expression* subject,
         MatchCoverage& coverage,
         bool isMatchGuardPresent,
         Context& context) override;
     BinaryExpression* generateComparisonExpression(
-        Expression* subject,
+        const Expression* subject,
         Context& context) override;
 
 private:
@@ -83,30 +83,30 @@ public:
 
     Pattern* clone() const override;
     bool isMatchExhaustive(
-        Expression* subject,
+        const Expression* subject,
         MatchCoverage& coverage,
         bool isMatchGuardPresent,
         Context& context) override;
     BinaryExpression* generateComparisonExpression(
-        Expression* subject,
+        const Expression* subject,
         Context& context) override;
 
     static VariableDeclarationStatement*
-    generateMatchSubjectLengthDeclaration(Expression* subject);
+    generateMatchSubjectLengthDeclaration(const Expression* subject);
 
 private:
     BinaryExpression* generateElementComparisonExpression(
-        Expression* subject,
+        const Expression* subject,
         ExpressionList::const_iterator i,
         Context& context,
         bool toTheRightOfWildcard);
     BinaryExpression* generateNamedEntityElementComparisonExpression(
-        Expression* subject,
+        const Expression* subject,
         ExpressionList::const_iterator i,
         Context& context,
         bool toTheRightOfWildcard);
     ArraySubscriptExpression* generateArraySubscriptExpression(
-        Expression* subject,
+        const Expression* subject,
         ExpressionList::const_iterator i,
         bool toTheRightOfWildcard);
     BinaryExpression* generateLengthComparisonExpression();
@@ -121,18 +121,18 @@ public:
 
     Pattern* clone() const override;
     bool isMatchExhaustive(
-        Expression* subject,
+        const Expression* subject,
         MatchCoverage& coverage,
         bool isMatchGuardPresent,
         Context& context) override;
     BinaryExpression* generateComparisonExpression(
-        Expression* subject,
+        const Expression* subject,
         Context& context) override;
 
 private:
     bool isEnumMatchExhaustive(
         const Identifier& enumVariantName,
-        Expression* subject,
+        const Expression* subject,
         MatchCoverage& coverage,
         bool isMatchGuardPresent,
         Type* patternType,
@@ -140,15 +140,16 @@ private:
     bool areAllMemberPatternsIrrefutable(Context& context);
     void generateVariableCreatedByMemberPattern(
         const ClassDecompositionExpression::Member& member,
-        Expression* subject,
+        const Expression* subject,
         Context& context);
     BinaryExpression* generateMemberComparisonExpression(
-        Expression* subject,
+        const Expression* subject,
         const ClassDecompositionExpression::Member& member,
         Context& context);
-    BinaryExpression* generateTypeComparisonExpression(Expression** subject);
+    BinaryExpression* generateTypeComparisonExpression(
+        const Expression** subject);
     BinaryExpression* generateEnumVariantTagComparisonExpression(
-        Expression* subject,
+        const Expression* subject,
         const Identifier& enumVariantName);
 
     ClassDecompositionExpression* classDecomposition;
@@ -161,12 +162,12 @@ public:
 
     Pattern* clone() const override;
     bool isMatchExhaustive(
-        Expression* subject,
+        const Expression* subject,
         MatchCoverage& coverage,
         bool isMatchGuardPresent,
         Context& context) override;
     BinaryExpression* generateComparisonExpression(
-        Expression* subject,
+        const Expression* subject,
         Context& context) override;
 
 private:

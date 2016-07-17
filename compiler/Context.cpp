@@ -30,9 +30,8 @@ Definition* Context::lookupType(const Identifier& name) const {
 
 Type* Context::lookupConcreteType(Type* type, const Location& location) const {
     Tree::lookupAndSetTypeDefinition(type, *bindings, location);
-    Type* concreteType = Tree::makeGenericTypeConcrete(type,
-                                                       *bindings,
-                                                       location);
+    auto concreteType =
+        Tree::makeGenericTypeConcrete(type, *bindings, location);
     if (concreteType != nullptr) {
         // The type is a generic type parameter that has been assigned a
         // concrete type. Change the type to the concrete type.

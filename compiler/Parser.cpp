@@ -290,7 +290,7 @@ void Parser::parseGenericTypeParametersDeclaration(
 void Parser::parseClassMembers(bool classIsNative) {
     if (lexer.getCurrentToken().isOperator(Operator::OpenBrace)) {
         lexer.consumeToken();
-        AccessLevel::Kind access = AccessLevel::Public;
+        auto access = AccessLevel::Public;
         while (!lexer.getCurrentToken().isOperator(Operator::CloseBrace)) {
             if (lexer.getCurrentToken().isKeyword(Keyword::Private) &&
                 lexer.peekToken().isOperator(Operator::Colon)) {
@@ -306,7 +306,7 @@ void Parser::parseClassMembers(bool classIsNative) {
 }
 
 void Parser::parseClassMember(AccessLevel::Kind access, bool isClassNative) {
-    const Token* token = lexer.getCurrentTokenPtr();
+    auto token = lexer.getCurrentTokenPtr();
     bool nestedClassIsMessage = false;
     if (token->isKeyword(Keyword::Message)) {
         nestedClassIsMessage = true;
@@ -353,19 +353,16 @@ void Parser::parseClassMember(AccessLevel::Kind access, bool isClassNative) {
 
     if (lexer.getCurrentToken().isOperator(Operator::OpenParentheses)) {
         // This is a method definition.
-        MethodDefinition* method = parseMethod(name,
-                                               type,
-                                               access,
-                                               isStatic,
-                                               isVirtual,
-                                               !isClassNative);
+        auto method = parseMethod(name,
+                                  type,
+                                  access,
+                                  isStatic,
+                                  isVirtual,
+                                  !isClassNative);
         tree.addClassMember(method);
     } else {
         // This should be a data member declaration.
-        DataMemberDefinition* dataMember = parseDataMember(name,
-                                                           type,
-                                                           access,
-                                                           isStatic);
+        auto dataMember = parseDataMember(name, type, access, isStatic);
         tree.addClassMember(dataMember);
     } 
 }
@@ -544,10 +541,8 @@ void Parser::parseInterfaceMember() {
         tree.addClassMember(method);
     } else {
         // This should be a static interface data member declaration.
-        DataMemberDefinition* dataMember = parseDataMember(name,
-                                                           type,
-                                                           AccessLevel::Public,
-                                                           true);
+        auto dataMember =
+            parseDataMember(name, type, AccessLevel::Public, true);
         tree.addClassMember(dataMember);
     }
 }
@@ -632,7 +627,7 @@ void Parser::parseEnumeration(bool isMessage) {
         enumGenerator.generateEmptyDeepCopyMethod();
     }
 
-    ClassDefinition* convertableEnum = enumGenerator.getConvertableEnum();
+    auto convertableEnum = enumGenerator.getConvertableEnum();
     if (convertableEnum != nullptr) {
         addDefinition(convertableEnum);
     }
@@ -669,7 +664,7 @@ void Parser::parseEnumerationVariant(EnumGenerator& enumGenerator) {
 }
 
 void Parser::parseEnumerationMethods() {
-    AccessLevel::Kind access = AccessLevel::Public;
+    auto access = AccessLevel::Public;
     while (!lexer.getCurrentToken().isOperator(Operator::CloseBrace)) {
         if (lexer.getCurrentToken().isKeyword(Keyword::Private) &&
             lexer.peekToken().isOperator(Operator::Colon)) {
@@ -684,7 +679,7 @@ void Parser::parseEnumerationMethods() {
 }
 
 void Parser::parseEnumerationMethod(AccessLevel::Kind access) {
-    const Token* token = lexer.getCurrentTokenPtr();
+    auto token = lexer.getCurrentTokenPtr();
     if (token->isKeyword(Keyword::Private)) {
         access = AccessLevel::Private;
         lexer.consumeToken();
@@ -712,11 +707,7 @@ void Parser::parseEnumerationMethod(AccessLevel::Kind access) {
         error("Expected 'identifier'('.", lexer.getCurrentToken());
     }
 
-    MethodDefinition* method = parseMethod(name, type,
-                                           access,
-                                           isStatic,
-                                           false,
-                                           true);
+    auto method = parseMethod(name, type, access, isStatic, false, true);
     tree.addClassMember(method);
 }
 
@@ -759,12 +750,8 @@ MethodDefinition* Parser::parseFunction() {
     }
 
     tree.startFunction();
-    MethodDefinition* function = parseMethod(name,
-                                             type,
-                                             AccessLevel::Public,
-                                             true,
-                                             false,
-                                             true);
+    auto function =
+        parseMethod(name, type, AccessLevel::Public, true, false, true);
     tree.finishFunction(function);
     return function;
 }
@@ -935,7 +922,7 @@ Type* Parser::parseType() {
     if (token.isIdentifier()) {
         type = Type::create(token.getValue());
     } else if (token.isKeyword()) {
-        Keyword::Kind keyword = token.getKeyword();
+        auto keyword = token.getKeyword();
         switch (keyword) {
             case Keyword::Let:
             case Keyword::Var:
@@ -1024,7 +1011,7 @@ void Parser::parseGenericTypeParameters(Type* type) {
             return;
         }
 
-        Type* typeParameter = parseType();
+        auto typeParameter = parseType();
         if (typeParameter == nullptr) {
             return;
         }
@@ -1062,12 +1049,12 @@ Expression* Parser::parseExpression(
             return left;
         }
 
-        Operator::Kind op = currentToken.getOperator();
+        auto op = currentToken.getOperator();
         if (op == Operator::Range && !rangeAllowed) {
             error("Unexpected operator '...'.", currentToken);
         }
 
-        Operator::Precedence rightPrecedence = Operator::precedence(op);
+        auto rightPrecedence = Operator::precedence(op);
         if (rightPrecedence == Operator::NoPrecedence) {
             return left;
         }
@@ -1546,7 +1533,7 @@ Expression* Parser::parseArrayIndexExpression(bool isIndexOptional) {
         return nullptr;
     }
 
-    Expression* expression = parseExpression(true);
+    auto expression = parseExpression(true);
     const Token& token = lexer.consumeToken();
     if (!token.isOperator(Operator::CloseBracket)) {
         error("Expected ']'.", token);

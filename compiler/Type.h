@@ -30,12 +30,8 @@ public:
         Enumeration
     };
 
-    Type* clone() const;
-    Type* getAsMutable() const;
-
-    bool operator == (const Type& other) const;
-    bool operator != (const Type& other) const;    
-    std::string toString() const;
+    friend bool operator==(const Type& left, const Type& right);
+    friend bool operator!=(const Type& left, const Type& right);
 
     static Type* create(BuiltInType t);
     static Type* create(const Identifier& name);
@@ -58,6 +54,9 @@ public:
         const Type* previousType,
         const Type* currentType);
 
+    Type* clone() const;
+    Type* getAsMutable() const;
+    std::string toString() const;
     void setDefinition(Definition* d);
     void setReference(bool r);
     void setArray(bool a);

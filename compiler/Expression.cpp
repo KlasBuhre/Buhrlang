@@ -201,7 +201,9 @@ Expression* StringLiteralExpression::createCharArrayExpression(
 BooleanLiteralExpression::BooleanLiteralExpression(
     bool b,
     const Location& loc) :
-    LiteralExpression(LiteralExpression::Boolean, Type::create(Type::Boolean), loc),
+    LiteralExpression(LiteralExpression::Boolean,
+                      Type::create(Type::Boolean),
+                      loc),
     value(b) {}
 
 BooleanLiteralExpression* BooleanLiteralExpression::create(
@@ -409,7 +411,7 @@ bool NamedEntityExpression::isReferencingStaticDataMember(Context& context) {
     return false;
 }
 
-bool NamedEntityExpression::isReferencingName(Expression* name) {
+bool NamedEntityExpression::isReferencingName(const Expression* name) {
     switch (name->getKind()) {
         case Expression::NamedEntity: {
             auto namedEntity = name->cast<NamedEntityExpression>();
@@ -642,8 +644,8 @@ Expression* MemberSelectorExpression::transform(Context& context) {
     Context::BindingsGuard guard(context, bindingScopeOfLeft(context));
 
     Type* arrayType = nullptr;
-    Type* oldArrayType = context.getArrayType();
-    Type* leftType = left->getType();
+    auto oldArrayType = context.getArrayType();
+    auto leftType = left->getType();
     if (leftType->isArray()) {
         arrayType = leftType;
         context.setArrayType(arrayType);
@@ -769,7 +771,7 @@ void MemberSelectorExpression::generateThisPointerDeclaration(
 
     const Location& location = getLocation();
     VariableDeclarationStatement* thisPointerDeclaration = nullptr;
-    Statement* firstStatement = *(block->getStatements().begin());
+    auto firstStatement = *(block->getStatements().begin());
     if (firstStatement->getKind() == Statement::VarDeclaration) {
         auto variableDeclaration =
             firstStatement->cast<VariableDeclarationStatement>();
@@ -1061,14 +1063,14 @@ MethodDefinition* MethodCallExpression::getEnumCtorMethodDefinition() const {
     return nullptr;
 }
 
-void MethodCallExpression::tryResolveEnumConstructor(Context& context) {
-    const Binding* binding = context.lookup(name);
+void MethodCallExpression::tryResolveEnumConstructor(const Context& context) {
+    const auto binding = context.lookup(name);
     if (binding != nullptr &&
         binding->getReferencedEntity() == Binding::Method) {
 
         const Binding::MethodList& candidates = binding->getMethodList();
         assert(!candidates.empty());
-        MethodDefinition* methodDefinition = candidates.front();
+        auto methodDefinition = candidates.front();
         if (methodDefinition->isEnumConstructor()) {
             memberDefinition = methodDefinition;
         }
@@ -1159,13 +1161,13 @@ Type* MethodCallExpression::inferConcreteType(
         // Infer concrete class by matching the types of the arguments in the
         // call expression with the argument types in the candidate signature
         // that are generic type parameters.
-        Type* concreteType = Type::create(candidateClassName);
+        auto concreteType = Type::create(candidateClassName);
         auto i = candidateArgumentList.cbegin();
         auto j = argumentTypes.cbegin();
         while (i != candidateArgumentList.end()) {
             VariableDeclaration* candidateArgument = *i;
-            Type* argumentType = *j;
-            Type* candidateArgumentType = candidateArgument->getType();
+            auto argumentType = *j;
+            auto candidateArgumentType = candidateArgument->getType();
             Definition* candidateArgumentTypeDef =
                 candidateArgumentType->getDefinition();
             if (candidateArgumentTypeDef->isGenericTypeParameter()) {
@@ -1205,9 +1207,9 @@ Type* MethodCallExpression::inferConcreteType(
 }
 
 const Binding::MethodList& MethodCallExpression::resolveCandidates(
-    Context& context) {
+    const Context& context) {
 
-    const Binding* binding = context.lookup(name);
+    const auto binding = context.lookup(name);
     if (binding == nullptr) {
         Trace::error("Unknown method: " + name, this);
     }
@@ -1234,7 +1236,9 @@ void MethodCallExpression::findCompatibleMethod(
     }
 }
 
-void MethodCallExpression::setConstructorCallName(Type* allocatedObjectType) {
+void MethodCallExpression::setConstructorCallName(
+    const Type* allocatedObjectType) {
+
     // We may need to update the name of the constructor call to match the name
     // of the constructed concrete class which includes the concrete type
     // parameters.
@@ -1287,8 +1291,8 @@ Expression* MethodCallExpression::transform(Context& context) {
     return this;
 }
 
-bool MethodCallExpression::resolvesToClosure(Context& context) {
-    const auto binding = context.lookup(name);
+bool MethodCallExpression::resolvesToClosure(const Context& context) {
+    auto binding = context.lookup(name);
     if (binding == nullptr) {
         Trace::error("Unknown method: " + name, this);
     }
@@ -1325,7 +1329,7 @@ bool MethodCallExpression::isBuiltInArrayMethod() {
 }
 
 void MethodCallExpression::checkBuiltInArrayMethodPlaceholderTypes(
-    Context& context) {
+    const Context& context) {
 
     // Some of the methods in the built-in array class has arguments and return
     // values of placeholder type. These arguments and return values need to be
@@ -1337,7 +1341,7 @@ void MethodCallExpression::checkBuiltInArrayMethodPlaceholderTypes(
     //     _[] concat(_[] array)
     //     _[] slice(int begin, int end)
     //
-    Type* arrayType = context.getArrayType();
+    auto arrayType = context.getArrayType();
     if (name.compare(BuiltInTypes::arrayAppendAllMethodName) == 0 ||
         name.compare(BuiltInTypes::arrayAppendMethodName) == 0) {
         checkArrayAppend(arrayType);
@@ -1352,8 +1356,8 @@ void MethodCallExpression::checkBuiltInArrayMethodPlaceholderTypes(
 void MethodCallExpression::checkArrayAppend(const Type* arrayType) {
     assert(arrayType->isArray());
 
-    Expression* argument = arguments.front();
-    const Type* argumentType = argument->getType();
+    auto argument = arguments.front();
+    const auto argumentType = argument->getType();
 
     if (arrayType->isConstant()) {
         Trace::error("Cannot change the value of a constant.",
@@ -1384,7 +1388,7 @@ void MethodCallExpression::checkArrayAppend(const Type* arrayType) {
 void MethodCallExpression::checkArrayConcatenation(const Type* arrayType) {
     assert(arrayType->isArray());
 
-    const Type* argumentType = arguments.front()->getType();
+    const auto argumentType = arguments.front()->getType();
 
     if (!argumentType->isArray()) {
         Trace::error("Right-hand side must be an array.",
@@ -1428,11 +1432,10 @@ void MethodCallExpression::reportError(
 }
 
 Expression* MethodCallExpression::transformDueToLambda(
-    MethodDefinition* methodDefinition,
+    const MethodDefinition* methodDefinition,
     Context& context) {
 
-    FunctionSignature* lambdaSignature =
-        methodDefinition->getLambdaSignature();
+    auto lambdaSignature = methodDefinition->getLambdaSignature();
     lambda->setLambdaSignature(lambdaSignature);
     if (lambda->getArguments().size() !=
         lambdaSignature->getArguments().size()) {
@@ -2056,7 +2059,7 @@ Type* TypeCastExpression::typeCheck(Context& context) {
         return type;
     }
     operand = operand->transform(context);
-    Type* fromType = operand->typeCheck(context);
+    auto fromType = operand->typeCheck(context);
 
     lookupTargetType(context);
 
@@ -2193,8 +2196,8 @@ Expression* BinaryExpression::clone() const {
 Type* BinaryExpression::typeCheck(Context& context) {
     // Left and right have already been transformed in
     // BinaryExpression::transform().
-    Type* leftType = left->typeCheck(context);
-    Type* rightType = right->typeCheck(context);
+    auto leftType = left->typeCheck(context);
+    auto rightType = right->typeCheck(context);
 
     switch (op) {
         case Operator::Equal:
@@ -2273,7 +2276,7 @@ void BinaryExpression::checkAssignment(
     const Context& context) {
 
     if (leftType->isConstant()) {
-        const MethodDefinition* method = context.getMethodDefinition();
+        const auto method = context.getMethodDefinition();
         if (method->isEnumConstructor() || method->isEnumCopyConstructor() ||
             (leftIsMemberConstant() && method->isConstructor())) {
             // Member constant initialization.
@@ -2339,8 +2342,8 @@ Expression* BinaryExpression::transform(Context& context) {
     right->typeCheck(context);
 
     inferTypes(context);
-    Type* leftType = left->getType();
-    Type* rightType = right->getType();
+    auto leftType = left->getType();
+    auto rightType = right->getType();
 
     if (leftType->isString() && rightType->isString() &&
         op != Operator::Assignment && op != Operator::AssignmentExpression) {
@@ -2629,7 +2632,7 @@ Expression* YieldExpression::clone() const {
 }
 
 Expression* YieldExpression::transform(Context& context) {
-    LambdaExpression* lambdaExpression = context.getLambdaExpression();
+    auto lambdaExpression = context.getLambdaExpression();
     if (lambdaExpression == nullptr) {
         return this;
     }
@@ -2667,7 +2670,7 @@ YieldExpression::inlineLambdaExpressionWithReturnValue(
 
     const Location& location = getLocation();
 
-    Type* lambdaRetvalTmpType =
+    auto lambdaRetvalTmpType =
         lambdaExpression->getLambdaSignature()->getReturnType()->clone();
 
     // Remove any write-protection from the temporary variable so that it can
@@ -2732,8 +2735,7 @@ BlockStatement* YieldExpression::inlineLambdaExpression(
 }
 
 Type* YieldExpression::typeCheck(Context& context) {
-    FunctionSignature* lambdaSignature =
-        context.getMethodDefinition()->getLambdaSignature();
+    auto lambdaSignature = context.getMethodDefinition()->getLambdaSignature();
     const TypeList& signatureArgumentTypes = lambdaSignature->getArguments();
     if (signatureArgumentTypes.size() != arguments.size()) {
         Trace::error("Wrong number of arguments in yield expression.", this);    
@@ -2811,9 +2813,8 @@ Expression* AnonymousFunctionExpression::transform(Context& context) {
     // The anonymous function will be converted into a reference to an object
     // containing both the function and the non-local variables used in the
     // function.
-    Closure closure(Tree::getCurrentTree());
-    ClosureInfo closureInfo;
-    closure.generateClass(this, context, &closureInfo);
+    Closure::Info closureInfo;
+    Closure::generateClass(Tree::getCurrentTree(), this, context, closureInfo);
 
     const Location& loc = getLocation();
     auto constructorCall =
@@ -2960,7 +2961,7 @@ void MatchCase::buildPatterns(Context& context) {
 }
 
 bool MatchCase::isMatchExhaustive(
-    Expression* subject,
+    const Expression* subject,
     MatchCoverage& coverage,
     Context& context) {
 
@@ -2977,7 +2978,7 @@ bool MatchCase::isMatchExhaustive(
 }
 
 BinaryExpression* MatchCase::generateComparisonExpression(
-    Expression* subject,
+    const Expression* subject,
     Context& context) {
 
     auto i = patterns.cbegin();
@@ -3017,7 +3018,7 @@ bool MatchCase::generateTemporariesCreatedByPatterns(BlockStatement* block) {
 Type* MatchCase::generateCaseBlock(
     BlockStatement* caseBlock,
     Context& context,
-    Expression* subject,
+    const Expression* subject,
     const Identifier& matchResultTmpName,
     const Identifier& matchEndLabelName) {
 
@@ -3057,7 +3058,7 @@ Type* MatchCase::generateCaseResultBlock(
     generateVariablesCreatedByPatterns(block);
 
     Type* caseResultType = nullptr;
-    BlockStatement* caseResultBlock = chooseCaseResultBlock(block, context);
+    auto caseResultBlock = chooseCaseResultBlock(block, context);
 
     if (resultBlock != nullptr) {
         caseResultBlock->copyStatements(*resultBlock);
@@ -3065,8 +3066,7 @@ Type* MatchCase::generateCaseResultBlock(
 
     Context blockContext(context);
     block->typeCheck(blockContext);
-    Expression* lastExpression =
-        caseResultBlock->getLastStatementAsExpression();
+    auto lastExpression = caseResultBlock->getLastStatementAsExpression();
     if (lastExpression != nullptr) {
         caseResultType = lastExpression->getType();
         if (!caseResultType->isVoid()) {
@@ -3310,7 +3310,7 @@ Identifier MatchExpression::generateMatchEndLabelName() {
 }
 
 void MatchExpression::checkResultType(
-    Type* caseResultType,
+    const Type* caseResultType,
     const MatchCase* matchCase) {
 
     const Type* commonType = Type::calculateCommonType(type, caseResultType);
@@ -3594,7 +3594,7 @@ Expression* WrappedStatementExpression::clone() const {
 
 Type* WrappedStatementExpression::typeCheck(Context& context) {
     if (disallowYieldTransformation) {
-        LambdaExpression* lambdaExpression = context.getLambdaExpression();
+        auto lambdaExpression = context.getLambdaExpression();
         context.setLambdaExpression(nullptr);
         type = statement->typeCheck(context);
         context.setLambdaExpression(lambdaExpression);

@@ -4,44 +4,25 @@
 #include "CommonTypes.h"
 
 class ClassDefinition;
-class MethodDefinition;
 class Tree;
 class AnonymousFunctionExpression;
 class Context;
 
 using VariableDeclarationList = std::vector<VariableDeclaration*>;
 
-struct ClosureInfo {
-    ClosureInfo() :
-        closureInterfaceType(nullptr),
-        className(),
-        nonLocalVars() {}
+namespace Closure {
+    struct Info {
+        Type* closureInterfaceType {nullptr};
+        Identifier className;
+        VariableDeclarationList nonLocalVars;
+    };
 
-    Type* closureInterfaceType;
-    Identifier className;
-    VariableDeclarationList nonLocalVars;
-};
-
-class Closure {
-public:
-    explicit Closure(Tree& t);
-
-    ClassDefinition* generateInterface(const Type* closureType);
+    ClassDefinition* generateInterface(Tree& tree, const Type* closureType);
     void generateClass(
+        Tree& tree,
         AnonymousFunctionExpression* function,
         const Context& context,
-        ClosureInfo* info);
-
-private:
-    MethodDefinition* generateCallMethodSignature(const Type* closureType);
-    ClassDefinition* startGeneratingClass(
-        AnonymousFunctionExpression* function,
-        const VariableDeclarationList& nonLocalVariables,
-        const Context& context,
-        MethodDefinition** callMethod);
-    Type* getClosureInterfaceType(MethodDefinition* callMethod);
-
-    Tree& tree;
-};
+        Info& info);
+}
 
 #endif
